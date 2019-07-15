@@ -1,0 +1,11 @@
+
+openssl genrsa -out ca.key 4096
+openssl req -key ca.key -new -x509 -days 3650 -out ca.pem -subj '/CN=RustKMIP/L=New York/ST=New York/C=US' -addext "keyUsage = critical, digitalSignature, cRLSign, keyCertSign"
+cat ca.key ca.pem > ca_all.pem
+
+openssl req -newkey rsa:2048 -nodes -keyout server.key -days 3650 -out server.csr -subj '/CN=Server/OU=RustKMIP/L=New York/ST=New York/C=US'
+openssl x509 -req -sha256 -in server.csr -days 3650 -out server.pem -CA ca_all.pem -CAcreateserial
+
+openssl req -newkey rsa:2048 -nodes -keyout client.key -days 3650 -out client.csr -subj '/CN=Client/OU=RustKMIP/L=New York/ST=New York/C=US'
+openssl x509 -req -sha256 -in client.csr -days 3650 -out client.pem -CA ca_all.pem -CAcreateserial
+
