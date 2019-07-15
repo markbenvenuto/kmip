@@ -6,6 +6,20 @@ extern crate num_traits;
 use num_traits::FromPrimitive;
 
 #[derive(FromPrimitive, Debug)]
+enum ItemType {
+ Structure = 0x01,
+ Integer = 0x02,
+ LongInteger = 0x03,
+ BigInteger = 0x04,
+ Enumeration = 0x05,
+ Boolean = 0x06,
+ TextString = 0x07,
+ ByteString = 0x08,
+ DateTime = 0x09,
+ Interval = 0x0A,
+}
+
+#[derive(FromPrimitive, Debug)]
 pub enum Operation {
     Create = 0x00000001,
     CreateKeyPair = 0x00000002,

@@ -1,13 +1,7 @@
-use {Error, Result}
-
-use std::io;
-use std::io::Read;
-use std::io::Write;
-use std::io::Cursor;
-
 use serde::{ser, Serialize};
 
-//use error::{Error, Result};
+use error::{Error, Result};
+
 
 
 extern crate num;
@@ -25,19 +19,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 //use self::enums;
 use crate::kmip_enums;
 
-#[derive(FromPrimitive, Debug)]
-enum ItemType {
- Structure = 0x01,
- Integer = 0x02,
- LongInteger = 0x03,
- BigInteger = 0x04,
- Enumeration = 0x05,
- Boolean = 0x06,
- TextString = 0x07,
- ByteString = 0x08,
- DateTime = 0x09,
- Interval = 0x0A,
-}
+
 
 
 
@@ -58,9 +40,7 @@ fn compute_padding(len: usize) -> usize {
 }
 
 
-pub fn write_string(writer : &mut dyn Write, tag : u16, value: &str ) {
-    write_tag(writer, tag);
-
+pub fn write_string(writer : &mut dyn Write, value: &str ) {
     writer.write_u8(ItemType::TextString as u8).unwrap();
 
     writer.write_u32::<BigEndian>(value.len() as u32).unwrap();
@@ -71,9 +51,7 @@ pub fn write_string(writer : &mut dyn Write, tag : u16, value: &str ) {
     assert_eq!{ padded_length, value.len()};
 }
 
-pub fn write_bytes(writer : &mut dyn Write, tag : u16, value: &[u8] ) {
-    write_tag(writer, tag);
-
+pub fn write_bytes(writer : &mut dyn Write, value: &[u8] ) {
     writer.write_u8(ItemType::ByteString as u8).unwrap();
 
     writer.write_u32::<BigEndian>(value.len() as u32).unwrap();
@@ -84,9 +62,7 @@ pub fn write_bytes(writer : &mut dyn Write, tag : u16, value: &[u8] ) {
     assert_eq!{ padded_length, value.len()};
 }
 
-pub fn write_i32(writer : &mut dyn Write, tag : u16, value: i32 ) {
-    write_tag(writer, tag);
-
+pub fn write_i32(writer : &mut dyn Write, value: i32 ) {
     writer.write_u8(ItemType::Integer as u8).unwrap();
 
     writer.write_u32::<BigEndian>(4).unwrap();
@@ -99,9 +75,7 @@ pub fn write_i32(writer : &mut dyn Write, tag : u16, value: i32 ) {
 }
 
 
-pub fn write_i64(writer : &mut dyn Write, tag : u16, value: i64 ) {
-    write_tag(writer, tag);
-
+pub fn write_i64(writer : &mut dyn Write, value: i64 ) {
     writer.write_u8(ItemType::LongInteger as u8).unwrap();
 
     writer.write_u32::<BigEndian>(8).unwrap();
@@ -110,9 +84,7 @@ pub fn write_i64(writer : &mut dyn Write, tag : u16, value: i64 ) {
 }
 
 
-pub fn write_enumeration(writer : &mut dyn Write, tag : u16, value: i32 ) {
-    write_tag(writer, tag);
-
+pub fn write_enumeration(writer : &mut dyn Write, value: i32 ) {
     writer.write_u8(ItemType::Enumeration as u8).unwrap();
 
     writer.write_u32::<BigEndian>(4).unwrap();
@@ -142,12 +114,10 @@ impl<'a> Write for CountingWriter<'a> {
        return ret;
    }
 
-
     fn flush(&mut self) -> io::Result<()> {
         return Ok(())
     }
 }
-
 
 
 pub struct StructWriter<'a> {
@@ -177,10 +147,8 @@ impl<'a> Drop for StructWriter<'a> {
     }
 }
 
-
-
-pub fn begin_struct(writer : &mut dyn Write, tag : u16, value: i32 ) -> StructWriter {
-    write_tag(writer, tag);
+pub fn begin_struct(writer : &mut dyn Write, value: i32 ) -> StructWriter {
+    //write_tag(writer, tag);
 
     writer.write_u8(ItemType::Structure as u8).unwrap();
 
@@ -188,148 +156,6 @@ pub fn begin_struct(writer : &mut dyn Write, tag : u16, value: i32 ) -> StructWr
 }
 
 
-
-///////////////////////////////
-
-fn read_tag(reader: &mut dyn Read) -> u32 {
-    let v = reader.read_u8().unwrap();
-    assert_eq!(v, 0x42);
-    let tag = reader.read_u16::<BigEndian>().unwrap();
-
-    return 0x420000 + tag as u32;
-}
-
-fn read_len(reader: &mut dyn Read) -> u32 {
-    return reader.read_u32::<BigEndian>().unwrap();
-}
-
-fn read_type(reader: &mut dyn Read) -> ItemType {
-    let i = reader.read_u8().unwrap();
-    return num::FromPrimitive::from_u8(i).unwrap();
-}
-
-
-fn read_i32(reader: &mut dyn Read) -> i32 {
-    let len = read_len(reader);
-    assert_eq !(len, 4);
-    let v = reader.read_i32::<BigEndian>().unwrap();
-
-    // swallow the padding
-    // TODO - speed up
-    reader.read_i32::<BigEndian>().unwrap();
-
-    return v;
-}
-
-fn read_i64(reader: &mut dyn Read) -> i64 {
-    let len = read_len(reader);
-    assert_eq !(len, 8);
-
-    let v = reader.read_i64::<BigEndian>().unwrap();
-    return v;
-}
-
-fn read_string(reader: &mut dyn Read) -> String {
-    let len = read_len(reader);
-
-    let padding = compute_padding(len as usize);
-
-    let mut v : Vec<u8> = Vec::new();
-    v.resize(padding as usize, 0);
-
-    reader.read(v.as_mut_slice()).unwrap();
-
-    v.resize(len as usize, 0);
-
-    return String::from_utf8(v).unwrap();
-}
-
-fn read_bytes(reader: &mut dyn Read) -> Vec<u8> {
-    let len = read_len(reader);
-
-    let padding = compute_padding(len as usize);
-
-    let mut v : Vec<u8> = Vec::new();
-    v.resize(padding as usize, 0);
-
-    reader.read(v.as_mut_slice()).unwrap();
-
-    v.resize(len as usize, 0);
-
-    return v;
-}
-
-pub fn read_struct(reader : &mut dyn Read) -> Vec<u8> {
-    let len = read_len(reader);
-
-
-    let mut v : Vec<u8> = Vec::new();
-    v.resize(len as usize, 0);
-
-    reader.read(v.as_mut_slice()).unwrap();
-
-    return v;
-}
-
-
-/////////////////////////////
-pub fn to_print(buf: &[u8]) {
-
-    let mut cur = Cursor::new(buf);
-
-    while cur.position() < buf.len() as u64 {
-
-        let tag_u32 = read_tag(&mut cur);
-
-        let tag : kmip_enums::Tag = num::FromPrimitive::from_u32(tag_u32).unwrap();
-
-        let item_type = read_type(&mut cur);
-
-        match item_type {
-            ItemType::Integer => {
-                let v = read_i32(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
-            }
-            ItemType::LongInteger => {
-                let v = read_i64(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
-            }
-            ItemType::Enumeration => {
-                let v = read_i32(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
-            }
-            ItemType::TextString => {
-                let v = read_string(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
-            }
-
-            ItemType::Structure => {
-                let v = read_struct(&mut cur);
-                println!("Tag {:?} - Type {:?} - Structure {{", tag, item_type);
-                to_print(v.as_slice());
-                println!("}}");
-            }
-
-            _ => {
-                panic!{};
-            }
-        }
-    }
-
-}
-
-
-//////////////////
-
-
-// impl<'de> Deserialize<'de> for i32 {
-//     fn deserialize<D>(deserializer: D) -> Result<i32, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         deserializer.deserialize_i32(I32Visitor)
-//     }
-// }
 
 
 pub struct Serializer {
@@ -380,7 +206,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // of the primitive types of the data model and map it to JSON by appending
     // into the output string.
     fn serialize_bool(self, v: bool) -> Result<()> {
-        self.output += if v { "true" } else { "false" };
+        panic!{}
+        // TODO
         Ok(())
     }
 
@@ -389,39 +216,39 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // will be serialized the same. Other formats, especially compact binary
     // formats, may need independent logic for the different sizes.
     fn serialize_i8(self, v: i8) -> Result<()> {
-        self.serialize_i64(i64::from(v))
+        self.serialize_i32(i32::from(v))
     }
 
     fn serialize_i16(self, v: i16) -> Result<()> {
-        self.serialize_i64(i64::from(v))
+        self.serialize_i32(i32::from(v))
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        self.serialize_i64(i64::from(v))
+        write_i32(&mut self.output, v)
+        Ok(())
     }
 
     // Not particularly efficient but this is example code anyway. A more
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.output += &v.to_string();
+        write_i64(&mut self.output, v)
         Ok(())
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
-        self.serialize_u64(u64::from(v))
+        self.serialize_u32(u32::from(v))
     }
 
     fn serialize_u16(self, v: u16) -> Result<()> {
-        self.serialize_u64(u64::from(v))
+        self.serialize_u32(u32::from(v))
     }
 
     fn serialize_u32(self, v: u32) -> Result<()> {
-        self.serialize_u64(u64::from(v))
+        self.serialize_i32(v as i32)
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.output += &v.to_string();
-        Ok(())
+        self.serialize_i64(v as i64)
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
@@ -429,23 +256,22 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
-        self.output += &v.to_string();
+        panic!{}
         Ok(())
     }
 
     // Serialize a char as a single-character string. Other formats may
     // represent this differently.
     fn serialize_char(self, v: char) -> Result<()> {
-        self.serialize_str(&v.to_string())
+        panic!{}
+        Ok(())
     }
 
     // This only works for strings that don't require escape sequences but you
     // get the idea. For example it would emit invalid JSON if the input string
     // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.output += "\"";
-        self.output += v;
-        self.output += "\"";
+        write_string(&mut self.output, v);
         Ok(())
     }
 
@@ -453,12 +279,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // string here. Binary formats will typically represent byte arrays more
     // compactly.
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        use serde::ser::SerializeSeq;
-        let mut seq = self.serialize_seq(Some(v.len()))?;
-        for byte in v {
-            seq.serialize_element(byte)?;
-        }
-        seq.end()
+        write_bytes(&mut self.output, v);
     }
 
     // An absent optional is represented as the JSON `null`.
@@ -481,7 +302,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // In Serde, unit means an anonymous value containing no data. Map this to
     // JSON as `null`.
     fn serialize_unit(self) -> Result<()> {
-        self.output += "null";
+        panic!{}
         Ok(())
     }
 
