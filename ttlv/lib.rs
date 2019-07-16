@@ -11,9 +11,8 @@ extern crate strum_macros;
 extern crate num_derive;
 
 
-//pub use de::{from_bytes, Deserializer};
+pub use de::{from_bytes, Deserializer};
 pub use error::{Error, Result};
 pub use ser::{to_bytes, Serializer};
 
 pub use de::to_print;
-

@@ -175,18 +175,37 @@ pub fn write_struct(writer : &mut dyn Write) {
 struct NestedWriter {
     start_positions : Vec<usize>,
     vec : Vec<u8>,
+    tag : Option<Tag>,
 }
 
 impl NestedWriter {
     fn new() -> NestedWriter {
         return NestedWriter {
             start_positions: Vec::new(),
-            vec: Vec::new()
+            vec: Vec::new(),
+            tag: None,
         }
     }
 
     fn get_vector(mut self) -> Vec<u8> {
         return self.vec;
+    }
+
+    fn set_tag(&mut self, tag : Tag) {
+        self.tag = Some(tag)
+    }
+
+    fn write_optional_tag(&mut self) {
+        if let Some(t) = &self.tag {
+            write_tag_enum(&mut self.vec, *t);
+        }
+    }
+
+    fn flush_tag(&mut self) {
+        if let Some(t) = &self.tag {
+            write_tag_enum(&mut self.vec, *t);
+        }
+        self.tag = None;
     }
 
     fn begin_inner(&mut self) {
@@ -289,6 +308,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
+        self.output.write_optional_tag();
         write_i32(&mut self.output, v);
         Ok(())
     }
@@ -296,6 +316,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // Not particularly efficient but this is example code anyway. A more
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<()> {
+        self.output.write_optional_tag();
         write_i64(&mut self.output, v);
         Ok(())
     }
@@ -334,6 +355,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // get the idea. For example it would emit invalid JSON if the input string
     // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<()> {
+        self.output.write_optional_tag();
         write_string(&mut self.output, v);
         Ok(())
     }
@@ -342,6 +364,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // string here. Binary formats will typically represent byte arrays more
     // compactly.
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
+        self.output.write_optional_tag();
         write_bytes(&mut self.output, v);
         Ok(())
     }
@@ -434,7 +457,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // explicitly in the serialized form. Some serializers may only be able to
     // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        unimplemented!();
+        Ok(self)
     }
 
     // Tuples look just like sequences in JSON. Some formats may be able to
@@ -523,7 +546,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!();
+        value.serialize(&mut **self)
     }
 
     // Close the sequence.
@@ -645,7 +668,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     {
         println!("serializing {:?}", key);
         let tag = Tag::from_str(key).unwrap();
-        write_tag_enum(&mut self.output, tag);
+        self.output.set_tag(tag);
 
         value.serialize(&mut **self)
     }
@@ -717,6 +740,104 @@ fn test_struct() {
     assert_eq!(v, good);
 }
 
+
+#[test]
+fn test_struct_nested() {
+    #[derive(Serialize, Debug)]
+    struct RequestHeader {
+        ProtocolVersionMajor : i32,
+        BatchCount: i32,
+    }
+
+    #[derive(Serialize, Debug)]
+    struct RequestMessage {
+        RequestHeader: RequestHeader,
+        UniqueIdentifier: String,
+    }
+
+    let a =  RequestMessage {
+    RequestHeader : RequestHeader {
+          ProtocolVersionMajor : 3,
+        BatchCount: 4,
+    },
+        UniqueIdentifier: String::new(),
+    };
+
+    let v = to_bytes(&a).unwrap();
+
+    print!("Dump of bytes {:?}", v.hex_dump());
+
+    to_print(v.as_slice());
+
+    let good = vec!{66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7, 0, 0, 0, 0};
+
+    assert_eq!(v.len(), 56);
+
+    assert_eq!(v, good);
+}
+
+// #[test]
+// fn test_struct_nested2() {
+//     #[derive(Serialize, Debug)]
+//     struct ObjectType {
+//             UniqueIdentifier: String,
+//     }
+
+//     #[derive(Serialize, Debug)]
+//     struct RequestHeader {
+//         ProtocolVersionMinor : ObjectType,
+//         BatchCount: i32,
+//     }
+
+//     let a =  RequestHeader {
+//     ProtocolVersionMinor : ObjectType {
+//         UniqueIdentifier : String::new(),
+//     },
+//     BatchCount : 3,
+//     };
+
+//     let v = to_bytes(&a).unwrap();
+
+//     print!("Dump of bytes {:?}", v.hex_dump());
+
+//     to_print(v.as_slice());
+
+//     let good = vec!{66, 0, 119, 1, 0, 0, 0, 48, 66, 0, 106, 2, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 0, 66, 0, 87, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0};
+
+//     assert_eq!(v.len(), 56);
+
+//     assert_eq!(v, good);
+// }
+
+
+#[test]
+fn test_struct_types() {
+    #[derive(Serialize, Debug)]
+    struct RequestHeader<'a> {
+        ProtocolVersionMajor : String,
+        #[serde(with = "serde_bytes")]
+        ProtocolVersionMinor : &'a [u8],
+        BatchCount: i64,
+    }
+
+    let v = vec!{0x55,0x66,0x77};
+    let a =  RequestHeader {
+    ProtocolVersionMajor : String::new(),
+    ProtocolVersionMinor : v.as_slice(),
+    BatchCount : 3,
+    };
+
+    let v = to_bytes(&a).unwrap();
+
+    print!("Dump of bytes {:?}", v.hex_dump());
+
+    to_print(v.as_slice());
+        assert_eq!(v.len(), 48);
+}
+
+
+
+
 #[test]
 fn test_struct2() {
     #[derive(Serialize, Debug)]
@@ -737,6 +858,32 @@ fn test_struct2() {
     let good = vec!{66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105, 99, 97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0, 0, 0, 0};
 
     assert_eq!(v.len(), 48);
+
+    assert_eq!(v, good);
+}
+
+
+
+#[test]
+fn test_struct3() {
+    #[derive(Serialize, Debug)]
+    struct CRTCoefficient {
+        BatchCount: Vec<i32>,
+    }
+
+    let a  = CRTCoefficient {
+        BatchCount : vec!{0x66, 0x77, 0x88},
+    };
+
+    let v = to_bytes(&a).unwrap();
+
+    print!("Dump of bytes {:?}", v.hex_dump());
+
+    to_print(v.as_slice());
+
+    let good = vec!{66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0, 0, 0, 0};
+
+    assert_eq!(v.len(), 56);
 
     assert_eq!(v, good);
 }

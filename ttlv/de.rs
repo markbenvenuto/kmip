@@ -22,7 +22,7 @@ use num_traits::FromPrimitive;
 
 extern crate byteorder;
 use byteorder::{BigEndian, ReadBytesExt};
-
+use pretty_hex::*;
 //use self::enums;
 use crate::kmip_enums::*;
 
@@ -49,23 +49,26 @@ fn read_tag(reader: &mut dyn Read) -> u32 {
 fn read_tag_enum(reader: &mut dyn Read) -> Tag {
     let tag_u32 = read_tag(reader);
 
-    return num::FromPrimitive::from_u32(tag_u32).unwrap();
+    let t =  num::FromPrimitive::from_u32(tag_u32).unwrap();
+    println!("Read Typed Tag: {:?}", t);
+
+    return t;
 }
 
 fn read_len(reader: &mut dyn Read) -> u32 {
-    println!("Read Len");
-    return reader.read_u32::<BigEndian>().unwrap();
+    let len = reader.read_u32::<BigEndian>().unwrap();
+    return len;
 }
 
 fn read_type(reader: &mut dyn Read) -> ItemType {
-    println!("Read Type");
     let i = reader.read_u8().unwrap();
-    return num::FromPrimitive::from_u8(i).unwrap();
+    let t =  num::FromPrimitive::from_u8(i).unwrap();
+    println!("Read Type {:?}", t);
+    return t;
 }
 
 
 fn read_i32(reader: &mut dyn Read) -> i32 {
-    println!("Read i32");
     let len = read_len(reader);
     assert_eq !(len, 4);
     let v = reader.read_i32::<BigEndian>().unwrap();
@@ -74,20 +77,20 @@ fn read_i32(reader: &mut dyn Read) -> i32 {
     // TODO - speed up
     reader.read_i32::<BigEndian>().unwrap();
 
+    println!("Read i32: {:?}", v);
     return v;
 }
 
 fn read_i64(reader: &mut dyn Read) -> i64 {
-    println!("Read i64");
     let len = read_len(reader);
     assert_eq !(len, 8);
 
     let v = reader.read_i64::<BigEndian>().unwrap();
+    println!("Read i64: {:?}", v);
     return v;
 }
 
 fn read_string(reader: &mut dyn Read) -> String {
-    println!("Read string");
     let len = read_len(reader);
 
     let padding = compute_padding(len as usize);
@@ -102,7 +105,10 @@ fn read_string(reader: &mut dyn Read) -> String {
 
     v.resize(len as usize, 0);
 
-    return String::from_utf8(v).unwrap();
+    let s =  String::from_utf8(v).unwrap();
+    println!("Read string: {:?}", s);
+
+    return s;
 }
 
 fn read_bytes(reader: &mut dyn Read) -> Vec<u8> {
@@ -166,6 +172,10 @@ pub fn to_print(buf: &[u8]) {
                 let v = read_string(&mut cur);
                 println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
             }
+            ItemType::ByteString => {
+                let v = read_bytes(&mut cur);
+                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v.hex_dump());
+            }
 
             ItemType::Structure => {
                 let v = read_struct(&mut cur);
@@ -173,7 +183,6 @@ pub fn to_print(buf: &[u8]) {
                 to_print(v.as_slice());
                 println!("}}");
             }
-
             _ => {
                 panic!{};
             }
@@ -217,18 +226,24 @@ impl<'a> NestedReader<'a> {
     }
 
     fn begin_inner(&mut self) {
-        read_tag(&mut self.cur);
+        let t = read_tag_enum(&mut self.cur);
 
-        println!("read_inner: {}", self.cur.position());
+        println!("read_inner: {:?} - {:?}", t, self.cur.position());
         let t = read_type(&mut self.cur);
         assert_eq!(t, ItemType::Structure);
 
+        self.begin_inner_skip();
+    }
+
+    fn begin_inner_skip(&mut self) {
         let len = read_len(&mut self.cur) as u64;
+        println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
         self.end_positions.push(self.cur.position() + len);
         self.state = ReaderState::Tag;
     }
 
     fn close_inner(&mut self) {
+        println!(" close_inner");
         self.end_positions.pop().unwrap();
     }
 
@@ -253,6 +268,21 @@ impl<'a> NestedReader<'a> {
         assert_eq!(self.state, ReaderState::Tag);
         self.state = ReaderState::TypeLengthValue;
         return read_tag_enum(&mut self.cur);
+    }
+
+    fn peek_tag(&mut self) -> Tag  {
+        assert_eq!(self.state, ReaderState::Tag);
+        let pos = self.cur.position();
+        let tag = read_tag_enum(&mut self.cur);
+        self.cur.set_position(pos);
+        return tag;
+    }
+
+    fn reverse_tag(&mut self)  {
+        assert_eq!(self.state, ReaderState::TypeLengthValue);
+        self.state = ReaderState::Tag;
+        let pos = self.cur.position();
+        self.cur.set_position(pos-3);
     }
 
     fn read_i32(&mut self) -> i32 {
@@ -282,6 +312,13 @@ impl<'a> NestedReader<'a> {
         self.state = ReaderState::Tag;
         return read_string(&mut self.cur);
     }
+
+    fn read_bytes(&mut self) -> Vec<u8> {
+        assert_eq!(self.state, ReaderState::TypeLengthValue);
+        self.state = ReaderState::Tag;
+        return read_bytes(&mut self.cur);
+    }
+
 }
 
 // impl<'a> Read for NestedReader<'a> {
@@ -338,7 +375,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // Look at the input data to decide what Serde data model type to
     // deserialize as. Not all data formats are able to support this operation.
     // Formats that support `deserialize_any` are known as self-describing.
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -358,11 +395,25 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 let v = self.input.read_i32();
                 visitor.visit_i32(v)
             }
+            ItemType::LongInteger => {
+                let v = self.input.read_i64();
+                visitor.visit_i64(v)
+            }
             ItemType::TextString  => {
                 let v = self.input.read_string();
                 visitor.visit_string(v)
             }
-            _ => { unimplemented!(); }
+            ItemType::ByteString  => {
+                let v = self.input.read_bytes();
+                visitor.visit_bytes(v.as_slice())
+            }
+            ItemType::Structure  => {
+                self.input.begin_inner_skip();
+                visitor.visit_map(MapParser::new(&mut self))
+            }
+            _ => {
+                println!("Unhandled type: {:?}", t);
+                unimplemented!(); }
         }
 
     }
@@ -578,7 +629,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        unimplemented!();
+        visitor.visit_seq(SeqParser::new(&mut self))
     }
 
     // Tuples look just like sequences in JSON. Some formats may be able to
@@ -614,6 +665,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        println!("Deserialize Map");
         self.input.begin_inner();
 
         visitor.visit_map(MapParser::new(&mut self))
@@ -724,7 +776,6 @@ impl<'de, 'a> MapAccess<'de> for MapParser<'a, 'de> {
 
         println!("next key==");
         let a = seed.deserialize(&mut *self.de).map(Some);
-        //Ok(Some(tag))
         println!("==");
         return a;
     }
@@ -738,6 +789,49 @@ impl<'de, 'a> MapAccess<'de> for MapParser<'a, 'de> {
         let a = seed.deserialize(&mut *self.de);
         println!("--");
         return a;
+    }
+}
+
+
+struct SeqParser<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+    tag : Option<Tag>,
+}
+
+impl<'a, 'de> SeqParser<'a, 'de> {
+    fn new(de: &'a mut Deserializer<'de>) -> Self {
+        SeqParser {
+            de,
+            tag: None,
+        }
+    }
+}
+
+// `SeqAccess` is provided to the `Visitor` to give it the ability to iterate
+// through elements of the sequence.
+impl<'de, 'a> SeqAccess<'de> for SeqParser<'a, 'de> {
+    type Error = Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        if self.de.input.is_empty() {
+            return Ok(None);
+        }
+
+        if self.tag.is_some() {
+            let tag = self.de.input.peek_tag();
+            if tag != self.tag.unwrap() {
+                return Ok(None);
+            }
+        } else {
+            self.de.input.reverse_tag();
+        }
+        self.tag = Some(self.de.input.read_tag());
+
+        // Deserialize an array element.
+        seed.deserialize(&mut *self.de).map(Some)
     }
 }
 
@@ -772,6 +866,26 @@ fn test_de_struct() {
     }
 
 
+#[test]
+fn test_struct_nested() {
+    #[derive(Deserialize, Debug)]
+    struct RequestHeader {
+        ProtocolVersionMajor : i32,
+        BatchCount: i32,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct RequestMessage {
+        RequestHeader: RequestHeader,
+        UniqueIdentifier: String,
+    }
+
+    let good = vec!{66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7, 0, 0, 0, 0};
+
+    to_print(good.as_ref());
+    let a = from_bytes::<RequestHeader>(&good).unwrap();
+
+}
 
 #[test]
 fn test_struct2() {
@@ -783,6 +897,22 @@ fn test_struct2() {
     }
 
     let good = vec!{66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105, 99, 97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0, 0, 0, 0};
+    to_print(good.as_ref());
+
+    let a = from_bytes::<CRTCoefficient>(&good).unwrap();
+}
+
+
+
+#[test]
+fn test_struct3() {
+    #[derive(Deserialize, Debug)]
+    struct CRTCoefficient {
+        BatchCount: Vec<i32>,
+    }
+
+    let good = vec!{66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0, 0, 0, 0};
+
     to_print(good.as_ref());
 
     let a = from_bytes::<CRTCoefficient>(&good).unwrap();
