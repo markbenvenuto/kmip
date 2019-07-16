@@ -1,33 +1,40 @@
+use std::io::Write;
 use serde::{ser, Serialize};
 
-use error::{Error, Result};
+use std::str::FromStr;
 
-
+use crate::error::{Error, Result};
 
 extern crate num;
 //#[macro_use]
 extern crate num_derive;
 extern crate num_traits;
 
-use num_traits::FromPrimitive;
-
-use pretty_hex::*;
-
 extern crate byteorder;
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian, WriteBytesExt};
 
 //use self::enums;
-use crate::kmip_enums;
+use crate::kmip_enums::*;
 
-
-
+use pretty_hex::*;
+use crate::de::to_print;
 
 
 fn write_tag(writer: &mut dyn Write, tag: u16) {
+    // println!("write_tag");
     // 0x42 for tags built into the protocol
     // 0x54 for extension tags
     writer.write_u8(0x42).unwrap();
     writer.write_u16::<BigEndian>(tag).unwrap();
+}
+
+fn write_tag_enum(writer: &mut dyn Write, tag: Tag) {
+    // println!("write_Tag");
+    // 0x42 for tags built into the protocol
+    // 0x54 for extension tags
+    writer.write_u8(0x42).unwrap();
+    let tag_u32 = num::ToPrimitive::to_u32(&tag).unwrap();
+    writer.write_u16::<BigEndian>(tag_u32 as u16).unwrap();
 }
 
 fn compute_padding(len: usize) -> usize {
@@ -41,6 +48,7 @@ fn compute_padding(len: usize) -> usize {
 
 
 pub fn write_string(writer : &mut dyn Write, value: &str ) {
+    // println!("write_string");
     writer.write_u8(ItemType::TextString as u8).unwrap();
 
     writer.write_u32::<BigEndian>(value.len() as u32).unwrap();
@@ -52,6 +60,7 @@ pub fn write_string(writer : &mut dyn Write, value: &str ) {
 }
 
 pub fn write_bytes(writer : &mut dyn Write, value: &[u8] ) {
+    // println!("write_bytes");
     writer.write_u8(ItemType::ByteString as u8).unwrap();
 
     writer.write_u32::<BigEndian>(value.len() as u32).unwrap();
@@ -67,11 +76,11 @@ pub fn write_i32(writer : &mut dyn Write, value: i32 ) {
 
     writer.write_u32::<BigEndian>(4).unwrap();
 
+    writer.write_i32::<BigEndian>(value).unwrap();
+
     // Add 4 bytes of padding
     // TODO - make faster
     writer.write_u32::<BigEndian>(0).unwrap();
-
-    writer.write_i32::<BigEndian>(value).unwrap();
 }
 
 
@@ -89,11 +98,11 @@ pub fn write_enumeration(writer : &mut dyn Write, value: i32 ) {
 
     writer.write_u32::<BigEndian>(4).unwrap();
 
+    writer.write_i32::<BigEndian>(value).unwrap();
+
     // Add 4 bytes of padding
     // TODO - make faster
     writer.write_u32::<BigEndian>(0).unwrap();
-
-    writer.write_i32::<BigEndian>(value).unwrap();
 }
 
 struct CountingWriter<'a> {
@@ -104,7 +113,7 @@ struct CountingWriter<'a> {
 
 impl<'a> Write for CountingWriter<'a> {
 
-   fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
        let ret = self.writer.write(buf);
 
         if let Ok(s) = ret  {
@@ -114,7 +123,7 @@ impl<'a> Write for CountingWriter<'a> {
        return ret;
    }
 
-    fn flush(&mut self) -> io::Result<()> {
+    fn flush(&mut self) -> std::io::Result<()> {
         return Ok(())
     }
 }
@@ -155,12 +164,65 @@ pub fn begin_struct(writer : &mut dyn Write, value: i32 ) -> StructWriter {
     return StructWriter::new(writer);
 }
 
+pub fn write_struct(writer : &mut dyn Write) {
+    writer.write_u8(ItemType::Structure as u8).unwrap();
+}
 
+
+struct NestedWriter {
+    start_positions : Vec<usize>,
+    vec : Vec<u8>,
+}
+
+impl NestedWriter {
+    fn new() -> NestedWriter {
+        return NestedWriter {
+            start_positions: Vec::new(),
+            vec: Vec::new()
+        }
+    }
+
+    fn get_vector(mut self) -> Vec<u8> {
+        return self.vec;
+    }
+
+    fn begin_inner(&mut self) {
+        println!("write_innter");
+        let pos = self.vec.len();
+        self.vec.write_u32::<BigEndian>(0);
+        self.start_positions.push(pos)
+    }
+
+    fn close_inner(&mut self) {
+        let current_pos = self.vec.len();
+        let start_pos = self.start_positions.pop().unwrap();
+        // offset by 4
+        let len = current_pos - start_pos - 4;
+
+        let mut v1 : Vec<u8> = Vec::new();
+        v1.write_u32::<BigEndian>(len as u32);
+
+        for i in 0..4 {
+            self.vec[start_pos + i ] = v1[i];
+        }
+    }
+}
+
+impl Write for NestedWriter {
+
+   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+       return self.vec.write(buf);
+   }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        return Ok(())
+    }
+}
 
 
 pub struct Serializer {
     // This string starts empty and JSON is appended as values are serialized.
-    output: Vec<u8>,
+    output: NestedWriter,
 }
 
 // By convention, the public API of a Serde serializer is one or more `to_abc`
@@ -171,10 +233,10 @@ where
     T: Serialize,
 {
     let mut serializer = Serializer {
-        output: Vec::new(),
+        output: NestedWriter::new(),
     };
     value.serialize(&mut serializer)?;
-    Ok(serializer.output)
+    Ok(serializer.output.get_vector())
 }
 
 
@@ -224,14 +286,14 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        write_i32(&mut self.output, v)
+        write_i32(&mut self.output, v);
         Ok(())
     }
 
     // Not particularly efficient but this is example code anyway. A more
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<()> {
-        write_i64(&mut self.output, v)
+        write_i64(&mut self.output, v);
         Ok(())
     }
 
@@ -280,6 +342,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // compactly.
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
         write_bytes(&mut self.output, v);
+        Ok(())
     }
 
     // An absent optional is represented as the JSON `null`.
@@ -354,11 +417,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        self.output += "{";
-        variant.serialize(&mut *self)?;
-        self.output += ":";
+        let tag = Tag::from_str(_name).unwrap();
+        write_tag_enum(&mut self.output, tag);
         value.serialize(&mut *self)?;
-        self.output += "}";
         Ok(())
     }
 
@@ -373,7 +434,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // explicitly in the serialized form. Some serializers may only be able to
     // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        self.output += "[";
+        panic!{}
         Ok(self)
     }
 
@@ -403,15 +464,14 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        self.output += "{";
-        variant.serialize(&mut *self)?;
-        self.output += ":[";
+        panic!{}
         Ok(self)
     }
 
     // Maps are represented in JSON as `{ K: V, K: V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        self.output += "{";
+        write_struct(&mut self.output);
+        self.output.begin_inner();
         Ok(self)
     }
 
@@ -425,6 +485,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStruct> {
+        let tag = Tag::from_str(_name).unwrap();
+        write_tag_enum(&mut self.output, tag);
+
         self.serialize_map(Some(len))
     }
 
@@ -437,9 +500,222 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        self.output += "{";
-        variant.serialize(&mut *self)?;
-        self.output += ":{";
+        panic!{}
         Ok(self)
     }
+}
+
+
+
+// The following 7 impls deal with the serialization of compound types like
+// sequences and maps. Serialization of such types is begun by a Serializer
+// method and followed by zero or more calls to serialize individual elements of
+// the compound type and one call to end the compound type.
+//
+// This impl is SerializeSeq so these methods are called after `serialize_seq`
+// is called on the Serializer.
+impl<'a> ser::SerializeSeq for &'a mut Serializer {
+    // Must match the `Ok` type of the serializer.
+    type Ok = ();
+    // Must match the `Error` type of the serializer.
+    type Error = Error;
+
+    // Serialize a single element of the sequence.
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+                panic!{}
+        value.serialize(&mut **self)
+    }
+
+    // Close the sequence.
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+// Same thing but for tuples.
+impl<'a> ser::SerializeTuple for &'a mut Serializer {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+                panic!{}
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+// Same thing but for tuple structs.
+impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+                panic!{}
+                Ok(())
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+// Tuple variants are a little different. Refer back to the
+// `serialize_tuple_variant` method above:
+//
+//    self.output += "{";
+//    variant.serialize(&mut *self)?;
+//    self.output += ":[";
+//
+// So the `end` method in this impl is responsible for closing both the `]` and
+// the `}`.
+impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+                panic!{}
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+// Some `Serialize` types are not able to hold a key and value in memory at the
+// same time so `SerializeMap` implementations are required to support
+// `serialize_key` and `serialize_value` individually.
+//
+// There is a third optional method on the `SerializeMap` trait. The
+// `serialize_entry` method allows serializers to optimize for the case where
+// key and value are both available simultaneously. In JSON it doesn't make a
+// difference so the default behavior for `serialize_entry` is fine.
+impl<'a> ser::SerializeMap for &'a mut Serializer {
+    type Ok = ();
+    type Error = Error;
+
+    // The Serde data model allows map keys to be any serializable type. JSON
+    // only allows string keys so the implementation below will produce invalid
+    // JSON if the key serializes as something other than a string.
+    //
+    // A real JSON serializer would need to validate that map keys are strings.
+    // This can be done by using a different Serializer to serialize the key
+    // (instead of `&mut **self`) and having that other serializer only
+    // implement `serialize_str` and return an error on any other data type.
+    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        key.serialize(&mut **self)
+    }
+
+    // It doesn't make a difference whether the colon is printed at the end of
+    // `serialize_key` or at the beginning of `serialize_value`. In this case
+    // the code is a bit simpler having it here.
+    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+// Structs are like maps in which the keys are constrained to be compile-time
+// constant strings.
+impl<'a> ser::SerializeStruct for &'a mut Serializer {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        let tag = Tag::from_str(key).unwrap();
+        write_tag_enum(&mut self.output, tag);
+
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+                println!("write_innter_close");
+
+        self.output.close_inner();
+
+        Ok(())
+    }
+}
+
+// Similar to `SerializeTupleVariant`, here the `end` method is responsible for
+// closing both of the curly braces opened by `serialize_struct_variant`.
+impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        let tag = Tag::from_str(key).unwrap();
+        write_tag_enum(&mut self.output, tag);
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+
+#[test]
+fn test_struct() {
+    #[derive(Serialize, Debug)]
+    struct RequestHeader {
+        ProtocolVersionMajor : i32,
+        ProtocolVersionMinor : i32,
+        //BatchOrderOption : Option<i32>,
+        // Option::None - serializes as serialize_none()
+        // TODO: Other fields are optional
+        BatchCount: i32,
+    }
+
+    let a =  RequestHeader {
+    ProtocolVersionMajor : 1,
+    ProtocolVersionMinor : 2,
+    BatchOrderOption : None,
+    BatchCount : 3,
+    };
+
+    let v = to_bytes(&a).unwrap();
+
+    print!("Dump of bytes {:?}", v.hex_dump());
+
+    to_print(v.as_slice());
+
+    let good = vec!{0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00, 0x04,
+0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00, 0x00, 0x04,
+0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00, 0x00, 0x00, 0x04,
+0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00};
+
+    assert_eq!(v.len(), 56);
+
+    assert_eq!(v, good);
 }

@@ -6,7 +6,7 @@ extern crate num_traits;
 use num_traits::FromPrimitive;
 
 #[derive(FromPrimitive, Debug)]
-enum ItemType {
+pub enum ItemType {
  Structure = 0x01,
  Integer = 0x02,
  LongInteger = 0x03,
@@ -66,7 +66,7 @@ pub enum Operation {
     Export = 0x0000002B,
 }
 
-#[derive(FromPrimitive, Debug)]
+#[derive(FromPrimitive, ToPrimitive, EnumString, Debug)]
 pub enum Tag {
     ActivationDate = 0x420001,
     ApplicationData = 0x420002,

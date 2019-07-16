@@ -51,8 +51,8 @@ use std::collections::HashMap;
 
 // mod git;
 // mod watchman;
-mod ttlv;
-mod kmip_enums;
+
+use ttlv::*;
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
@@ -426,9 +426,9 @@ ttlv::to_print(bytes.as_slice());
 
 let a =  RequestHeader {
     ProtocolVersionMajor : 1,
-    ProtocolVersionMajor : 2,
+    ProtocolVersionMinor : 2,
     BatchCount : 3,
-}
+};
 
 ttlv::to_bytes(&a);
 

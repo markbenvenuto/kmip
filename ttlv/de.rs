@@ -1,8 +1,9 @@
+use std::io::Read;
+use std::io::Cursor;
+
 use serde::{ser, Serialize};
 
-use error::{Error, Result};
-
-
+use crate::error::{Error, Result};
 
 extern crate num;
 //#[macro_use]
@@ -11,15 +12,21 @@ extern crate num_traits;
 
 use num_traits::FromPrimitive;
 
-use pretty_hex::*;
-
 extern crate byteorder;
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian, ReadBytesExt};
 
 //use self::enums;
-use crate::kmip_enums;
+use crate::kmip_enums::*;
 
 
+fn compute_padding(len: usize) -> usize {
+    if len % 8 == 0 {
+        return len;
+    }
+
+    let padding = 8 - (len % 8);
+    return len + padding;
+}
 
 
 fn read_tag(reader: &mut dyn Read) -> u32 {
@@ -112,7 +119,7 @@ pub fn to_print(buf: &[u8]) {
 
         let tag_u32 = read_tag(&mut cur);
 
-        let tag : kmip_enums::Tag = num::FromPrimitive::from_u32(tag_u32).unwrap();
+        let tag : Tag = num::FromPrimitive::from_u32(tag_u32).unwrap();
 
         let item_type = read_type(&mut cur);
 
