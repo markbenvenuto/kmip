@@ -1,15 +1,16 @@
-use std::io::Read;
 use std::io::Cursor;
+use std::io::Read;
 
 use std::string::ToString;
 
 use std::ops::{AddAssign, MulAssign, Neg};
 
-use serde::Deserialize;
 use serde::de::{
-    self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess,
-    VariantAccess, Visitor,
+    self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
+    Visitor,
 };
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::error::{Error, Result};
 
@@ -19,13 +20,13 @@ extern crate num_derive;
 extern crate num_traits;
 
 use num_traits::FromPrimitive;
+use num_traits::ToPrimitive;
 
 extern crate byteorder;
 use byteorder::{BigEndian, ReadBytesExt};
 use pretty_hex::*;
 //use self::enums;
 use crate::kmip_enums::*;
-
 
 fn compute_padding(len: usize) -> usize {
     if len % 8 == 0 {
@@ -35,7 +36,6 @@ fn compute_padding(len: usize) -> usize {
     let padding = 8 - (len % 8);
     return len + padding;
 }
-
 
 fn read_tag(reader: &mut dyn Read) -> u32 {
     println!("Read Tag");
@@ -49,7 +49,7 @@ fn read_tag(reader: &mut dyn Read) -> u32 {
 fn read_tag_enum(reader: &mut dyn Read) -> Tag {
     let tag_u32 = read_tag(reader);
 
-    let t =  num::FromPrimitive::from_u32(tag_u32).unwrap();
+    let t = num::FromPrimitive::from_u32(tag_u32).unwrap();
     println!("Read Typed Tag: {:?}", t);
 
     return t;
@@ -62,15 +62,27 @@ fn read_len(reader: &mut dyn Read) -> u32 {
 
 fn read_type(reader: &mut dyn Read) -> ItemType {
     let i = reader.read_u8().unwrap();
-    let t =  num::FromPrimitive::from_u8(i).unwrap();
+    let t = num::FromPrimitive::from_u8(i).unwrap();
     println!("Read Type {:?}", t);
     return t;
 }
 
+fn read_enumeration(reader: &mut dyn Read) -> i32 {
+    let len = read_len(reader);
+    assert_eq!(len, 4);
+    let v = reader.read_i32::<BigEndian>().unwrap();
+
+    // swallow the padding
+    // TODO - speed up
+    reader.read_i32::<BigEndian>().unwrap();
+
+    println!("Read i32: {:?}", v);
+    return v;
+}
 
 fn read_i32(reader: &mut dyn Read) -> i32 {
     let len = read_len(reader);
-    assert_eq !(len, 4);
+    assert_eq!(len, 4);
     let v = reader.read_i32::<BigEndian>().unwrap();
 
     // swallow the padding
@@ -83,7 +95,7 @@ fn read_i32(reader: &mut dyn Read) -> i32 {
 
 fn read_i64(reader: &mut dyn Read) -> i64 {
     let len = read_len(reader);
-    assert_eq !(len, 8);
+    assert_eq!(len, 8);
 
     let v = reader.read_i64::<BigEndian>().unwrap();
     println!("Read i64: {:?}", v);
@@ -98,14 +110,14 @@ fn read_string(reader: &mut dyn Read) -> String {
     // TODO - better protection against bogus sizes
     assert!(padding < 32 * 1024);
 
-    let mut v : Vec<u8> = Vec::new();
+    let mut v: Vec<u8> = Vec::new();
     v.resize(padding as usize, 0);
 
     reader.read(v.as_mut_slice()).unwrap();
 
     v.resize(len as usize, 0);
 
-    let s =  String::from_utf8(v).unwrap();
+    let s = String::from_utf8(v).unwrap();
     println!("Read string: {:?}", s);
 
     return s;
@@ -119,7 +131,7 @@ fn read_bytes(reader: &mut dyn Read) -> Vec<u8> {
     // TODO - better protection against bogus sizes
     assert!(padding < 32 * 1024);
 
-    let mut v : Vec<u8> = Vec::new();
+    let mut v: Vec<u8> = Vec::new();
     v.resize(padding as usize, 0);
 
     reader.read(v.as_mut_slice()).unwrap();
@@ -129,11 +141,10 @@ fn read_bytes(reader: &mut dyn Read) -> Vec<u8> {
     return v;
 }
 
-pub fn read_struct(reader : &mut dyn Read) -> Vec<u8> {
+pub fn read_struct(reader: &mut dyn Read) -> Vec<u8> {
     let len = read_len(reader);
 
-
-    let mut v : Vec<u8> = Vec::new();
+    let mut v: Vec<u8> = Vec::new();
     v.resize(len as usize, 0);
 
     reader.read(v.as_mut_slice()).unwrap();
@@ -141,17 +152,14 @@ pub fn read_struct(reader : &mut dyn Read) -> Vec<u8> {
     return v;
 }
 
-
 /////////////////////////////
 pub fn to_print(buf: &[u8]) {
-
     let mut cur = Cursor::new(buf);
 
     while cur.position() < buf.len() as u64 {
-
         let tag_u32 = read_tag(&mut cur);
 
-        let tag : Tag = num::FromPrimitive::from_u32(tag_u32).unwrap();
+        let tag: Tag = num::FromPrimitive::from_u32(tag_u32).unwrap();
 
         let item_type = read_type(&mut cur);
 
@@ -174,7 +182,12 @@ pub fn to_print(buf: &[u8]) {
             }
             ItemType::ByteString => {
                 let v = read_bytes(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v.hex_dump());
+                println!(
+                    "Tag {:?} - Type {:?} - Value {:?}",
+                    tag,
+                    item_type,
+                    v.hex_dump()
+                );
             }
 
             ItemType::Structure => {
@@ -184,16 +197,13 @@ pub fn to_print(buf: &[u8]) {
                 println!("}}");
             }
             _ => {
-                panic!{};
+                panic! {};
             }
         }
     }
-
 }
 
-
 //////////////////
-
 
 // impl<'de> Deserialize<'de> for i32 {
 //     fn deserialize<D>(deserializer: D) -> Result<i32, D::Error>
@@ -207,22 +217,25 @@ pub fn to_print(buf: &[u8]) {
 #[derive(PartialEq, Debug)]
 enum ReaderState {
     Tag,
-    TypeLengthValue,
+    Type,
+    LengthValue,
 }
 
 struct NestedReader<'a> {
-    end_positions : Vec<u64>,
-    cur : Cursor< &'a [u8]>,
-    state : ReaderState,
+    end_positions: Vec<u64>,
+    cur: Cursor<&'a [u8]>,
+    state: ReaderState,
+    tag : Option<Tag>,
 }
 
 impl<'a> NestedReader<'a> {
     fn new(buf: &'a [u8]) -> NestedReader {
         return NestedReader {
             end_positions: Vec::new(),
-            cur: Cursor::new( buf ),
+            cur: Cursor::new(buf),
             state: ReaderState::Tag,
-        }
+            tag: None,
+        };
     }
 
     fn begin_inner(&mut self) {
@@ -232,10 +245,31 @@ impl<'a> NestedReader<'a> {
         let t = read_type(&mut self.cur);
         assert_eq!(t, ItemType::Structure);
 
+        self.state = ReaderState::LengthValue;
+
+        self.begin_inner_skip();
+    }
+
+    fn begin_inner_or_more(&mut self) {
+        if self.state == ReaderState::Tag {
+            let t = read_tag_enum(&mut self.cur);
+
+            println!("read_inner: {:?} - {:?}", t, self.cur.position());
+            self.state = ReaderState::Type;
+        }
+
+        if self.state == ReaderState::Type {
+            let t = read_type(&mut self.cur);
+            assert_eq!(t, ItemType::Structure);
+            self.state = ReaderState::LengthValue;
+        }
+
         self.begin_inner_skip();
     }
 
     fn begin_inner_skip(&mut self) {
+        assert_eq!(self.state, ReaderState::LengthValue);
+
         let len = read_len(&mut self.cur) as u64;
         println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
         self.end_positions.push(self.cur.position() + len);
@@ -247,16 +281,20 @@ impl<'a> NestedReader<'a> {
         self.end_positions.pop().unwrap();
     }
 
-    fn is_empty(&self)  -> bool {
+    fn is_empty(&self) -> bool {
         if self.end_positions.is_empty() {
             return true;
         }
-        println!("cmp1 {:?} == {:?}", *(self.end_positions.last().unwrap()) , self.cur.position());
+        println!(
+            "cmp1 {:?} == {:?}",
+            *(self.end_positions.last().unwrap()),
+            self.cur.position()
+        );
         return *(self.end_positions.last().unwrap()) == self.cur.position();
     }
 
     fn read_type(&mut self) -> ItemType {
-        assert_eq!(self.state, ReaderState::TypeLengthValue);
+        assert_eq!(self.state, ReaderState::Type);
         return read_type(&mut self.cur);
     }
 
@@ -264,13 +302,19 @@ impl<'a> NestedReader<'a> {
         self.state == ReaderState::Tag
     }
 
-    fn read_tag(&mut self) -> Tag  {
-        assert_eq!(self.state, ReaderState::Tag);
-        self.state = ReaderState::TypeLengthValue;
-        return read_tag_enum(&mut self.cur);
+    fn get_tag(&self) -> Tag {
+        return self.tag.unwrap();
     }
 
-    fn peek_tag(&mut self) -> Tag  {
+    fn read_tag(&mut self) -> Tag {
+        assert_eq!(self.state, ReaderState::Tag);
+        self.state = ReaderState::Type;
+        let t = read_tag_enum(&mut self.cur);
+        self.tag = Some(t);
+        return t;
+    }
+
+    fn peek_tag(&mut self) -> Tag {
         assert_eq!(self.state, ReaderState::Tag);
         let pos = self.cur.position();
         let tag = read_tag_enum(&mut self.cur);
@@ -278,21 +322,27 @@ impl<'a> NestedReader<'a> {
         return tag;
     }
 
-    fn reverse_tag(&mut self)  {
-        assert_eq!(self.state, ReaderState::TypeLengthValue);
+    fn reverse_tag(&mut self) {
+        assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
         let pos = self.cur.position();
-        self.cur.set_position(pos-3);
+        self.cur.set_position(pos - 3);
     }
 
     fn read_i32(&mut self) -> i32 {
-        assert_eq!(self.state, ReaderState::TypeLengthValue);
+        assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
         return read_i32(&mut self.cur);
     }
 
+    fn read_enumeration(&mut self) -> i32 {
+        assert_eq!(self.state, ReaderState::Type);
+        self.state = ReaderState::Tag;
+        return read_enumeration(&mut self.cur);
+    }
+
     fn read_i64(&mut self) -> i64 {
-        assert_eq!(self.state, ReaderState::TypeLengthValue);
+        assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
         return read_i64(&mut self.cur);
     }
@@ -302,23 +352,22 @@ impl<'a> NestedReader<'a> {
             self.read_tag();
         }
         assert_eq!(self.read_type(), ItemType::TextString);
-        assert_eq!(self.state, ReaderState::TypeLengthValue);
+        assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
         return read_string(&mut self.cur);
     }
 
     fn read_string(&mut self) -> String {
-        assert_eq!(self.state, ReaderState::TypeLengthValue);
+        assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
         return read_string(&mut self.cur);
     }
 
     fn read_bytes(&mut self) -> Vec<u8> {
-        assert_eq!(self.state, ReaderState::TypeLengthValue);
+        assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
         return read_bytes(&mut self.cur);
     }
-
 }
 
 // impl<'a> Read for NestedReader<'a> {
@@ -327,15 +376,18 @@ impl<'a> NestedReader<'a> {
 //     }
 // }
 
-
 ////////////////////
+
+pub trait EnumResolver {
+    fn resolve_enum(&self, name: &str, value: i32) -> String;
+}
 
 pub struct Deserializer<'de> {
     // This string starts with the input data and characters are truncated off
     // the beginning as data is parsed.
     //pub input: &'de [u8],
-
-    input : NestedReader<'de>,
+    input: NestedReader<'de>,
+    enum_resolver : &'de dyn EnumResolver,
 }
 
 impl<'de> Deserializer<'de> {
@@ -343,9 +395,12 @@ impl<'de> Deserializer<'de> {
     // That way basic use cases are satisfied by something like
     // `serde_json::from_str(...)` while advanced use cases that require a
     // deserializer can make one with `serde_json::Deserializer::from_str(...)`.
-    pub fn from_bytes(input: &'de [u8]) -> Self {
+    pub fn from_bytes(input: &'de [u8], enum_resolver: &'de dyn EnumResolver) -> Self {
         //Deserializer { input }
-        Deserializer { input : NestedReader::new(input) }
+        Deserializer {
+            input: NestedReader::new(input),
+            enum_resolver : enum_resolver,
+        }
     }
 }
 
@@ -354,11 +409,11 @@ impl<'de> Deserializer<'de> {
 // depending on what Rust types the deserializer is able to consume as input.
 //
 // This basic deserializer supports only `from_str`.
-pub fn from_bytes<'a, T>(s: &'a [u8]) -> Result<T>
+pub fn from_bytes<'a, T>(s: &'a [u8], enum_resolver: &'a dyn EnumResolver) -> Result<T>
 where
     T: Deserialize<'a>,
 {
-    let mut deserializer = Deserializer::from_bytes(s);
+    let mut deserializer = Deserializer::from_bytes(s, enum_resolver);
     let t = T::deserialize(&mut deserializer)?;
     if deserializer.input.is_empty() {
         Ok(t)
@@ -366,8 +421,6 @@ where
         Err(Error::Eof)
     }
 }
-
-
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
@@ -387,7 +440,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             let tag = self.input.read_tag();
             return visitor.visit_string(tag.as_ref().to_string());
         }
-         //self.input.read_tag();
+        //self.input.read_tag();
 
         let t = self.input.read_type();
         match t {
@@ -399,23 +452,23 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 let v = self.input.read_i64();
                 visitor.visit_i64(v)
             }
-            ItemType::TextString  => {
+            ItemType::TextString => {
                 let v = self.input.read_string();
                 visitor.visit_string(v)
             }
-            ItemType::ByteString  => {
+            ItemType::ByteString => {
                 let v = self.input.read_bytes();
                 visitor.visit_bytes(v.as_slice())
             }
-            ItemType::Structure  => {
+            ItemType::Structure => {
                 self.input.begin_inner_skip();
                 visitor.visit_map(MapParser::new(&mut self))
             }
             _ => {
                 println!("Unhandled type: {:?}", t);
-                unimplemented!(); }
+                unimplemented!();
+            }
         }
-
     }
 
     // Uses the `parse_bool` parsing function defined above to read the JSON
@@ -437,7 +490,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         unimplemented!()
-//        visitor.visit_bool(self.parse_bool()?)
+        //        visitor.visit_bool(self.parse_bool()?)
     }
 
     // The `parse_signed` function is generic over the integer type `T` so here
@@ -462,8 +515,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::Integer);
-        visitor.visit_i32(self.input.read_i32())
+        // assert_eq!(self.input.read_type(), ItemType::Integer);
+        // visitor.visit_i32(self.input.read_i32())
+
+        let t = self.input.read_type();
+
+        match t {
+            ItemType::Enumeration => {
+                visitor.visit_i32(self.input.read_enumeration())
+            }
+            ItemType::Integer => {
+                visitor.visit_i32(self.input.read_i32())
+            }
+            _ => { unreachable!{} }
+        }
+
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
@@ -597,11 +663,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     // Unit struct means a named value containing no data.
-    fn deserialize_unit_struct<V>(
-        self,
-        _name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -611,11 +673,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // As is done here, serializers are encouraged to treat newtype structs as
     // insignificant wrappers around the data they contain. That means not
     // parsing anything other than the contained value.
-    fn deserialize_newtype_struct<V>(
-        self,
-        _name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -666,7 +724,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         println!("Deserialize Map");
-        self.input.begin_inner();
+        self.input.begin_inner_or_more();
 
         visitor.visit_map(MapParser::new(&mut self))
     }
@@ -690,7 +748,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     fn deserialize_enum<V>(
-        self,
+        mut self,
         _name: &'static str,
         _variants: &'static [&'static str],
         visitor: V,
@@ -698,23 +756,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-                unimplemented!()
-
-        // if self.peek_char()? == '"' {
-        //     // Visit a unit variant.
-        //     visitor.visit_enum(self.parse_string()?.into_deserializer())
-        // } else if self.next_char()? == '{' {
-        //     // Visit a newtype variant, tuple variant, or struct variant.
-        //     let value = visitor.visit_enum(Enum::new(self))?;
-        //     // Parse the matching close brace.
-        //     if self.next_char()? == '}' {
-        //         Ok(value)
-        //     } else {
-        //         Err(Error::ExpectedMapEnd)
-        //     }
-        // } else {
-        //     Err(Error::ExpectedEnum)
-        // }
+        // assert_eq!(self.input.read_type(), ItemType::Enumeration);
+        // let e = self.input.read_enumeration();
+        // visitor.visit_string ( self.enum_resolver.resolve_enum(self.input.get_tag().as_ref(), e))
+        visitor.visit_enum(EnumParser::new(self))
     }
 
     // An identifier in Serde is the type that identifies a field of a struct or
@@ -725,7 +770,28 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.deserialize_string(visitor)
+         if self.input.is_tag() {
+            let tag = self.input.read_tag();
+
+            //return visitor.visit_i32(num::ToPrimitive::to_i32(&tag).unwrap());
+            return visitor.visit_string(tag.as_ref().to_string());
+        }
+
+        let t = self.input.read_type();
+
+        match t {
+            ItemType::Enumeration => {
+                let e = self.input.read_enumeration();
+                visitor.visit_string ( self.enum_resolver.resolve_enum(self.input.get_tag().as_ref(), e))
+            }
+            ItemType::TextString => {
+                visitor.visit_string ( self.input.read_string())
+
+            }
+            _ => { unreachable!{} }
+        }
+
+        //self.deserialize_string(visitor)
     }
 
     // Like `deserialize_any` but indicates to the `Deserializer` that it makes
@@ -743,10 +809,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.deserialize_any(visitor)
+        println!("EVIL IGNORED TAG: {:?} ", self.input.get_tag().as_ref());
+        unreachable!();
+        //self.deserialize_any(visitor)
     }
 }
-
 
 struct MapParser<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
@@ -754,9 +821,7 @@ struct MapParser<'a, 'de: 'a> {
 
 impl<'a, 'de> MapParser<'a, 'de> {
     fn new(de: &'a mut Deserializer<'de>) -> Self {
-        MapParser {
-            de,
-        }
+        MapParser { de }
     }
 }
 
@@ -792,18 +857,14 @@ impl<'de, 'a> MapAccess<'de> for MapParser<'a, 'de> {
     }
 }
 
-
 struct SeqParser<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
-    tag : Option<Tag>,
+    tag: Option<Tag>,
 }
 
 impl<'a, 'de> SeqParser<'a, 'de> {
     fn new(de: &'a mut Deserializer<'de>) -> Self {
-        SeqParser {
-            de,
-            tag: None,
-        }
+        SeqParser { de, tag: None }
     }
 }
 
@@ -836,12 +897,92 @@ impl<'de, 'a> SeqAccess<'de> for SeqParser<'a, 'de> {
 }
 
 
+struct EnumParser<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+    first: bool,
+}
+
+impl<'a, 'de> EnumParser<'a, 'de> {
+    fn new(de: &'a mut Deserializer<'de>) -> Self {
+        EnumParser { de, first : false }
+    }
+}
+
+// `EnumAccess` is provided to the `Visitor` to give it the ability to determine
+// which variant of the enum is supposed to be deserialized.
+//
+// Note that all enum deserialization methods in Serde refer exclusively to the
+// "externally tagged" enum representation.
+impl<'de, 'a> EnumAccess<'de> for EnumParser<'a, 'de> {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        // The `deserialize_enum` method parsed a `{` character so we are
+        // currently inside of a map. The seed will be deserializing itself from
+        // the key of the map.
+        let val = seed.deserialize(&mut *self.de)?;
+        // self.first = true;
+        Ok((val, self))
+    }
+}
+
+
+// `VariantAccess` is provided to the `Visitor` to give it the ability to see
+// the content of the single variant that it decided to deserialize.
+impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
+    type Error = Error;
+
+    // If the `Visitor` expected this variant to be a unit variant, the input
+    // should have been the plain string case handled in `deserialize_enum`.
+    fn unit_variant(self) -> Result<()> {
+        // unimplemented!{}
+        // Err(Error::Eof)
+        Ok(())
+    }
+
+    // Newtype variants are represented in JSON as `{ NAME: VALUE }` so
+    // deserialize the value here.
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        seed.deserialize(self.de)
+    }
+
+    // Tuple variants are represented in JSON as `{ NAME: [DATA...] }` so
+    // deserialize the sequence of data here.
+    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        de::Deserializer::deserialize_seq(self.de, visitor)
+    }
+
+    // Struct variants are represented in JSON as `{ NAME: { K: V, ... } }` so
+    // deserialize the inner map here.
+    fn struct_variant<V>(
+        self,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        de::Deserializer::deserialize_map(self.de, visitor)
+    }
+}
+
+
 #[test]
 fn test_de_struct() {
     #[derive(Deserialize, Debug)]
     struct RequestHeader {
-        ProtocolVersionMajor : i32,
-        ProtocolVersionMinor : i32,
+        ProtocolVersionMajor: i32,
+        ProtocolVersionMinor: i32,
 
         // #[serde(skip_serializing_if = "Option::is_none")]
         // BatchOrderOption : Option<i32>,
@@ -850,41 +991,20 @@ fn test_de_struct() {
         BatchCount: i32,
     }
 
-    let good = vec!{0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00};
+    let good = vec![
+        0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00,
+        0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00,
+        0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00,
+        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
 
-//    to_print(good.as_ref());
+    //    to_print(good.as_ref());
 
     let a = from_bytes::<RequestHeader>(&good).unwrap();
 
     assert_eq!(a.ProtocolVersionMajor, 1);
     assert_eq!(a.ProtocolVersionMinor, 2);
     assert_eq!(a.BatchCount, 3);
-
-    }
-
-
-#[test]
-fn test_struct_nested() {
-    #[derive(Deserialize, Debug)]
-    struct RequestHeader {
-        ProtocolVersionMajor : i32,
-        BatchCount: i32,
-    }
-
-    #[derive(Deserialize, Debug)]
-    struct RequestMessage {
-        RequestHeader: RequestHeader,
-        UniqueIdentifier: String,
-    }
-
-    let good = vec!{66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7, 0, 0, 0, 0};
-
-    to_print(good.as_ref());
-    let a = from_bytes::<RequestHeader>(&good).unwrap();
-
 }
 
 #[test]
@@ -893,16 +1013,17 @@ fn test_struct2() {
     #[serde(tag = "Operation", content = "BatchItem")]
     enum CRTCoefficient {
         Attribute(Vec<u8>),
-        CertificateRequest(String)
+        CertificateRequest(String),
     }
 
-    let good = vec!{66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105, 99, 97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0, 0, 0, 0};
+    let good = vec![
+        66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105, 99,
+        97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0, 0, 0, 0,
+    ];
     to_print(good.as_ref());
 
     let a = from_bytes::<CRTCoefficient>(&good).unwrap();
 }
-
-
 
 #[test]
 fn test_struct3() {
@@ -911,7 +1032,11 @@ fn test_struct3() {
         BatchCount: Vec<i32>,
     }
 
-    let good = vec!{66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0, 0, 0, 0};
+    let good = vec![
+        66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0, 13,
+        2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0, 0, 0,
+        0,
+    ];
 
     to_print(good.as_ref());
 

@@ -23,6 +23,10 @@ extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
 use structopt::StructOpt;
 
+extern crate strum;
+#[macro_use]
+extern crate strum_macros;
+
 
 use pretty_hex::*;
 
@@ -47,15 +51,64 @@ use std::fs;
 use std::net;
 use std::io::{Write, Read, BufReader};
 use std::collections::HashMap;
+use std::string::ToString;
 
+use strum::AsStaticRef;
 
 // mod git;
 // mod watchman;
 
 use ttlv::*;
 
+#[derive(FromPrimitive, Debug, AsStaticStr)]
+pub enum Operation {
+    Create = 0x00000001,
+    CreateKeyPair = 0x00000002,
+    Register = 0x00000003,
+    ReKey = 0x00000004,
+    DeriveKey = 0x00000005,
+    Certify = 0x00000006,
+    ReCertify = 0x00000007,
+    Locate = 0x00000008,
+    Check = 0x00000009,
+    Get = 0x0000000A,
+    GetAttributes = 0x0000000B,
+    GetAttributeList = 0x0000000C,
+    AddAttribute = 0x0000000D,
+    ModifyAttribute = 0x0000000E,
+    DeleteAttribute = 0x0000000F,
+    ObtainLease = 0x00000010,
+    GetUsageAllocation = 0x00000011,
+    Activate = 0x00000012,
+    Revoke = 0x00000013,
+    Destroy = 0x00000014,
+    Archive = 0x00000015,
+    Recover = 0x00000016,
+    Validate = 0x00000017,
+    Query = 0x00000018,
+    Cancel = 0x00000019,
+    Poll = 0x0000001A,
+    Notify = 0x0000001B,
+    Put = 0x0000001C,
+    ReKeyKeyPair = 0x0000001D,
+    DiscoverVersions = 0x0000001E,
+    Encrypt = 0x0000001F,
+    Decrypt = 0x00000020,
+    Sign = 0x00000021,
+    SignatureVerify = 0x00000022,
+    MAC = 0x00000023,
+    MACVerify = 0x00000024,
+    RNGRetrieve = 0x00000025,
+    RNGSeed = 0x00000026,
+    Hash = 0x00000027,
+    CreateSplitKey = 0x00000028,
+    JoinSplitKey = 0x00000029,
+    Import = 0x0000002A,
+    Export = 0x0000002B,
+}
 
-#[derive(Debug, Serialize, Deserialize)]
+
+#[derive(Debug, Serialize, Deserialize, FromPrimitive, AsStaticStr)]
 enum ObjectTypeEnum {
     Certificate = 0x00000001,
     SymmetricKey = 0x00000002,
@@ -68,13 +121,13 @@ enum ObjectTypeEnum {
     PGPKey = 0x00000009,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize,FromPrimitive,AsStaticStr)]
 enum NameTypeEnum {
     UninterpretedTextString = 0x00000001,
     URI = 0x00000002,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, FromPrimitive,AsStaticStr)]
 enum CryptographicAlgorithm {
     DES = 0x00000001,
     TripleDES = 0x00000002,
@@ -483,27 +536,41 @@ struct NameStruct {
     NameType : NameTypeEnum,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct TemplateAttribute {
-    Name : NameStruct,
-    Attribute : AttributeStruct,
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// struct TemplateAttribute {
+//     Name : NameStruct,
+//     Attribute : AttributeStruct,
+// }
 
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "AttributeName", content = "AttributeValue")]
 enum CreateRequestAttributes {
+    #[serde(rename = "Cryptographic Algorithm")]
+    // TODO - use CryptographicAlgorithm as the type but serde calls deserialize_identifier
+    // and we do not have enough context to realize it is CryptographicAlgorithm, we think it is AttributeValue
+    CryptographicAlgorithm(i32),
+
     #[serde(rename = "Cryptographic Length")]
     CryptographicLength(i32),
+
     #[serde(rename = "Cryptographic Usage Mask")]
     CryptographicUsageMask(i32),
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+struct TemplateAttribute {
+    Name : Option<NameStruct>,
+    #[serde(rename="Attribute")]
+    Attribute: Vec<CreateRequestAttributes>,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 struct CreateRequest {
     ObjectType : ObjectTypeEnum,
-    Attribute: Vec<CreateRequestAttributes>,
+    TemplateAttribute: Vec<TemplateAttribute>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -514,17 +581,21 @@ struct CreateResponse {
 
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "Operation", content = "BatchItem")]
+#[serde(tag = "Operation", content = "RequestPayload")]
 enum RequestBatchItem {
     Create(CreateRequest)
     // TODO - add support for: Unique Batch Item ID
 }
 
-
-#[derive(Serialize, Deserialize, Debug)]
-struct RequestHeader {
+#[derive(Deserialize, Serialize, Debug)]
+struct ProtocolVersion {
     ProtocolVersionMajor : i32,
     ProtocolVersionMinor : i32,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct RequestHeader {
+    ProtocolVersion : ProtocolVersion,
     // TODO: Other fields are optional
     BatchCount: i32,
 }
@@ -543,6 +614,33 @@ fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
     // let request_header= parse_request_header(&mut cur);
 
     return Vec::new()
+}
+
+struct KmipEnumResolver {
+
+}
+
+impl ttlv::EnumResolver for KmipEnumResolver {
+    fn resolve_enum(&self, name: &str, value: i32) -> String {
+        match name {
+            "Foo" => "Bar".to_owned(),
+            "Operation" => {
+                let o : Operation = num::FromPrimitive::from_i32(value).unwrap();
+                return o.as_static().to_owned();
+            }
+            "ObjectType" => {
+                let o : ObjectTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
+                return o.as_static().to_owned();
+            }
+            "CryptographicAlgorithm" => {
+                let o : CryptographicAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
+                return o.as_static().to_owned();
+            }
+            _ => {
+                println!("Not implemented: {:?}", name );
+                 unimplemented!{} }
+        }
+    }
 }
 
 
@@ -572,7 +670,10 @@ fn test_request1() {
 
 ttlv::to_print(bytes.as_slice());
 
-    let a = ttlv::from_bytes::<RequestMessage>(&bytes).unwrap();
+let k : KmipEnumResolver = KmipEnumResolver{};
+
+
+    let a = ttlv::from_bytes::<RequestMessage>(&bytes, &k).unwrap();
 
 }
 
