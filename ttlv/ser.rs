@@ -56,7 +56,9 @@ pub fn write_string(writer : &mut dyn Write, value: &str ) {
     writer.write(value.as_bytes()).unwrap();
 
     let padded_length = compute_padding(value.len());
-    assert_eq!{ padded_length, value.len()};
+    for padding in 0..(padded_length - value.len()) {
+        writer.write_u8(0).unwrap();
+    }
 }
 
 pub fn write_bytes(writer : &mut dyn Write, value: &[u8] ) {
@@ -68,7 +70,9 @@ pub fn write_bytes(writer : &mut dyn Write, value: &[u8] ) {
     writer.write(value).unwrap();
 
     let padded_length = compute_padding(value.len());
-    assert_eq!{ padded_length, value.len()};
+    for padding in 0..(padded_length - value.len()) {
+        writer.write_u8(0).unwrap();
+    }
 }
 
 pub fn write_i32(writer : &mut dyn Write, value: i32 ) {
@@ -105,64 +109,63 @@ pub fn write_enumeration(writer : &mut dyn Write, value: i32 ) {
     writer.write_u32::<BigEndian>(0).unwrap();
 }
 
-struct CountingWriter<'a> {
-    //&Writer : writer,
-    count : usize,
-    writer : &'a mut dyn Write,
-}
+// struct CountingWriter<'a> {
+//     //&Writer : writer,
+//     count : usize,
+//     writer : &'a mut dyn Write,
+// }
 
-impl<'a> Write for CountingWriter<'a> {
+// impl<'a> Write for CountingWriter<'a> {
 
-   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-       let ret = self.writer.write(buf);
+//    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+//        let ret = self.writer.write(buf);
 
-        if let Ok(s) = ret  {
-            self.count += s;
-        }
+//         if let Ok(s) = ret  {
+//             self.count += s;
+//         }
 
-       return ret;
-   }
+//        return ret;
+//    }
 
-    fn flush(&mut self) -> std::io::Result<()> {
-        return Ok(())
-    }
-}
+//     fn flush(&mut self) -> std::io::Result<()> {
+//         return Ok(())
+//     }
+// }
 
 
-pub struct StructWriter<'a> {
-    vec : Vec<u8>,
-    orig_writer : &'a mut dyn Write,
-}
+// pub struct StructWriter<'a> {
+//     vec : Vec<u8>,
+//     orig_writer : &'a mut dyn Write,
+// }
 
-impl<'a>  StructWriter<'a> {
-    pub fn new(writer : &'a mut dyn Write) -> StructWriter {
-        StructWriter {
-            vec :  Vec::new(),
-            orig_writer : writer,
-        }
-    }
+// impl<'a>  StructWriter<'a> {
+//     pub fn new(writer : &'a mut dyn Write) -> StructWriter {
+//         StructWriter {
+//             vec :  Vec::new(),
+//             orig_writer : writer,
+//         }
+//     }
 
-    fn get_writer(&mut self) -> &dyn Write {
-        return &self.vec;
-    }
-}
+//     fn get_writer(&mut self) -> &dyn Write {
+//         return &self.vec;
+//     }
+// }
 
-impl<'a> Drop for StructWriter<'a> {
+// impl<'a> Drop for StructWriter<'a> {
 
-    fn drop(&mut self) {
-        self.orig_writer.write_u32::<BigEndian>(self.vec.len() as u32).unwrap();
+//     fn drop(&mut self) {
+//         self.orig_writer.write_u32::<BigEndian>(self.vec.len() as u32).unwrap();
 
-        self.orig_writer.write(self.vec.as_slice()).unwrap();
-    }
-}
+//         self.orig_writer.write(self.vec.as_slice()).unwrap();
+//     }
+// }
 
-pub fn begin_struct(writer : &mut dyn Write, value: i32 ) -> StructWriter {
-    //write_tag(writer, tag);
+// fn begin_struct(writer : &mut dyn Write, value: i32 ) -> StructWriter {
+//     //write_tag(writer, tag);
+//     writer.write_u8(ItemType::Structure as u8).unwrap();
 
-    writer.write_u8(ItemType::Structure as u8).unwrap();
-
-    return StructWriter::new(writer);
-}
+//     return StructWriter::new(writer);
+// }
 
 pub fn write_struct(writer : &mut dyn Write) {
     writer.write_u8(ItemType::Structure as u8).unwrap();
@@ -189,7 +192,7 @@ impl NestedWriter {
     fn begin_inner(&mut self) {
         println!("write_innter");
         let pos = self.vec.len();
-        self.vec.write_u32::<BigEndian>(0);
+        self.vec.write_u32::<BigEndian>(0).unwrap();
         self.start_positions.push(pos)
     }
 
@@ -200,7 +203,7 @@ impl NestedWriter {
         let len = current_pos - start_pos - 4;
 
         let mut v1 : Vec<u8> = Vec::new();
-        v1.write_u32::<BigEndian>(len as u32);
+        v1.write_u32::<BigEndian>(len as u32).unwrap();
 
         for i in 0..4 {
             self.vec[start_pos + i ] = v1[i];
@@ -318,15 +321,13 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
-        panic!{}
-        Ok(())
+        unimplemented!();
     }
 
     // Serialize a char as a single-character string. Other formats may
     // represent this differently.
     fn serialize_char(self, v: char) -> Result<()> {
-        panic!{}
-        Ok(())
+        unimplemented!();
     }
 
     // This only works for strings that don't require escape sequences but you
@@ -365,8 +366,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // In Serde, unit means an anonymous value containing no data. Map this to
     // JSON as `null`.
     fn serialize_unit(self) -> Result<()> {
-        panic!{}
-        Ok(())
+        unimplemented!();
     }
 
     // Unit struct means a named value containing no data. Again, since there is
@@ -434,8 +434,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // explicitly in the serialized form. Some serializers may only be able to
     // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        panic!{}
-        Ok(self)
+        unimplemented!();
     }
 
     // Tuples look just like sequences in JSON. Some formats may be able to
@@ -464,8 +463,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        panic!{}
-        Ok(self)
+        unimplemented!();
     }
 
     // Maps are represented in JSON as `{ K: V, K: V, ... }`.
@@ -485,6 +483,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStruct> {
+        println!("serializing: {:?}", _name);
         let tag = Tag::from_str(_name).unwrap();
         write_tag_enum(&mut self.output, tag);
 
@@ -500,8 +499,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        panic!{}
-        Ok(self)
+        unimplemented!();
     }
 }
 
@@ -525,8 +523,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-                panic!{}
-        value.serialize(&mut **self)
+        unimplemented!();
     }
 
     // Close the sequence.
@@ -544,8 +541,7 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-                panic!{}
-        value.serialize(&mut **self)
+        unimplemented!();
     }
 
     fn end(self) -> Result<()> {
@@ -562,8 +558,7 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-                panic!{}
-                Ok(())
+        unimplemented!();
     }
 
     fn end(self) -> Result<()> {
@@ -588,8 +583,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-                panic!{}
-        value.serialize(&mut **self)
+        unimplemented!();
     }
 
     fn end(self) -> Result<()> {
@@ -649,6 +643,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
+        println!("serializing {:?}", key);
         let tag = Tag::from_str(key).unwrap();
         write_tag_enum(&mut self.output, tag);
 
@@ -691,7 +686,9 @@ fn test_struct() {
     struct RequestHeader {
         ProtocolVersionMajor : i32,
         ProtocolVersionMinor : i32,
-        //BatchOrderOption : Option<i32>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        BatchOrderOption : Option<i32>,
         // Option::None - serializes as serialize_none()
         // TODO: Other fields are optional
         BatchCount: i32,
@@ -716,6 +713,30 @@ fn test_struct() {
 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00};
 
     assert_eq!(v.len(), 56);
+
+    assert_eq!(v, good);
+}
+
+#[test]
+fn test_struct2() {
+    #[derive(Serialize, Debug)]
+    #[serde(tag = "Operation", content = "BatchItem")]
+    enum CRTCoefficient {
+        Attribute(Vec<u8>),
+        CertificateRequest(String)
+    }
+
+    let a  = CRTCoefficient::CertificateRequest(String::new());
+
+    let v = to_bytes(&a).unwrap();
+
+    print!("Dump of bytes {:?}", v.hex_dump());
+
+    to_print(v.as_slice());
+
+    let good = vec!{66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105, 99, 97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0, 0, 0, 0};
+
+    assert_eq!(v.len(), 48);
 
     assert_eq!(v, good);
 }

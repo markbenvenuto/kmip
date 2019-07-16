@@ -5,18 +5,18 @@ extern crate num_traits;
 
 use num_traits::FromPrimitive;
 
-#[derive(FromPrimitive, Debug)]
+#[derive(FromPrimitive, Debug, PartialEq)]
 pub enum ItemType {
- Structure = 0x01,
- Integer = 0x02,
- LongInteger = 0x03,
- BigInteger = 0x04,
- Enumeration = 0x05,
- Boolean = 0x06,
- TextString = 0x07,
- ByteString = 0x08,
- DateTime = 0x09,
- Interval = 0x0A,
+    Structure = 0x01,
+    Integer = 0x02,
+    LongInteger = 0x03,
+    BigInteger = 0x04,
+    Enumeration = 0x05,
+    Boolean = 0x06,
+    TextString = 0x07,
+    ByteString = 0x08,
+    DateTime = 0x09,
+    Interval = 0x0A,
 }
 
 #[derive(FromPrimitive, Debug)]
@@ -66,7 +66,7 @@ pub enum Operation {
     Export = 0x0000002B,
 }
 
-#[derive(FromPrimitive, ToPrimitive, EnumString, Debug)]
+#[derive(FromPrimitive, ToPrimitive, EnumString, AsRefStr, Debug)]
 pub enum Tag {
     ActivationDate = 0x420001,
     ApplicationData = 0x420002,
@@ -360,4 +360,67 @@ pub enum Tag {
     Extractable = 0x420122,
     NeverExtractable = 0x420123,
     ReplaceExisting = 0x420124,
+}
+
+#[derive(FromPrimitive, ToPrimitive, EnumString, AsRefStr, Debug)]
+enum OjectType {
+    Certificate = 0x00000001,
+    SymmetricKey = 0x00000002,
+    PublicKey = 0x00000003,
+    PrivateKey = 0x00000004,
+    SplitKey = 0x00000005,
+    Template = 0x00000006, //(deprecated)
+    SecretData = 0x00000007,
+    OpaqueObject = 0x00000008,
+    PGPKey = 0x00000009,
+}
+
+#[derive(FromPrimitive, ToPrimitive, EnumString, AsRefStr, Debug)]
+enum NameTypeEnum {
+    UninterpretedTextString = 0x00000001,
+    URI = 0x00000002,
+}
+
+#[derive(FromPrimitive, ToPrimitive, EnumString, AsRefStr, Debug)]
+enum CryptographicAlgorithm {
+    DES = 0x00000001,
+    TripleDES = 0x00000002,
+    AES = 0x00000003,
+    RSA = 0x00000004,
+    DSA = 0x00000005,
+    ECDSA = 0x00000006,
+    HMACSHA1 = 0x00000007,
+    HMACSHA224 = 0x00000008,
+    HMACSHA256 = 0x00000009,
+    HMACSHA384 = 0x0000000A,
+    HMACSHA512 = 0x0000000B,
+    HMACMD5 = 0x0000000C,
+    DH = 0x0000000D,
+    ECDH = 0x0000000E,
+    ECMQV = 0x0000000F,
+    Blowfish = 0x00000010,
+    Camellia = 0x00000011,
+    CAST5 = 0x00000012,
+    IDEA = 0x00000013,
+    MARS = 0x00000014,
+    RC2 = 0x00000015,
+    RC4 = 0x00000016,
+    RC5 = 0x00000017,
+    SKIPJACK = 0x00000018,
+    Twofish = 0x00000019,
+    EC = 0x0000001A,
+    OneTimePad = 0x0000001B,
+    ChaCha20 = 0x0000001C,
+    Poly1305 = 0x0000001D,
+    ChaCha20Poly1305 = 0x0000001E,
+    SHA3224 = 0x0000001F,
+    SHA3256 = 0x00000020,
+    SHA3384 = 0x00000021,
+    SHA3512 = 0x00000022,
+    HMACSHA3224 = 0x00000023,
+    HMACSHA3256 = 0x00000024,
+    HMACSHA3384 = 0x00000025,
+    HMACSHA3512 = 0x00000026,
+    SHAKE128 = 0x00000027,
+    SHAKE256 = 0x00000028,
 }
