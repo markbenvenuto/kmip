@@ -218,7 +218,7 @@ impl NestedWriter {
     // }
 
     fn begin_inner(&mut self) {
-        println!("write_innter");
+        //println!("write_innter");
         let pos = self.vec.len();
         self.vec.write_u32::<BigEndian>(0).unwrap();
         self.start_positions.push(pos)
@@ -681,7 +681,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
-        println!("write_innter_close");
+        //println!("write_innter_close");
 
         self.output.close_inner();
 

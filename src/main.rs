@@ -1,3 +1,5 @@
+#[allow(non_snake_case)]
+
 #[macro_use]
 extern crate num_derive;
 
@@ -690,6 +692,15 @@ struct GetRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename = "ResponsePayload")]
+struct GetResponse {
+    ObjectType: ObjectTypeEnum,
+    UniqueIdentifier: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    SymmetricKey : Option<SymmetricKey>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "Operation", content = "RequestPayload")]
 enum RequestBatchItem {
     Create(CreateRequest),
@@ -729,6 +740,7 @@ struct ResponseHeader {
 //#[serde(tag = "Operation", content = "RequestPayload")]
 enum ResponseOperationEnum {
     Create(CreateResponse),
+    Get(GetResponse),
     Empty,
     // TODO - add support for: Unique Batch Item ID
 }
@@ -795,6 +807,9 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Create(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Create)?;
                 }
+                ResponseOperationEnum::Get(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::Get)?;
+                }
                 ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
@@ -814,6 +829,9 @@ impl Serialize for ResponseBatchItem {
             //ser_struct.serialize_field("ResultPayload", &self.ResponsePayload.as_ref())?;
             match self.ResponsePayload.as_ref().unwrap() {
                 ResponseOperationEnum::Create(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::Get(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Empty => unimplemented!(),
@@ -889,6 +907,16 @@ fn process_create_request(
     }
 }
 
+fn process_get_request(
+    req: GetRequest,
+) -> std::result::Result<GetResponse, KmipResponseError> {
+    Ok(GetResponse {
+            ObjectType: ObjectTypeEnum::SymmetricKey,
+            UniqueIdentifier: "Fpp".to_owned(),
+            SymmetricKey : None,
+        })
+}
+
 fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {
     let r = ResponseMessage {
         ResponseHeader: ResponseHeader {
@@ -935,9 +963,13 @@ fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
             println!("Got Create Request");
             process_create_request(x).map(|r| ResponseOperationEnum::Create(r))
         }
-        _ => {
-            unimplemented!();
+        RequestBatchItem::Get(x) => {
+            println!("Got Get Request");
+            process_get_request(x).map(|r| ResponseOperationEnum::Get(r))
         }
+        // _ => {
+        //     unimplemented!();
+        // }
     };
 
     let vr = match result {

@@ -42,7 +42,7 @@ fn compute_padding(len: usize) -> usize {
 }
 
 fn read_tag(reader: &mut dyn Read) -> u32 {
-    println!("Read Tag");
+    //println!("Read Tag");
     let v = reader.read_u8().unwrap();
     assert_eq!(v, 0x42);
     let tag = reader.read_u16::<BigEndian>().unwrap();
@@ -54,7 +54,7 @@ fn read_tag_enum(reader: &mut dyn Read) -> Tag {
     let tag_u32 = read_tag(reader);
 
     let t = num::FromPrimitive::from_u32(tag_u32).unwrap();
-    println!("Read Typed Tag: {:?}", t);
+    //println!("Read Typed Tag: {:?}", t);
 
     return t;
 }
@@ -67,7 +67,7 @@ fn read_len(reader: &mut dyn Read) -> u32 {
 fn read_type(reader: &mut dyn Read) -> ItemType {
     let i = reader.read_u8().unwrap();
     let t = num::FromPrimitive::from_u8(i).unwrap();
-    println!("Read Type {:?}", t);
+    //println!("Read Type {:?}", t);
     return t;
 }
 
@@ -80,7 +80,7 @@ fn read_enumeration(reader: &mut dyn Read) -> i32 {
     // TODO - speed up
     reader.read_i32::<BigEndian>().unwrap();
 
-    println!("Read i32: {:?}", v);
+    //println!("Read i32: {:?}", v);
     return v;
 }
 
@@ -93,7 +93,7 @@ fn read_i32(reader: &mut dyn Read) -> i32 {
     // TODO - speed up
     reader.read_i32::<BigEndian>().unwrap();
 
-    println!("Read i32: {:?}", v);
+    //println!("Read i32: {:?}", v);
     return v;
 }
 
@@ -102,7 +102,7 @@ fn read_i64(reader: &mut dyn Read) -> i64 {
     assert_eq!(len, 8);
 
     let v = reader.read_i64::<BigEndian>().unwrap();
-    println!("Read i64: {:?}", v);
+    //println!("Read i64: {:?}", v);
     return v;
 }
 
@@ -112,7 +112,7 @@ fn read_datetime_i64(reader: &mut dyn Read) -> i64 {
     assert_eq!(len, 8);
 
     let v = reader.read_i64::<BigEndian>().unwrap();
-    println!("Read DateTime: {:?}", v);
+    //println!("Read DateTime: {:?}", v);
     return v;
 }
 
@@ -133,7 +133,7 @@ fn read_string(reader: &mut dyn Read) -> String {
     v.resize(len as usize, 0);
 
     let s = String::from_utf8(v).unwrap();
-    println!("Read string: {:?}", s);
+    //println!("Read string: {:?}", s);
 
     return s;
 }
@@ -296,7 +296,7 @@ impl<'a> NestedReader<'a> {
     fn begin_inner(&mut self) {
         let t = read_tag_enum(&mut self.cur);
 
-        println!("read_inner: {:?} - {:?}", t, self.cur.position());
+        //println!("read_inner: {:?} - {:?}", t, self.cur.position());
         let t = read_type(&mut self.cur);
         assert_eq!(t, ItemType::Structure);
 
@@ -309,7 +309,7 @@ impl<'a> NestedReader<'a> {
         if self.state == ReaderState::Tag {
             let t = read_tag_enum(&mut self.cur);
 
-            println!("read_inner: {:?} - {:?}", t, self.cur.position());
+            //println!("read_inner: {:?} - {:?}", t, self.cur.position());
             self.state = ReaderState::Type;
         }
 
@@ -326,13 +326,13 @@ impl<'a> NestedReader<'a> {
         assert_eq!(self.state, ReaderState::LengthValue);
 
         let len = read_len(&mut self.cur) as u64;
-        println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
+        //println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
         self.end_positions.push(self.cur.position() + len);
         self.state = ReaderState::Tag;
     }
 
     fn close_inner(&mut self) {
-        println!(" close_inner");
+        //println!(" close_inner");
         self.end_positions.pop().unwrap();
     }
 
@@ -340,11 +340,11 @@ impl<'a> NestedReader<'a> {
         if self.end_positions.is_empty() {
             return true;
         }
-        println!(
-            "cmp1 {:?} == {:?}",
-            *(self.end_positions.last().unwrap()),
-            self.cur.position()
-        );
+        // println!(
+        //     "cmp1 {:?} == {:?}",
+        //     *(self.end_positions.last().unwrap()),
+        //     self.cur.position()
+        // );
         return *(self.end_positions.last().unwrap()) == self.cur.position();
     }
 
@@ -793,7 +793,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        println!("Deserialize Map");
+        //println!("Deserialize Map");
         self.input.begin_inner_or_more();
 
         visitor.visit_map(MapParser::new(&mut self))
@@ -909,9 +909,9 @@ impl<'de, 'a> MapAccess<'de> for MapParser<'a, 'de> {
             return Ok(None);
         }
 
-        println!("next key==");
+        //println!("next key==");
         let a = seed.deserialize(&mut *self.de).map(Some);
-        println!("==");
+        //println!("==");
         return a;
     }
 
@@ -919,10 +919,10 @@ impl<'de, 'a> MapAccess<'de> for MapParser<'a, 'de> {
     where
         V: DeserializeSeed<'de>,
     {
-        println!("next seed--");
+        //println!("next seed--");
         // Deserialize a map value.
         let a = seed.deserialize(&mut *self.de);
-        println!("--");
+        //println!("--");
         return a;
     }
 }
