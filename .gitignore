@@ -4,3 +4,4 @@
 .vscode/
 
 ttlv/target/
+serde_enum/target/
