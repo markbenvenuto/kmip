@@ -23,6 +23,8 @@ num-derive = "0.2.5"
 strum = "0.15.0"
 strum_macros = "0.15.0"
 
+chrono = "0.4.7"
+
 
 [lib]
 name = "ttlv"

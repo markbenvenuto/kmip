@@ -32,6 +32,10 @@ use pretty_hex::*;
 
 extern crate confy;
 
+extern crate chrono;
+
+use chrono::*;
+
 use std::sync::Arc;
 
 use rustls;
@@ -193,6 +197,14 @@ enum CryptographicUsageMask {
     TranslateDecrypt=0x00020000,
     TranslateWrap=0x00040000,
     TranslateUnwrap=0x00080000,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromPrimitive,AsStaticStr)]
+enum ResultStatus {
+    Success=0x00000000,
+    OperationFailed=0x00000001,
+    OperationPending=0x00000002,
+    OperationUndone=0x00000003,
 }
 
 /// Search for a pattern in a file and display the lines that contain it.
@@ -605,6 +617,23 @@ struct RequestMessage {
     RequestHeader: RequestHeader,
     BatchItem : RequestBatchItem,
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+struct ResponseHeader {
+    ProtocolVersion : ProtocolVersion,
+    #[serde(with = "ttlv::my_date_format")]
+    TimeStamp : chrono::DateTime<Utc>,
+    // TODO: Other fields are optional
+    BatchCount: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ResponseMessage {
+    ResponseHeader: ResponseHeader,
+    BatchItem : RequestBatchItem,
+}
+
+
 
 
 fn process_kmip_request(buf: &[u8]) -> Vec<u8> {

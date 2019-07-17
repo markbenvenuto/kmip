@@ -22,6 +22,7 @@ pub enum Error {
     // Deserializer without going through `ser::Error` and `de::Error`. These
     // are specific to the format, in this case JSON.
     Eof,
+    UnsupportedType
     // Syntax,
     // ExpectedBoolean,
     // ExpectedInteger,
@@ -61,6 +62,7 @@ impl std::error::Error for Error {
         match *self {
             Error::Message(ref msg) => msg,
             Error::Eof => "unexpected end of input",
+            Error::UnsupportedType => "unsupported type",
             /* and so forth */
         }
     }

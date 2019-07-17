@@ -14,6 +14,8 @@ use serde::Serialize;
 
 use crate::error::{Error, Result};
 
+use chrono::*;
+
 extern crate num;
 //#[macro_use]
 extern crate num_derive;
@@ -26,7 +28,9 @@ extern crate byteorder;
 use byteorder::{BigEndian, ReadBytesExt};
 use pretty_hex::*;
 //use self::enums;
+
 use crate::kmip_enums::*;
+use crate::my_date_format;
 
 fn compute_padding(len: usize) -> usize {
     if len % 8 == 0 {
@@ -102,6 +106,17 @@ fn read_i64(reader: &mut dyn Read) -> i64 {
     return v;
 }
 
+
+fn read_datetime_i64(reader: &mut dyn Read) -> i64 {
+    let len = read_len(reader);
+    assert_eq!(len, 8);
+
+    let v = reader.read_i64::<BigEndian>().unwrap();
+    println!("Read DateTime: {:?}", v);
+    return v;
+}
+
+
 fn read_string(reader: &mut dyn Read) -> String {
     let len = read_len(reader);
 
@@ -153,7 +168,40 @@ pub fn read_struct(reader: &mut dyn Read) -> Vec<u8> {
 }
 
 /////////////////////////////
+struct IndentPrinter {
+    indent: usize,
+}
+
+impl IndentPrinter {
+    fn new() -> IndentPrinter {
+        return IndentPrinter { indent : 0 }
+    }
+
+    fn indent(&mut self) {
+        self.indent += 1;
+    }
+
+    fn unindent(&mut self) {
+        self.indent -= 1;
+    }
+
+    fn print(&self, msg : String ) {
+        // for _ in 0..self.indent {
+        //     std::io::stdout().write(" ".as_bytes());
+        // }
+        // std::io::stdout().write(msg.as_bytes());
+        let space = " ".repeat(self.indent * 4);
+        // Use println! to play nicely with unit tests
+        println!("{}{}", space, msg);
+    }
+}
+
 pub fn to_print(buf: &[u8]) {
+    let mut printer: IndentPrinter = IndentPrinter::new();
+    to_print_int(&mut printer, buf);
+}
+
+fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) {
     let mut cur = Cursor::new(buf);
 
     while cur.position() < buf.len() as u64 {
@@ -166,35 +214,42 @@ pub fn to_print(buf: &[u8]) {
         match item_type {
             ItemType::Integer => {
                 let v = read_i32(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
+                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::LongInteger => {
                 let v = read_i64(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
+                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
+            }
+            ItemType::DateTime => {
+                // TODO:
+                let v = read_i64(&mut cur);
+                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::Enumeration => {
                 let v = read_i32(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
+                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::TextString => {
                 let v = read_string(&mut cur);
-                println!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v);
+                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::ByteString => {
                 let v = read_bytes(&mut cur);
-                println!(
+                printer.print(format!(
                     "Tag {:?} - Type {:?} - Value {:?}",
                     tag,
                     item_type,
                     v.hex_dump()
-                );
+                ));
             }
 
             ItemType::Structure => {
                 let v = read_struct(&mut cur);
-                println!("Tag {:?} - Type {:?} - Structure {{", tag, item_type);
-                to_print(v.as_slice());
-                println!("}}");
+                printer.print(format!("Tag {:?} - Type {:?} - Structure {{", tag, item_type));
+                printer.indent();
+                to_print_int(printer, v.as_slice());
+                printer.unindent();
+                printer.print(format!("}}"));
             }
             _ => {
                 panic! {};
@@ -345,6 +400,12 @@ impl<'a> NestedReader<'a> {
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
         return read_i64(&mut self.cur);
+    }
+
+    fn read_datetime_i64(&mut self) -> i64 {
+        assert_eq!(self.state, ReaderState::Type);
+        self.state = ReaderState::Tag;
+        return read_datetime_i64(&mut self.cur);
     }
 
     fn read_string_and_more(&mut self) -> String {
@@ -536,8 +597,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::LongInteger);
-        visitor.visit_i64(self.input.read_i64())
+        let t = self.input.read_type();
+
+        match t {
+            ItemType::DateTime => {
+                        visitor.visit_i64(self.input.read_datetime_i64())
+            }
+            ItemType::LongInteger => {
+                visitor.visit_i64(self.input.read_i64())
+            }
+            _ => { unreachable!{} }
+        }
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
@@ -647,7 +717,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // serialize as just `null`. Unfortunately this is typically what people
     // expect when working with JSON. Other formats are encouraged to behave
     // more intelligently if possible.
-    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -655,7 +725,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     // In Serde, unit means an anonymous value containing no data.
-    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -805,7 +875,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // Some formats are not able to implement this at all. Formats that can
     // implement `deserialize_any` and `deserialize_ignored_any` are known as
     // self-describing.
-    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -899,12 +969,11 @@ impl<'de, 'a> SeqAccess<'de> for SeqParser<'a, 'de> {
 
 struct EnumParser<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
-    first: bool,
 }
 
 impl<'a, 'de> EnumParser<'a, 'de> {
     fn new(de: &'a mut Deserializer<'de>) -> Self {
-        EnumParser { de, first : false }
+        EnumParser { de}
     }
 }
 
@@ -925,7 +994,6 @@ impl<'de, 'a> EnumAccess<'de> for EnumParser<'a, 'de> {
         // currently inside of a map. The seed will be deserializing itself from
         // the key of the map.
         let val = seed.deserialize(&mut *self.de)?;
-        // self.first = true;
         Ok((val, self))
     }
 }
@@ -977,6 +1045,18 @@ impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
 }
 
 
+struct TestEnumResolver {
+}
+
+impl EnumResolver for TestEnumResolver {
+    fn resolve_enum(&self, name: &str, value: i32) -> String {
+        unimplemented!{}
+    }
+}
+
+
+
+
 #[test]
 fn test_de_struct() {
     #[derive(Deserialize, Debug)]
@@ -1000,7 +1080,8 @@ fn test_de_struct() {
 
     //    to_print(good.as_ref());
 
-    let a = from_bytes::<RequestHeader>(&good).unwrap();
+    let r  : TestEnumResolver=  TestEnumResolver{};
+    let a = from_bytes::<RequestHeader>(&good, &r).unwrap();
 
     assert_eq!(a.ProtocolVersionMajor, 1);
     assert_eq!(a.ProtocolVersionMinor, 2);
@@ -1022,7 +1103,8 @@ fn test_struct2() {
     ];
     to_print(good.as_ref());
 
-    let a = from_bytes::<CRTCoefficient>(&good).unwrap();
+    let r  : TestEnumResolver=  TestEnumResolver{};
+    let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
 }
 
 #[test]
@@ -1040,5 +1122,24 @@ fn test_struct3() {
 
     to_print(good.as_ref());
 
-    let a = from_bytes::<CRTCoefficient>(&good).unwrap();
+    let r  : TestEnumResolver=  TestEnumResolver{};
+    let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+}
+
+#[test]
+fn test_Datetime() {
+    #[derive(Deserialize, Debug)]
+    struct CRTCoefficient {
+        #[serde(with = "my_date_format")]
+        BatchCount: chrono::DateTime<Utc>,
+    }
+
+    let good = vec![
+66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40
+    ];
+
+    to_print(good.as_slice());
+
+    let r  : TestEnumResolver=  TestEnumResolver{};
+    let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
 }
