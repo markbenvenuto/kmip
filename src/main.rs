@@ -3,6 +3,9 @@
 #[macro_use]
 extern crate num_derive;
 
+#[macro_use]
+extern crate lazy_static;
+
 #[allow(unused_imports)]
 extern crate pretty_hex;
 extern crate serde_transcode;
@@ -41,6 +44,7 @@ extern crate chrono;
 
 use chrono::*;
 
+use std::sync::Mutex;
 use std::sync::Arc;
 
 use rustls;
@@ -65,6 +69,11 @@ use std::string::ToString;
 use strum::AsStaticRef;
 
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+
+#[macro_use(bson, doc)]
+extern crate bson;
+
+// use bson;
 
 // mod git;
 // mod watchman;
@@ -844,6 +853,69 @@ impl Serialize for ResponseBatchItem {
 
 /////////////////////////////////
 
+#[derive(Serialize, Deserialize, Debug)]
+enum ManagedObjectEnum {
+    SymmetricKey(KeyBlock)
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ManagedObject {
+    id : String,
+    payload : ManagedObjectEnum,
+}
+
+
+////////////////////////////////////
+struct KmipStore {
+    documents : HashMap<String, bson::Document>,
+    counter: i32,
+}
+
+impl KmipStore {
+    fn new() -> KmipStore {
+        KmipStore {
+        documents : HashMap::new(),
+        counter : 0,
+        }
+    }
+
+    fn add(&mut self, id: &str, doc : bson::Document ) {
+        let r = self.documents.insert(id.to_string(), doc );
+        assert!(r.is_none());
+    }
+
+
+    fn gen_id(&mut self) -> String {
+        self.counter += 1;
+        return self.counter.to_string();
+    }
+
+    fn get(&self, id: &String) ->  Option<&bson::Document> {
+        return self.documents.get(id);
+    }
+
+}
+
+lazy_static! {
+    static ref GLOBAL_STORE: Mutex<KmipStore> = Mutex::new(KmipStore::new());
+}
+
+
+struct RequestContext {
+    //store: &'a mut KmipStore,
+}
+
+impl RequestContext{
+    fn new() -> RequestContext {
+        RequestContext{
+        }
+    }
+
+    // fn get_store() -> std::sync::MutexGuard<KmipStore> + 'static {
+    //     return GLOBAL_STORE.lock().unwrap();
+    // }
+}
+
 fn create_error_response(msg: Option<String>) -> Vec<u8> {
     let r = ResponseMessage {
         ResponseHeader: ResponseHeader {
@@ -895,19 +967,63 @@ impl Error for KmipResponseError {
     }
 }
 
+// fn find_one<T,S>(vec : Vec<T>) -> Option<S> {
+//     for x in vec {
+//         if let S(a) = x {
+//             return  a
+//         }
+//     }
+
+//     return None;
+// }
+
 fn process_create_request(
+    rc : &mut RequestContext,
     req: CreateRequest,
 ) -> std::result::Result<CreateResponse, KmipResponseError> {
+
+
+
+
     match req.ObjectType {
-        ObjectTypeEnum::SymmetricKey => Ok(CreateResponse {
+        ObjectTypeEnum::SymmetricKey => {
+        // let algo = req.TemplateAttribute.iter().
+        //     filter(|x| if let CreateRequestAttributes::CryptographicAlgorithm(a) = x { return a; });
+
+        let id = GLOBAL_STORE.lock().unwrap().gen_id();
+        let mo = ManagedObject {
+            id : id.to_string(),
+            payload : ManagedObjectEnum::SymmetricKey(
+             KeyBlock {
+                    KeyFormatType : KeyFormatTypeEnum::Raw,
+                    KeyValue : vec![1],
+                    KeyCompressionType : None,
+                    CryptographicAlgorithm : CryptographicAlgorithm::DES,
+                    CryptographicLengh : 42,
+                },
+                ),
+        };
+
+        let d = bson::to_bson(&mo).unwrap();
+
+if let bson::Bson::Document(d1) = d {
+        GLOBAL_STORE.lock().unwrap().add(id.as_ref(), d1);
+
+        return Ok(CreateResponse {
             ObjectType: ObjectTypeEnum::SymmetricKey,
-            UniqueIdentifier: "Fpp".to_owned(),
-        }),
+            UniqueIdentifier: id,
+        });
+} else {
+        return Err(KmipResponseError::new("Barff"));
+
+}
+        }
         _ => Err(KmipResponseError::new("Foo")),
     }
 }
 
 fn process_get_request(
+    rc : &RequestContext,
     req: GetRequest,
 ) -> std::result::Result<GetResponse, KmipResponseError> {
     Ok(GetResponse {
@@ -949,6 +1065,8 @@ fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
     println!("Request Message: {:?}", buf.hex_dump());
     ttlv::to_print(buf);
 
+    let mut rc = RequestContext::new();
+
     let request = ttlv::from_bytes::<RequestMessage>(&buf, &k).unwrap();
 
     // TODO - check protocol version
@@ -961,11 +1079,11 @@ fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
     let result = match request.BatchItem {
         RequestBatchItem::Create(x) => {
             println!("Got Create Request");
-            process_create_request(x).map(|r| ResponseOperationEnum::Create(r))
+            process_create_request(&mut rc, x).map(|r| ResponseOperationEnum::Create(r))
         }
         RequestBatchItem::Get(x) => {
             println!("Got Get Request");
-            process_get_request(x).map(|r| ResponseOperationEnum::Get(r))
+            process_get_request(&rc, x).map(|r| ResponseOperationEnum::Get(r))
         }
         // _ => {
         //     unimplemented!();
