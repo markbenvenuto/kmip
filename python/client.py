@@ -31,3 +31,5 @@ key_id = client.create(
     # ]
 )
 
+print(client.get(key_id))
+

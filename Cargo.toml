@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 ttlv = {path="ttlv"}
+serde_enum = {path="serde_enum"}
 
 byteorder = "1.3.2"
 

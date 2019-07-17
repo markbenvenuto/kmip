@@ -13,6 +13,10 @@ use log::{info, warn};
 #[macro_use]
 extern crate serde_derive;
 
+//#[macro_use]
+extern crate serde_enum;
+use serde_enum::{Serialize_enum, Deserialize_enum};
+
 use std::io::prelude::*;
 use std::path::Path;
 // use std::io::Cursor;
@@ -67,7 +71,8 @@ use serde::ser::{Serialize, Serializer, SerializeStruct};
 
 use ttlv::*;
 
-#[derive(FromPrimitive, Debug, AsStaticStr)]
+#[derive(FromPrimitive, Serialize_enum, Deserialize_enum, Debug, AsStaticStr)]
+#[repr(i32)]
 pub enum Operation {
     Create = 0x00000001,
     CreateKeyPair = 0x00000002,
@@ -115,7 +120,8 @@ pub enum Operation {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, FromPrimitive, AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
+#[repr(i32)]
 enum ObjectTypeEnum {
     Certificate = 0x00000001,
     SymmetricKey = 0x00000002,
@@ -128,13 +134,15 @@ enum ObjectTypeEnum {
     PGPKey = 0x00000009,
 }
 
-#[derive(Debug, Serialize, Deserialize,FromPrimitive,AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum,FromPrimitive,AsStaticStr)]
+#[repr(i32)]
 enum NameTypeEnum {
     UninterpretedTextString = 0x00000001,
     URI = 0x00000002,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromPrimitive,AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive,AsStaticStr)]
+#[repr(i32)]
 enum CryptographicAlgorithm {
     DES = 0x00000001,
     TripleDES = 0x00000002,
@@ -202,7 +210,44 @@ enum CryptographicUsageMask {
     TranslateUnwrap=0x00080000,
 }
 
-#[derive(Debug, Deserialize, FromPrimitive,AsStaticStr, PartialEq)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive,AsStaticStr, PartialEq)]
+#[repr(i32)]
+enum KeyFormatTypeEnum {
+    Raw=0x00000001,
+    Opaque=0x00000002,
+    PKCS1=0x00000003,
+    PKCS8=0x00000004,
+    X509=0x00000005,
+    ECPrivateKey=0x00000006,
+    TransparentSymmetricKey=0x00000007,
+    TransparentDSAPrivateKey=0x00000008,
+    TransparentDSAPublicKey=0x00000009,
+    TransparentRSAPrivateKey=0x0000000A,
+    TransparentRSAPublicKey=0x0000000B,
+    TransparentDHPrivateKey=0x0000000C,
+    TransparentDHPublicKey=0x0000000D,
+    TransparentECDSAPrivateKey=0x0000000E, //(deprecated),
+    TransparentECDSAPublicKey=0x0000000F, //(deprecated),
+    TransparentECDHPrivateKey=0x00000010, //(deprecated),
+    TransparentECDHPublicKey=0x00000011, //(deprecated),
+    TransparentECMQVPrivateKey=0x00000012, //(deprecated),
+    TransparentECMQVPublicKey=0x00000013, //(deprecated),
+    TransparentECPrivateKey=0x00000014,
+    TransparentECPublicKey=0x00000015,
+    PKCS12=0x00000016,
+}
+
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
+#[repr(i32)]
+enum KeyCompressionType {
+    ECPublicKeyTypeUncompressed=0x00000001,
+    ECPublicKeyTypeX962CompressedPrime=0x00000002,
+    ECPublicKeyTypeX962CompressedChar2=0x00000003,
+    ECPublicKeyTypeX962Hybrid=0x00000004,
+}
+
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive,AsStaticStr, PartialEq)]
+#[repr(i32)]
 enum ResultStatus {
     Success=0x00000000,
     OperationFailed=0x00000001,
@@ -210,7 +255,8 @@ enum ResultStatus {
     OperationUndone=0x00000003,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromPrimitive,AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive,AsStaticStr)]
+#[repr(i32)]
 enum ResultReason {
     ItemNotFound=0x00000001,
     ResponseTooLarge=0x00000002,
@@ -564,6 +610,29 @@ fn load_private_key(filename: &str) -> rustls::PrivateKey {
 
 
 #[derive(Serialize, Deserialize, Debug)]
+struct KeyBlock {
+    KeyFormatType: KeyFormatTypeEnum,
+     KeyCompressionType : Option<KeyCompressionType>,
+
+     // TODO : this type is not just bytes all the time
+     KeyValue: Vec<u8>,
+
+     // TODO - omitted in some cases
+     CryptographicAlgorithm: CryptographicAlgorithm,
+     CryptographicLengh : i32,
+
+     // TODO
+     // KeyWrappingData  : KeyWrappingData
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+struct SymmetricKey {
+    KeyBlock: KeyBlock,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
 struct AttributeStruct {
     AttributeName : String,
     AttributeIndex : Option<i32>,
@@ -617,17 +686,31 @@ struct CreateRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename="ResponsePayload")]
 struct CreateResponse {
     ObjectType : ObjectTypeEnum,
     UniqueIdentifier: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+struct GetRequest {
+    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    UniqueIdentifier: String,
+    KeyFormatType : Option<KeyFormatTypeEnum>,
+    KeyWrapType : Option<KeyFormatTypeEnum>,
+    KeyCompressionType : Option<KeyCompressionType>,
+    // TODO KeyWrappingSpecification: KeyWrappingSpecification
+}
+
+
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "Operation", content = "RequestPayload")]
 enum RequestBatchItem {
-    Create(CreateRequest)
-    // TODO - add support for: Unique Batch Item ID
+    Create(CreateRequest),
+    Get(GetRequest),
+    // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -666,13 +749,14 @@ enum ResponseOperationEnum {
     // TODO - add support for: Unique Batch Item ID
 }
 
+// TODO - remove Deserialize
 #[derive(Deserialize, Debug)]
 #[serde(rename="BatchItem")]
 struct ResponseBatchItem {
-    Operation: Option<String>,
+    //Operation: Option<String>,
     ResultStatus: ResultStatus,
     ResultReason: ResultReason,
-    //ResultMessage : Option<String>,
+    ResultMessage : Option<String>,
     ResponsePayload: Option<ResponseOperationEnum>,
 }
 
@@ -692,23 +776,45 @@ impl Serialize for ResponseBatchItem
         let mut field_count = 1;
         let mut serialize_reason = false;
         let mut serialize_operation = false;
+        let mut serialize_message = false;
 
         if self.ResultStatus == ResultStatus::OperationFailed {
             field_count += 1;
             serialize_reason = true;
+
+            if self.ResultMessage.is_some() {
+                field_count += 1;
+                serialize_message = true;
+            }
         }
 
-        if self.Operation.is_some() {
+//         if self.Operation.is_some() {
+//             field_count += 2;
+//             serialize_operation = true;
+// //            assert_eq!(self.Operation.is_some(), self.ResponsePayload.is_some() );
+//         }
+
+        if self.ResponsePayload.is_some() {
             field_count += 2;
             serialize_operation = true;
-//            assert_eq!(self.Operation.is_some(), self.ResponsePayload.is_some() );
         }
 
         let mut ser_struct = serializer.serialize_struct("BatchItem", field_count)?;
 
+        // if serialize_operation {
+        //     let op = self.Operation.as_ref();
+        //     ser_struct.serialize_field("Operation", &op)?;
+        // }
+
         if serialize_operation {
-            let op = self.Operation.as_ref();
-            ser_struct.serialize_field("Operation", &op)?;
+            // TODO - use a macro to derive this stuff
+            match self.ResponsePayload.as_ref().unwrap() {
+                ResponseOperationEnum::Create(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::Create)?;
+
+                }
+                ResponseOperationEnum::Empty => { unimplemented!() }
+            }
         }
 
         ser_struct.serialize_field("ResultStatus", &self.ResultStatus)?;
@@ -717,13 +823,29 @@ impl Serialize for ResponseBatchItem
             ser_struct.serialize_field("ResultReason", &self.ResultReason)?;
         }
 
+        if serialize_message {
+            ser_struct.serialize_field("ResultMessage", &self.ResultMessage)?;
+        }
+
+        if serialize_operation {
+            // TODO - use a macro to derive this stuff
+            //ser_struct.serialize_field("ResultPayload", &self.ResponsePayload.as_ref())?;
+            match self.ResponsePayload.as_ref().unwrap() {
+                ResponseOperationEnum::Create(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+
+                }
+                ResponseOperationEnum::Empty => { unimplemented!() }
+            }
+        }
 
         ser_struct.end()
     }
 }
 
+/////////////////////////////////
 
-fn create_error_response() ->Vec<u8> {
+fn create_error_response(msg: Option<String>) ->Vec<u8> {
     let r  = ResponseMessage {
         ResponseHeader : ResponseHeader {
             ProtocolVersion : ProtocolVersion {
@@ -734,9 +856,10 @@ fn create_error_response() ->Vec<u8> {
             BatchCount : 1,
         },
         BatchItem: ResponseBatchItem {
-            Operation: None,
+            //Operation: None,
             ResultStatus : ResultStatus::OperationFailed,
             ResultReason: ResultReason::GeneralFailure,
+            ResultMessage: msg,
             ResponsePayload: None,
             // ResponseOperation: None,
         }
@@ -745,6 +868,72 @@ fn create_error_response() ->Vec<u8> {
     return ttlv::to_bytes(&r).unwrap();
 }
 
+use std::error::Error;
+use std::fmt;
+
+#[derive(Debug)]
+struct KmipResponseError {
+    msg: String,
+}
+
+impl KmipResponseError {
+    fn new(msg : &str) -> KmipResponseError {
+        KmipResponseError { msg : msg.to_owned() }
+    }
+}
+
+impl fmt::Display for KmipResponseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "KMIP Response error: {}", self.msg)
+    }
+}
+
+impl Error for KmipResponseError {
+    fn description(&self) -> &str {
+        "KMIP Response error"
+    }
+}
+
+
+fn process_create_request( req : CreateRequest ) -> std::result::Result<CreateResponse, KmipResponseError> {
+    match req.ObjectType {
+        ObjectTypeEnum::SymmetricKey => {
+            Ok(CreateResponse {
+                ObjectType: ObjectTypeEnum::SymmetricKey,
+                UniqueIdentifier: "Fpp".to_owned(),
+            })
+        }
+        _ =>  {
+            Err( KmipResponseError::new("Foo"))
+        }
+    }
+}
+
+fn create_ok_response(op: ResponseOperationEnum) ->Vec<u8> {
+    let r  = ResponseMessage {
+        ResponseHeader : ResponseHeader {
+            ProtocolVersion : ProtocolVersion {
+                ProtocolVersionMajor : 1,
+                ProtocolVersionMinor : 0,
+            },
+            TimeStamp: Utc::now(),
+            BatchCount : 1,
+        },
+        BatchItem: ResponseBatchItem {
+            ResultStatus : ResultStatus::Success,
+            ResultReason: ResultReason::GeneralFailure,
+            ResultMessage: None,
+            ResponsePayload: Some(op),
+            // ResponseOperation: None,
+        }
+    };
+
+    return ttlv::to_bytes(&r).unwrap();
+}
+
+// fn process_request(batchitem: &RequestBatchItem) -> {ResponseOperationEnum
+
+// }
 
 fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
 
@@ -755,29 +944,38 @@ fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
 
     let request = ttlv::from_bytes::<RequestMessage>(&buf, &k).unwrap();
 
-    // TODO - check protocol message
+    // TODO - check protocol version
     println!("Received message: {}.{}", request.RequestHeader.ProtocolVersion.ProtocolVersionMajor, request.RequestHeader.ProtocolVersion.ProtocolVersionMinor);
 
-    match request.BatchItem {
-        RequestBatchItem::Create(_) => {
+    let result = match request.BatchItem {
+        RequestBatchItem::Create(x) => {
             println!("Got Create Request");
+            process_create_request(x).map( |r| ResponseOperationEnum::Create(r))
         }
         _ => {
             unimplemented!();
         }
-    }
+    };
 
-    let vr = create_error_response();
-        println!("Response Message: {:?}", vr.hex_dump());
+
+    let vr = match result {
+        std::result::Result::Ok(t) => {
+            create_ok_response(t)
+        },
+        std::result::Result::Err(e) => {
+            let msg = format!("error: {}", e);
+            create_error_response(Some(msg))
+        }
+    };
+
+    println!("Response Message: {:?}", vr.hex_dump());
 
     ttlv::to_print(vr.as_slice());
 
     return vr;
 }
 
-struct KmipEnumResolver {
-
-}
+struct KmipEnumResolver;
 
 impl ttlv::EnumResolver for KmipEnumResolver {
     fn resolve_enum(&self, name: &str, value: i32) -> String {
@@ -808,12 +1006,6 @@ impl ttlv::EnumResolver for KmipEnumResolver {
 
 fn main() {
     println!("Hello, world!");
-
-// process_kmip_request(bytes.as_slice());
-
-
-
-panic!{}
 
     //    env_logger::init();
 
@@ -934,5 +1126,5 @@ fn test_create_request2() {
 
 process_kmip_request(bytes.as_slice());
 
-unimplemented!();
+//unimplemented!();
 }

@@ -25,6 +25,8 @@ strum_macros = "0.15.0"
 
 chrono = "0.4.7"
 
+#serde_enum = {path="serde_enum"}
+
 
 [lib]
 name = "ttlv"
