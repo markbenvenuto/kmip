@@ -15,7 +15,7 @@ extern crate serde_derive;
 
 //#[macro_use]
 extern crate serde_enum;
-use serde_enum::{Serialize_enum, Deserialize_enum};
+use serde_enum::{Deserialize_enum, Serialize_enum};
 
 use std::io::prelude::*;
 use std::path::Path;
@@ -31,7 +31,6 @@ extern crate strum;
 #[macro_use]
 extern crate strum_macros;
 
-
 use pretty_hex::*;
 
 extern crate confy;
@@ -44,27 +43,26 @@ use std::sync::Arc;
 
 use rustls;
 
-use rustls::{RootCertStore, Session, NoClientAuth, AllowAnyAuthenticatedClient,
-             AllowAnyAnonymousOrAuthenticatedClient};
+use rustls::{
+    AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth,
+    RootCertStore, Session,
+};
 
-
-         use mio;
-use mio::tcp::{TcpListener, TcpStream, Shutdown};
-
+use mio;
+use mio::tcp::{Shutdown, TcpListener, TcpStream};
 
 use std::io;
 use vecio::Rawv;
 
-use std::fs;
-use std::net;
-use std::io::{Write, Read, BufReader};
 use std::collections::HashMap;
+use std::fs;
+use std::io::{BufReader, Read, Write};
+use std::net;
 use std::string::ToString;
 
 use strum::AsStaticRef;
 
-use serde::ser::{Serialize, Serializer, SerializeStruct};
-
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 // mod git;
 // mod watchman;
@@ -119,7 +117,6 @@ pub enum Operation {
     Export = 0x0000002B,
 }
 
-
 #[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
 #[repr(i32)]
 enum ObjectTypeEnum {
@@ -134,14 +131,14 @@ enum ObjectTypeEnum {
     PGPKey = 0x00000009,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum,FromPrimitive,AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
 #[repr(i32)]
 enum NameTypeEnum {
     UninterpretedTextString = 0x00000001,
     URI = 0x00000002,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive,AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
 #[repr(i32)]
 enum CryptographicAlgorithm {
     DES = 0x00000001,
@@ -188,101 +185,101 @@ enum CryptographicAlgorithm {
 
 #[derive(Debug, Serialize, Deserialize)]
 enum CryptographicUsageMask {
-    Sign=0x00000001,
-    Verify=0x00000002,
-    Encrypt=0x00000004,
-    Decrypt=0x00000008,
-    WrapKey=0x00000010,
-    UnwrapKey=0x00000020,
-    Export=0x00000040,
-    MACGenerate=0x00000080,
-    MACVerify=0x00000100,
-    DeriveKey=0x00000200,
-    ContentCommitment=0x00000400, // (NonRepudiation)
-    KeyAgreement=0x00000800,
-    CertificateSign=0x00001000,
-    CRLSign=0x00002000,
-    GenerateCryptogram=0x00004000,
-    ValidateCryptogram=0x00008000,
-    TranslateEncrypt=0x00010000,
-    TranslateDecrypt=0x00020000,
-    TranslateWrap=0x00040000,
-    TranslateUnwrap=0x00080000,
+    Sign = 0x00000001,
+    Verify = 0x00000002,
+    Encrypt = 0x00000004,
+    Decrypt = 0x00000008,
+    WrapKey = 0x00000010,
+    UnwrapKey = 0x00000020,
+    Export = 0x00000040,
+    MACGenerate = 0x00000080,
+    MACVerify = 0x00000100,
+    DeriveKey = 0x00000200,
+    ContentCommitment = 0x00000400, // (NonRepudiation)
+    KeyAgreement = 0x00000800,
+    CertificateSign = 0x00001000,
+    CRLSign = 0x00002000,
+    GenerateCryptogram = 0x00004000,
+    ValidateCryptogram = 0x00008000,
+    TranslateEncrypt = 0x00010000,
+    TranslateDecrypt = 0x00020000,
+    TranslateWrap = 0x00040000,
+    TranslateUnwrap = 0x00080000,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive,AsStaticStr, PartialEq)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
 #[repr(i32)]
 enum KeyFormatTypeEnum {
-    Raw=0x00000001,
-    Opaque=0x00000002,
-    PKCS1=0x00000003,
-    PKCS8=0x00000004,
-    X509=0x00000005,
-    ECPrivateKey=0x00000006,
-    TransparentSymmetricKey=0x00000007,
-    TransparentDSAPrivateKey=0x00000008,
-    TransparentDSAPublicKey=0x00000009,
-    TransparentRSAPrivateKey=0x0000000A,
-    TransparentRSAPublicKey=0x0000000B,
-    TransparentDHPrivateKey=0x0000000C,
-    TransparentDHPublicKey=0x0000000D,
-    TransparentECDSAPrivateKey=0x0000000E, //(deprecated),
-    TransparentECDSAPublicKey=0x0000000F, //(deprecated),
-    TransparentECDHPrivateKey=0x00000010, //(deprecated),
-    TransparentECDHPublicKey=0x00000011, //(deprecated),
-    TransparentECMQVPrivateKey=0x00000012, //(deprecated),
-    TransparentECMQVPublicKey=0x00000013, //(deprecated),
-    TransparentECPrivateKey=0x00000014,
-    TransparentECPublicKey=0x00000015,
-    PKCS12=0x00000016,
+    Raw = 0x00000001,
+    Opaque = 0x00000002,
+    PKCS1 = 0x00000003,
+    PKCS8 = 0x00000004,
+    X509 = 0x00000005,
+    ECPrivateKey = 0x00000006,
+    TransparentSymmetricKey = 0x00000007,
+    TransparentDSAPrivateKey = 0x00000008,
+    TransparentDSAPublicKey = 0x00000009,
+    TransparentRSAPrivateKey = 0x0000000A,
+    TransparentRSAPublicKey = 0x0000000B,
+    TransparentDHPrivateKey = 0x0000000C,
+    TransparentDHPublicKey = 0x0000000D,
+    TransparentECDSAPrivateKey = 0x0000000E, //(deprecated),
+    TransparentECDSAPublicKey = 0x0000000F,  //(deprecated),
+    TransparentECDHPrivateKey = 0x00000010,  //(deprecated),
+    TransparentECDHPublicKey = 0x00000011,   //(deprecated),
+    TransparentECMQVPrivateKey = 0x00000012, //(deprecated),
+    TransparentECMQVPublicKey = 0x00000013,  //(deprecated),
+    TransparentECPrivateKey = 0x00000014,
+    TransparentECPublicKey = 0x00000015,
+    PKCS12 = 0x00000016,
 }
 
 #[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
 #[repr(i32)]
 enum KeyCompressionType {
-    ECPublicKeyTypeUncompressed=0x00000001,
-    ECPublicKeyTypeX962CompressedPrime=0x00000002,
-    ECPublicKeyTypeX962CompressedChar2=0x00000003,
-    ECPublicKeyTypeX962Hybrid=0x00000004,
+    ECPublicKeyTypeUncompressed = 0x00000001,
+    ECPublicKeyTypeX962CompressedPrime = 0x00000002,
+    ECPublicKeyTypeX962CompressedChar2 = 0x00000003,
+    ECPublicKeyTypeX962Hybrid = 0x00000004,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive,AsStaticStr, PartialEq)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
 #[repr(i32)]
 enum ResultStatus {
-    Success=0x00000000,
-    OperationFailed=0x00000001,
-    OperationPending=0x00000002,
-    OperationUndone=0x00000003,
+    Success = 0x00000000,
+    OperationFailed = 0x00000001,
+    OperationPending = 0x00000002,
+    OperationUndone = 0x00000003,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive,AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
 #[repr(i32)]
 enum ResultReason {
-    ItemNotFound=0x00000001,
-    ResponseTooLarge=0x00000002,
-    AuthenticationNotSuccessful=0x00000003,
-    InvalidMessage=0x00000004,
-    OperationNotSupported=0x00000005,
-    MissingData=0x00000006,
-    InvalidField=0x00000007,
-    FeatureNotSupported=0x00000008,
-    OperationCanceledByRequester=0x00000009,
-    CryptographicFailure=0x0000000A,
-    IllegalOperation=0x0000000B,
-    PermissionDenied=0x0000000C,
-    Objectarchived=0x0000000D,
-    IndexOutofBounds=0x0000000E,
-    ApplicationNamespaceNotSupported=0x0000000F,
-    KeyFormatTypeNotSupported=0x00000010,
-    KeyCompressionTypeNotSupported=0x00000011,
-    EncodingOptionError=0x00000012,
-    KeyValueNotPresent=0x00000013,
-    AttestationRequired=0x00000014,
-    AttestationFailed=0x00000015,
-    Sensitive=0x00000016,
-    NotExtractable=0x00000017,
-    ObjectAlreadyExists=0x00000018,
-    GeneralFailure=0x00000100
+    ItemNotFound = 0x00000001,
+    ResponseTooLarge = 0x00000002,
+    AuthenticationNotSuccessful = 0x00000003,
+    InvalidMessage = 0x00000004,
+    OperationNotSupported = 0x00000005,
+    MissingData = 0x00000006,
+    InvalidField = 0x00000007,
+    FeatureNotSupported = 0x00000008,
+    OperationCanceledByRequester = 0x00000009,
+    CryptographicFailure = 0x0000000A,
+    IllegalOperation = 0x0000000B,
+    PermissionDenied = 0x0000000C,
+    Objectarchived = 0x0000000D,
+    IndexOutofBounds = 0x0000000E,
+    ApplicationNamespaceNotSupported = 0x0000000F,
+    KeyFormatTypeNotSupported = 0x00000010,
+    KeyCompressionTypeNotSupported = 0x00000011,
+    EncodingOptionError = 0x00000012,
+    KeyValueNotPresent = 0x00000013,
+    AttestationRequired = 0x00000014,
+    AttestationFailed = 0x00000015,
+    Sensitive = 0x00000016,
+    NotExtractable = 0x00000017,
+    ObjectAlreadyExists = 0x00000018,
+    GeneralFailure = 0x00000100,
 }
 
 /// Search for a pattern in a file and display the lines that contain it.
@@ -301,9 +298,9 @@ struct CmdLine {
 
     serverCertFile: String,
 
-    serverKeyFile : String,
+    serverKeyFile: String,
 
-    caCertFile : String,
+    caCertFile: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -324,7 +321,7 @@ impl ::std::default::Default for MyConfig {
 
 /// This glues our `rustls::WriteV` trait to `vecio::Rawv`.
 pub struct WriteVAdapter<'a> {
-    rawv: &'a mut dyn Rawv
+    rawv: &'a mut dyn Rawv,
 }
 
 impl<'a> WriteVAdapter<'a> {
@@ -338,7 +335,6 @@ impl<'a> rustls::WriteV for WriteVAdapter<'a> {
         self.rawv.writev(bytes)
     }
 }
-
 
 // Token for our listening socket.
 const LISTENER: mio::Token = mio::Token(0);
@@ -372,7 +368,8 @@ impl TlsServer {
                 let token = mio::Token(self.next_id);
                 self.next_id += 1;
 
-                self.connections.insert(token, Connection::new(socket, token, tls_session));
+                self.connections
+                    .insert(token, Connection::new(socket, token, tls_session));
                 self.connections[&token].register(poll);
                 true
             }
@@ -387,10 +384,7 @@ impl TlsServer {
         let token = event.token();
 
         if self.connections.contains_key(&token) {
-            self.connections
-                .get_mut(&token)
-                .unwrap()
-                .ready(poll, event);
+            self.connections.get_mut(&token).unwrap().ready(poll, event);
 
             if self.connections[&token].is_closed() {
                 self.connections.remove(&token);
@@ -429,10 +423,7 @@ fn try_read(r: io::Result<usize>) -> io::Result<Option<usize>> {
 }
 
 impl Connection {
-    fn new(socket: TcpStream,
-           token: mio::Token,
-           tls_session: rustls::ServerSession)
-           -> Connection {
+    fn new(socket: TcpStream, token: mio::Token, tls_session: rustls::ServerSession) -> Connection {
         Connection {
             socket,
             token,
@@ -514,7 +505,6 @@ impl Connection {
 
     /// Process some amount of received plaintext.
     fn incoming_plaintext(&mut self, buf: &[u8]) {
-
         let response = process_kmip_request(buf);
 
         self.tls_session.write_all(response.as_slice()).unwrap();
@@ -528,7 +518,8 @@ impl Connection {
 
     #[cfg(not(target_os = "windows"))]
     fn tls_write(&mut self) -> io::Result<usize> {
-        self.tls_session.writev_tls(&mut WriteVAdapter::new(&mut self.socket))
+        self.tls_session
+            .writev_tls(&mut WriteVAdapter::new(&mut self.socket))
     }
 
     fn do_tls_write_and_handle_error(&mut self) {
@@ -541,19 +532,23 @@ impl Connection {
     }
 
     fn register(&self, poll: &mut mio::Poll) {
-        poll.register(&self.socket,
-                      self.token,
-                      self.event_set(),
-                      mio::PollOpt::level() | mio::PollOpt::oneshot())
-            .unwrap();
+        poll.register(
+            &self.socket,
+            self.token,
+            self.event_set(),
+            mio::PollOpt::level() | mio::PollOpt::oneshot(),
+        )
+        .unwrap();
     }
 
     fn reregister(&self, poll: &mut mio::Poll) {
-        poll.reregister(&self.socket,
-                        self.token,
-                        self.event_set(),
-                        mio::PollOpt::level() | mio::PollOpt::oneshot())
-            .unwrap();
+        poll.reregister(
+            &self.socket,
+            self.token,
+            self.event_set(),
+            mio::PollOpt::level() | mio::PollOpt::oneshot(),
+        )
+        .unwrap();
     }
 
     /// What IO events we're currently waiting for,
@@ -584,16 +579,14 @@ fn load_certs(filename: &str) -> Vec<rustls::Certificate> {
 
 fn load_private_key(filename: &str) -> rustls::PrivateKey {
     let rsa_keys = {
-        let keyfile = fs::File::open(filename)
-            .expect("cannot open private key file");
+        let keyfile = fs::File::open(filename).expect("cannot open private key file");
         let mut reader = BufReader::new(keyfile);
         rustls::internal::pemfile::rsa_private_keys(&mut reader)
             .expect("file contains invalid rsa private key")
     };
 
     let pkcs8_keys = {
-        let keyfile = fs::File::open(filename)
-            .expect("cannot open private key file");
+        let keyfile = fs::File::open(filename).expect("cannot open private key file");
         let mut reader = BufReader::new(keyfile);
         rustls::internal::pemfile::pkcs8_private_keys(&mut reader)
             .expect("file contains invalid pkcs8 private key (encrypted keys not supported)")
@@ -608,44 +601,38 @@ fn load_private_key(filename: &str) -> rustls::PrivateKey {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 struct KeyBlock {
     KeyFormatType: KeyFormatTypeEnum,
-     KeyCompressionType : Option<KeyCompressionType>,
+    KeyCompressionType: Option<KeyCompressionType>,
 
-     // TODO : this type is not just bytes all the time
-     KeyValue: Vec<u8>,
+    // TODO : this type is not just bytes all the time
+    KeyValue: Vec<u8>,
 
-     // TODO - omitted in some cases
-     CryptographicAlgorithm: CryptographicAlgorithm,
-     CryptographicLengh : i32,
-
-     // TODO
-     // KeyWrappingData  : KeyWrappingData
+    // TODO - omitted in some cases
+    CryptographicAlgorithm: CryptographicAlgorithm,
+    CryptographicLengh: i32,
+    // TODO
+    // KeyWrappingData  : KeyWrappingData
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SymmetricKey {
     KeyBlock: KeyBlock,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 struct AttributeStruct {
-    AttributeName : String,
-    AttributeIndex : Option<i32>,
+    AttributeName: String,
+    AttributeIndex: Option<i32>,
     // AttributeValue type varies based on type
     //AttributeValue: ???
 }
 
-
-
 #[derive(Serialize, Deserialize, Debug)]
 struct NameStruct {
-    NameValue : String,
-    NameType : NameTypeEnum,
+    NameValue: String,
+    NameType: NameTypeEnum,
 }
 
 // #[derive(Serialize, Deserialize, Debug)]
@@ -653,7 +640,6 @@ struct NameStruct {
 //     Name : NameStruct,
 //     Attribute : AttributeStruct,
 // }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "AttributeName", content = "AttributeValue")]
@@ -673,22 +659,22 @@ enum CreateRequestAttributes {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 struct TemplateAttribute {
-    Name : Option<NameStruct>,
-    #[serde(rename="Attribute")]
+    Name: Option<NameStruct>,
+    #[serde(rename = "Attribute")]
     Attribute: Vec<CreateRequestAttributes>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 struct CreateRequest {
-    ObjectType : ObjectTypeEnum,
+    ObjectType: ObjectTypeEnum,
     TemplateAttribute: Vec<TemplateAttribute>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename="ResponsePayload")]
+#[serde(rename = "ResponsePayload")]
 struct CreateResponse {
-    ObjectType : ObjectTypeEnum,
+    ObjectType: ObjectTypeEnum,
     UniqueIdentifier: String,
 }
 
@@ -697,13 +683,11 @@ struct CreateResponse {
 struct GetRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     UniqueIdentifier: String,
-    KeyFormatType : Option<KeyFormatTypeEnum>,
-    KeyWrapType : Option<KeyFormatTypeEnum>,
-    KeyCompressionType : Option<KeyCompressionType>,
+    KeyFormatType: Option<KeyFormatTypeEnum>,
+    KeyWrapType: Option<KeyFormatTypeEnum>,
+    KeyCompressionType: Option<KeyCompressionType>,
     // TODO KeyWrappingSpecification: KeyWrappingSpecification
 }
-
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "Operation", content = "RequestPayload")]
@@ -715,13 +699,13 @@ enum RequestBatchItem {
 
 #[derive(Deserialize, Serialize, Debug)]
 struct ProtocolVersion {
-    ProtocolVersionMajor : i32,
-    ProtocolVersionMinor : i32,
+    ProtocolVersionMajor: i32,
+    ProtocolVersionMinor: i32,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 struct RequestHeader {
-    ProtocolVersion : ProtocolVersion,
+    ProtocolVersion: ProtocolVersion,
     // TODO: Other fields are optional
     BatchCount: i32,
 }
@@ -729,14 +713,14 @@ struct RequestHeader {
 #[derive(Serialize, Deserialize, Debug)]
 struct RequestMessage {
     RequestHeader: RequestHeader,
-    BatchItem : RequestBatchItem,
+    BatchItem: RequestBatchItem,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 struct ResponseHeader {
-    ProtocolVersion : ProtocolVersion,
+    ProtocolVersion: ProtocolVersion,
     #[serde(with = "ttlv::my_date_format")]
-    TimeStamp : chrono::DateTime<Utc>,
+    TimeStamp: chrono::DateTime<Utc>,
     // TODO: Other fields are optional
     BatchCount: i32,
 }
@@ -751,24 +735,23 @@ enum ResponseOperationEnum {
 
 // TODO - remove Deserialize
 #[derive(Deserialize, Debug)]
-#[serde(rename="BatchItem")]
+#[serde(rename = "BatchItem")]
 struct ResponseBatchItem {
     //Operation: Option<String>,
     ResultStatus: ResultStatus,
     ResultReason: ResultReason,
-    ResultMessage : Option<String>,
+    ResultMessage: Option<String>,
     ResponsePayload: Option<ResponseOperationEnum>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ResponseMessage {
     ResponseHeader: ResponseHeader,
-    #[serde(rename="BatchItem")]
-    BatchItem : ResponseBatchItem,
+    #[serde(rename = "BatchItem")]
+    BatchItem: ResponseBatchItem,
 }
 
-impl Serialize for ResponseBatchItem
-{
+impl Serialize for ResponseBatchItem {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -788,11 +771,11 @@ impl Serialize for ResponseBatchItem
             }
         }
 
-//         if self.Operation.is_some() {
-//             field_count += 2;
-//             serialize_operation = true;
-// //            assert_eq!(self.Operation.is_some(), self.ResponsePayload.is_some() );
-//         }
+        //         if self.Operation.is_some() {
+        //             field_count += 2;
+        //             serialize_operation = true;
+        // //            assert_eq!(self.Operation.is_some(), self.ResponsePayload.is_some() );
+        //         }
 
         if self.ResponsePayload.is_some() {
             field_count += 2;
@@ -811,9 +794,8 @@ impl Serialize for ResponseBatchItem
             match self.ResponsePayload.as_ref().unwrap() {
                 ResponseOperationEnum::Create(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Create)?;
-
                 }
-                ResponseOperationEnum::Empty => { unimplemented!() }
+                ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
 
@@ -833,9 +815,8 @@ impl Serialize for ResponseBatchItem
             match self.ResponsePayload.as_ref().unwrap() {
                 ResponseOperationEnum::Create(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
-
                 }
-                ResponseOperationEnum::Empty => { unimplemented!() }
+                ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
 
@@ -845,24 +826,24 @@ impl Serialize for ResponseBatchItem
 
 /////////////////////////////////
 
-fn create_error_response(msg: Option<String>) ->Vec<u8> {
-    let r  = ResponseMessage {
-        ResponseHeader : ResponseHeader {
-            ProtocolVersion : ProtocolVersion {
-                ProtocolVersionMajor : 1,
-                ProtocolVersionMinor : 0,
+fn create_error_response(msg: Option<String>) -> Vec<u8> {
+    let r = ResponseMessage {
+        ResponseHeader: ResponseHeader {
+            ProtocolVersion: ProtocolVersion {
+                ProtocolVersionMajor: 1,
+                ProtocolVersionMinor: 0,
             },
             TimeStamp: Utc::now(),
-            BatchCount : 1,
+            BatchCount: 1,
         },
         BatchItem: ResponseBatchItem {
             //Operation: None,
-            ResultStatus : ResultStatus::OperationFailed,
+            ResultStatus: ResultStatus::OperationFailed,
             ResultReason: ResultReason::GeneralFailure,
             ResultMessage: msg,
             ResponsePayload: None,
             // ResponseOperation: None,
-        }
+        },
     };
 
     return ttlv::to_bytes(&r).unwrap();
@@ -877,8 +858,10 @@ struct KmipResponseError {
 }
 
 impl KmipResponseError {
-    fn new(msg : &str) -> KmipResponseError {
-        KmipResponseError { msg : msg.to_owned() }
+    fn new(msg: &str) -> KmipResponseError {
+        KmipResponseError {
+            msg: msg.to_owned(),
+        }
     }
 }
 
@@ -894,38 +877,35 @@ impl Error for KmipResponseError {
     }
 }
 
-
-fn process_create_request( req : CreateRequest ) -> std::result::Result<CreateResponse, KmipResponseError> {
+fn process_create_request(
+    req: CreateRequest,
+) -> std::result::Result<CreateResponse, KmipResponseError> {
     match req.ObjectType {
-        ObjectTypeEnum::SymmetricKey => {
-            Ok(CreateResponse {
-                ObjectType: ObjectTypeEnum::SymmetricKey,
-                UniqueIdentifier: "Fpp".to_owned(),
-            })
-        }
-        _ =>  {
-            Err( KmipResponseError::new("Foo"))
-        }
+        ObjectTypeEnum::SymmetricKey => Ok(CreateResponse {
+            ObjectType: ObjectTypeEnum::SymmetricKey,
+            UniqueIdentifier: "Fpp".to_owned(),
+        }),
+        _ => Err(KmipResponseError::new("Foo")),
     }
 }
 
-fn create_ok_response(op: ResponseOperationEnum) ->Vec<u8> {
-    let r  = ResponseMessage {
-        ResponseHeader : ResponseHeader {
-            ProtocolVersion : ProtocolVersion {
-                ProtocolVersionMajor : 1,
-                ProtocolVersionMinor : 0,
+fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {
+    let r = ResponseMessage {
+        ResponseHeader: ResponseHeader {
+            ProtocolVersion: ProtocolVersion {
+                ProtocolVersionMajor: 1,
+                ProtocolVersionMinor: 0,
             },
             TimeStamp: Utc::now(),
-            BatchCount : 1,
+            BatchCount: 1,
         },
         BatchItem: ResponseBatchItem {
-            ResultStatus : ResultStatus::Success,
+            ResultStatus: ResultStatus::Success,
             ResultReason: ResultReason::GeneralFailure,
             ResultMessage: None,
             ResponsePayload: Some(op),
             // ResponseOperation: None,
-        }
+        },
     };
 
     return ttlv::to_bytes(&r).unwrap();
@@ -936,8 +916,7 @@ fn create_ok_response(op: ResponseOperationEnum) ->Vec<u8> {
 // }
 
 fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
-
-    let k : KmipEnumResolver = KmipEnumResolver{};
+    let k: KmipEnumResolver = KmipEnumResolver {};
 
     println!("Request Message: {:?}", buf.hex_dump());
     ttlv::to_print(buf);
@@ -945,23 +924,24 @@ fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
     let request = ttlv::from_bytes::<RequestMessage>(&buf, &k).unwrap();
 
     // TODO - check protocol version
-    println!("Received message: {}.{}", request.RequestHeader.ProtocolVersion.ProtocolVersionMajor, request.RequestHeader.ProtocolVersion.ProtocolVersionMinor);
+    println!(
+        "Received message: {}.{}",
+        request.RequestHeader.ProtocolVersion.ProtocolVersionMajor,
+        request.RequestHeader.ProtocolVersion.ProtocolVersionMinor
+    );
 
     let result = match request.BatchItem {
         RequestBatchItem::Create(x) => {
             println!("Got Create Request");
-            process_create_request(x).map( |r| ResponseOperationEnum::Create(r))
+            process_create_request(x).map(|r| ResponseOperationEnum::Create(r))
         }
         _ => {
             unimplemented!();
         }
     };
 
-
     let vr = match result {
-        std::result::Result::Ok(t) => {
-            create_ok_response(t)
-        },
+        std::result::Result::Ok(t) => create_ok_response(t),
         std::result::Result::Err(e) => {
             let msg = format!("error: {}", e);
             create_error_response(Some(msg))
@@ -982,27 +962,24 @@ impl ttlv::EnumResolver for KmipEnumResolver {
         match name {
             "Foo" => "Bar".to_owned(),
             "Operation" => {
-                let o : Operation = num::FromPrimitive::from_i32(value).unwrap();
+                let o: Operation = num::FromPrimitive::from_i32(value).unwrap();
                 return o.as_static().to_owned();
             }
             "ObjectType" => {
-                let o : ObjectTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
+                let o: ObjectTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
                 return o.as_static().to_owned();
             }
             "CryptographicAlgorithm" => {
-                let o : CryptographicAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
+                let o: CryptographicAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
                 return o.as_static().to_owned();
             }
             _ => {
-                println!("Not implemented: {:?}", name );
-                 unimplemented!{} }
+                println!("Not implemented: {:?}", name);
+                unimplemented! {}
+            }
         }
     }
 }
-
-
-
-
 
 fn main() {
     println!("Hello, world!");
@@ -1023,17 +1000,18 @@ fn main() {
 
     // confy::store("qrb", cfg).expect("foooooo3124123");
 
-   let mut addr: net::SocketAddr = "0.0.0.0:7000".parse().unwrap();
+    let mut addr: net::SocketAddr = "0.0.0.0:7000".parse().unwrap();
     //TODO addr.set_port(args.flag_port.unwrap_or(7000));
 
     let listener = TcpListener::bind(&addr).expect("cannot listen on port");
-    let mut poll = mio::Poll::new()
-        .unwrap();
-    poll.register(&listener,
-                  LISTENER,
-                  mio::Ready::readable(),
-                  mio::PollOpt::level())
-        .unwrap();
+    let mut poll = mio::Poll::new().unwrap();
+    poll.register(
+        &listener,
+        LISTENER,
+        mio::Ready::readable(),
+        mio::PollOpt::level(),
+    )
+    .unwrap();
 
     let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
 
@@ -1050,8 +1028,7 @@ fn main() {
 
     let mut events = mio::Events::with_capacity(256);
     loop {
-        poll.poll(&mut events, None)
-            .unwrap();
+        poll.poll(&mut events, None).unwrap();
 
         for event in events.iter() {
             match event.token() {
@@ -1060,71 +1037,70 @@ fn main() {
                         break;
                     }
                 }
-                _ => tlsserv.conn_event(&mut poll, &event)
+                _ => tlsserv.conn_event(&mut poll, &event),
             }
         }
     }
 }
 
-
-
 #[test]
 fn test_create_request() {
-    let bytes = vec!{
-0x42, 0x00, 0x78, 0x01, 0x00, 0x00, 0x01, 0x20, 0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x38,
-0x42, 0x00, 0x69, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0f, 0x01, 0x00, 0x00, 0x00, 0xd8,
-0x42, 0x00, 0x5c, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0xc0, 0x42, 0x00, 0x57, 0x05, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x91, 0x01, 0x00, 0x00, 0x00, 0xa8,
-0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x17,
-0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x41, 0x6c,
-0x67, 0x6f, 0x72, 0x69, 0x74, 0x68, 0x6d, 0x00, 0x42, 0x00, 0x0b, 0x05, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30,
-0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x14, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72,
-0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x4c, 0x65, 0x6e, 0x67, 0x74, 0x68, 0x00, 0x00, 0x00, 0x00,
-0x42, 0x00, 0x0b, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x18,
-0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x55, 0x73,
-0x61, 0x67, 0x65, 0x20, 0x4d, 0x61, 0x73, 0x6b, 0x42, 0x00, 0x0b, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00};
+    let bytes = vec![
+        0x42, 0x00, 0x78, 0x01, 0x00, 0x00, 0x01, 0x20, 0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00,
+        0x38, 0x42, 0x00, 0x69, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,
+        0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00,
+        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02,
+        0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0f,
+        0x01, 0x00, 0x00, 0x00, 0xd8, 0x42, 0x00, 0x5c, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0xc0, 0x42,
+        0x00, 0x57, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x91, 0x01, 0x00, 0x00, 0x00, 0xa8, 0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00,
+        0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x17, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f,
+        0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x41, 0x6c, 0x67, 0x6f, 0x72, 0x69, 0x74,
+        0x68, 0x6d, 0x00, 0x42, 0x00, 0x0b, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03,
+        0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a,
+        0x07, 0x00, 0x00, 0x00, 0x14, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70,
+        0x68, 0x69, 0x63, 0x20, 0x4c, 0x65, 0x6e, 0x67, 0x74, 0x68, 0x00, 0x00, 0x00, 0x00, 0x42,
+        0x00, 0x0b, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00,
+        0x18, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20,
+        0x55, 0x73, 0x61, 0x67, 0x65, 0x20, 0x4d, 0x61, 0x73, 0x6b, 0x42, 0x00, 0x0b, 0x02, 0x00,
+        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
+    ];
 
-ttlv::to_print(bytes.as_slice());
+    ttlv::to_print(bytes.as_slice());
 
-let k : KmipEnumResolver = KmipEnumResolver{};
-
+    let k: KmipEnumResolver = KmipEnumResolver {};
 
     let a = ttlv::from_bytes::<RequestMessage>(&bytes, &k).unwrap();
-
 }
-
 
 #[test]
 fn test_create_request2() {
-    let bytes = vec!{
-0x42, 0x00, 0x78, 0x01, 0x00, 0x00, 0x01, 0x20, 0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x38,
-0x42, 0x00, 0x69, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0f, 0x01, 0x00, 0x00, 0x00, 0xd8,
-0x42, 0x00, 0x5c, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0xc0, 0x42, 0x00, 0x57, 0x05, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x91, 0x01, 0x00, 0x00, 0x00, 0xa8,
-0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x17,
-0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x41, 0x6c,
-0x67, 0x6f, 0x72, 0x69, 0x74, 0x68, 0x6d, 0x00, 0x42, 0x00, 0x0b, 0x05, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30,
-0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x14, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72,
-0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x4c, 0x65, 0x6e, 0x67, 0x74, 0x68, 0x00, 0x00, 0x00, 0x00,
-0x42, 0x00, 0x0b, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x18,
-0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x55, 0x73,
-0x61, 0x67, 0x65, 0x20, 0x4d, 0x61, 0x73, 0x6b, 0x42, 0x00, 0x0b, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00};
+    let bytes = vec![
+        0x42, 0x00, 0x78, 0x01, 0x00, 0x00, 0x01, 0x20, 0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00,
+        0x38, 0x42, 0x00, 0x69, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,
+        0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00,
+        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02,
+        0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0f,
+        0x01, 0x00, 0x00, 0x00, 0xd8, 0x42, 0x00, 0x5c, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0xc0, 0x42,
+        0x00, 0x57, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x91, 0x01, 0x00, 0x00, 0x00, 0xa8, 0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00,
+        0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x17, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f,
+        0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x41, 0x6c, 0x67, 0x6f, 0x72, 0x69, 0x74,
+        0x68, 0x6d, 0x00, 0x42, 0x00, 0x0b, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03,
+        0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a,
+        0x07, 0x00, 0x00, 0x00, 0x14, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70,
+        0x68, 0x69, 0x63, 0x20, 0x4c, 0x65, 0x6e, 0x67, 0x74, 0x68, 0x00, 0x00, 0x00, 0x00, 0x42,
+        0x00, 0x0b, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00,
+        0x18, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20,
+        0x55, 0x73, 0x61, 0x67, 0x65, 0x20, 0x4d, 0x61, 0x73, 0x6b, 0x42, 0x00, 0x0b, 0x02, 0x00,
+        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
+    ];
 
-process_kmip_request(bytes.as_slice());
+    process_kmip_request(bytes.as_slice());
 
-//unimplemented!();
+    //unimplemented!();
 }
