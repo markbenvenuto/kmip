@@ -1597,38 +1597,38 @@ fn test_struct_nested() {
     assert_eq!(v, good);
 }
 
-// #[test]
-// fn test_struct_nested2() {
-//     #[derive(Serialize, Debug)]
-//     struct ObjectType {
-//             UniqueIdentifier: String,
-//     }
+#[test]
+fn test_struct_nested2() {
+    #[derive(Serialize, Debug)]
+    struct ObjectType {
+            UniqueIdentifier: String,
+    }
 
-//     #[derive(Serialize, Debug)]
-//     struct RequestHeader {
-//         ProtocolVersionMinor : ObjectType,
-//         BatchCount: i32,
-//     }
+    #[derive(Serialize, Debug)]
+    struct RequestHeader {
+        ProtocolVersionMinor : ObjectType,
+        BatchCount: i32,
+    }
 
-//     let a =  RequestHeader {
-//     ProtocolVersionMinor : ObjectType {
-//         UniqueIdentifier : String::new(),
-//     },
-//     BatchCount : 3,
-//     };
+    let a =  RequestHeader {
+    ProtocolVersionMinor : ObjectType {
+        UniqueIdentifier : String::new(),
+    },
+    BatchCount : 3,
+    };
 
-//     let v = to_bytes(&a).unwrap();
+    let v = to_bytes(&a).unwrap();
 
-//     print!("Dump of bytes {:?}", v.hex_dump());
+    print!("Dump of bytes {:?}", v.hex_dump());
 
-//     to_print(v.as_slice());
+    to_print(v.as_slice());
 
-//     let good = vec!{66, 0, 119, 1, 0, 0, 0, 48, 66, 0, 106, 2, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 0, 66, 0, 87, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0};
+    let good = vec!{66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 87, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0};
 
-//     assert_eq!(v.len(), 56);
+    assert_eq!(v.len(), 40);
 
-//     assert_eq!(v, good);
-// }
+    assert_eq!(v, good);
+}
 
 #[test]
 fn test_struct_types() {

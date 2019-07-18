@@ -1143,3 +1143,29 @@ fn test_Datetime() {
     let r  : TestEnumResolver=  TestEnumResolver{};
     let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
 }
+
+
+#[test]
+fn test_struct_nested() {
+    #[derive(Deserialize, Debug)]
+    struct RequestHeader {
+        ProtocolVersionMajor: i32,
+        BatchCount: i32,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct RequestMessage {
+        RequestHeader: RequestHeader,
+        UniqueIdentifier: String,
+    }
+
+    let good = vec![
+        66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0, 0, 0,
+        3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7, 0, 0, 0, 0,
+    ];
+
+    to_print(good.as_slice());
+
+    let r  : TestEnumResolver=  TestEnumResolver{};
+    let a = from_bytes::<RequestMessage>(&good, &r).unwrap();
+}
