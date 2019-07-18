@@ -1,5 +1,4 @@
 #[allow(non_snake_case)]
-
 #[macro_use]
 extern crate num_derive;
 
@@ -44,8 +43,9 @@ extern crate chrono;
 
 use chrono::*;
 
-use std::sync::Mutex;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use rustls;
 
@@ -73,12 +73,16 @@ use serde::ser::{Serialize, SerializeStruct, Serializer};
 #[macro_use(bson, doc)]
 extern crate bson;
 
+extern crate ring;
+use ring::rand::*;
+
 // use bson;
 
 // mod git;
 // mod watchman;
 
 use ttlv::*;
+
 
 #[derive(FromPrimitive, Serialize_enum, Deserialize_enum, Debug, AsStaticStr)]
 #[repr(i32)]
@@ -516,7 +520,12 @@ impl Connection {
 
     /// Process some amount of received plaintext.
     fn incoming_plaintext(&mut self, buf: &[u8]) {
-        let response = process_kmip_request(buf);
+
+        let mut rc = RequestContext::new();
+
+        rc.set_peer_addr(self.socket.peer_addr().unwrap());
+
+        let response = process_kmip_request(&mut rc, buf);
 
         self.tls_session.write_all(response.as_slice()).unwrap();
         //self.tls_session.send_close_notify();
@@ -613,16 +622,23 @@ fn load_private_key(filename: &str) -> rustls::PrivateKey {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+struct KeyValue {
+    #[serde(with = "serde_bytes")]
+    KeyMaterial: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 struct KeyBlock {
     KeyFormatType: KeyFormatTypeEnum,
+    #[serde(skip_serializing_if = "Option::is_none")]
     KeyCompressionType: Option<KeyCompressionType>,
 
-    // TODO : this type is not just bytes all the time
-    KeyValue: Vec<u8>,
+    // TODO : this type is not just a struct all the time
+    KeyValue: KeyValue,
 
     // TODO - omitted in some cases
     CryptographicAlgorithm: CryptographicAlgorithm,
-    CryptographicLengh: i32,
+    CryptographicLength: i32,
     // TODO
     // KeyWrappingData  : KeyWrappingData
 }
@@ -694,8 +710,11 @@ struct CreateResponse {
 struct GetRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     UniqueIdentifier: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     KeyFormatType: Option<KeyFormatTypeEnum>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     KeyWrapType: Option<KeyFormatTypeEnum>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     KeyCompressionType: Option<KeyCompressionType>,
     // TODO KeyWrappingSpecification: KeyWrappingSpecification
 }
@@ -706,7 +725,7 @@ struct GetResponse {
     ObjectType: ObjectTypeEnum,
     UniqueIdentifier: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    SymmetricKey : Option<SymmetricKey>,
+    SymmetricKey: Option<SymmetricKey>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -855,60 +874,85 @@ impl Serialize for ResponseBatchItem {
 
 #[derive(Serialize, Deserialize, Debug)]
 enum ManagedObjectEnum {
-    SymmetricKey(KeyBlock)
+    SymmetricKey(SymmetricKey),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ManagedObject {
-    id : String,
-    payload : ManagedObjectEnum,
+    id: String,
+    payload: ManagedObjectEnum,
 }
-
 
 ////////////////////////////////////
 struct KmipStore {
-    documents : HashMap<String, bson::Document>,
+    documents: HashMap<String, bson::Document>,
     counter: i32,
 }
 
 impl KmipStore {
     fn new() -> KmipStore {
         KmipStore {
-        documents : HashMap::new(),
-        counter : 0,
+            documents: HashMap::new(),
+            counter: 0,
         }
     }
 
-    fn add(&mut self, id: &str, doc : bson::Document ) {
-        let r = self.documents.insert(id.to_string(), doc );
+    fn add(&mut self, id: &str, doc: bson::Document) {
+        let r = self.documents.insert(id.to_string(), doc);
         assert!(r.is_none());
     }
-
 
     fn gen_id(&mut self) -> String {
         self.counter += 1;
         return self.counter.to_string();
     }
 
-    fn get(&self, id: &String) ->  Option<&bson::Document> {
-        return self.documents.get(id);
+    fn get(&self, id: &String) -> Option<bson::Document> {
+        let doc = self.documents.get(id);
+        if let Some(d) = doc {
+            return Some(d.clone());
+        }
+        return None;
     }
-
 }
 
 lazy_static! {
     static ref GLOBAL_STORE: Mutex<KmipStore> = Mutex::new(KmipStore::new());
 }
 
+///////////////////////
+
+lazy_static! {
+    static ref GLOBAL_RAND: SystemRandom = SystemRandom::new();
+}
+
+struct KmipCrypto;
+
+impl KmipCrypto {
+    // TODO - is there a secure vector?
+    fn gen_rand_bytes(len: usize) -> Vec<u8> {
+        let mut a : Vec<u8> = Vec::new();
+        a.resize(len, 0);
+        GLOBAL_RAND.fill(a.as_mut());
+
+        return a;
+    }
+}
 
 struct RequestContext {
     //store: &'a mut KmipStore,
+    peer_addr : Option<SocketAddr>,
 }
 
-impl RequestContext{
+impl RequestContext {
     fn new() -> RequestContext {
-        RequestContext{
+        RequestContext {
+            peer_addr : None,
         }
+    }
+
+    fn set_peer_addr(&mut self, addr : SocketAddr) {
+        self.peer_addr = Some(addr);
     }
 
     // fn get_store() -> std::sync::MutexGuard<KmipStore> + 'static {
@@ -977,60 +1021,104 @@ impl Error for KmipResponseError {
 //     return None;
 // }
 
+fn find_attr<F>(tas: &Vec<TemplateAttribute>, func: F) -> Option<i32>
+    where F: Fn(&CreateRequestAttributes) -> Option<i32>
+{
+    for ta in tas {
+        for attr in &ta.Attribute {
+            let r = func(&attr);
+            if r.is_some() {
+                return r;
+            }
+        }
+    }
+
+    return None;
+}
+
 fn process_create_request(
-    rc : &mut RequestContext,
-    req: CreateRequest,
+    rc: &RequestContext,
+    req: &CreateRequest,
 ) -> std::result::Result<CreateResponse, KmipResponseError> {
-
-
-
-
     match req.ObjectType {
         ObjectTypeEnum::SymmetricKey => {
-        // let algo = req.TemplateAttribute.iter().
-        //     filter(|x| if let CreateRequestAttributes::CryptographicAlgorithm(a) = x { return a; });
+            // TODO - validate message
+            let algo2 = find_attr(&req.TemplateAttribute,
+                |x| if let CreateRequestAttributes::CryptographicAlgorithm(a) = x { Some(*a) } else {None}  ).unwrap();
 
-        let id = GLOBAL_STORE.lock().unwrap().gen_id();
-        let mo = ManagedObject {
-            id : id.to_string(),
-            payload : ManagedObjectEnum::SymmetricKey(
-             KeyBlock {
-                    KeyFormatType : KeyFormatTypeEnum::Raw,
-                    KeyValue : vec![1],
-                    KeyCompressionType : None,
-                    CryptographicAlgorithm : CryptographicAlgorithm::DES,
-                    CryptographicLengh : 42,
-                },
+            let algo : CryptographicAlgorithm = num::FromPrimitive::from_i32(algo2).unwrap();
+
+            let crypt_len = find_attr(&req.TemplateAttribute,
+                |x| if let CreateRequestAttributes::CryptographicLength(a) = x { Some(*a) } else {None}  ).unwrap();
+
+            let key = KmipCrypto::gen_rand_bytes((crypt_len / 8)  as usize);
+
+            let id = GLOBAL_STORE.lock().unwrap().gen_id();
+            let mo = ManagedObject {
+                id: id.to_string(),
+                payload: ManagedObjectEnum::SymmetricKey(
+                    SymmetricKey {
+                        KeyBlock : KeyBlock {
+                            KeyFormatType: KeyFormatTypeEnum::Raw,
+                            KeyValue : KeyValue {
+                                KeyMaterial: key,
+                            },
+                            KeyCompressionType: None,
+                            CryptographicAlgorithm: algo,
+                            CryptographicLength: crypt_len,
+                        }
+                    }
                 ),
-        };
+            };
 
-        let d = bson::to_bson(&mo).unwrap();
+            let d = bson::to_bson(&mo).unwrap();
 
-if let bson::Bson::Document(d1) = d {
-        GLOBAL_STORE.lock().unwrap().add(id.as_ref(), d1);
+            if let bson::Bson::Document(d1) = d {
+                GLOBAL_STORE.lock().unwrap().add(id.as_ref(), d1);
 
-        return Ok(CreateResponse {
-            ObjectType: ObjectTypeEnum::SymmetricKey,
-            UniqueIdentifier: id,
-        });
-} else {
-        return Err(KmipResponseError::new("Barff"));
-
-}
+                return Ok(CreateResponse {
+                    ObjectType: ObjectTypeEnum::SymmetricKey,
+                    UniqueIdentifier: id,
+                });
+            } else {
+                return Err(KmipResponseError::new("Barff"));
+            }
         }
         _ => Err(KmipResponseError::new("Foo")),
     }
 }
 
 fn process_get_request(
-    rc : &RequestContext,
+    rc: &RequestContext,
     req: GetRequest,
 ) -> std::result::Result<GetResponse, KmipResponseError> {
-    Ok(GetResponse {
-            ObjectType: ObjectTypeEnum::SymmetricKey,
-            UniqueIdentifier: "Fpp".to_owned(),
-            SymmetricKey : None,
-        })
+    let doc_maybe : Option<bson::Document>;
+
+    {
+        let locked = GLOBAL_STORE.lock().unwrap();
+        doc_maybe = locked.get(&req.UniqueIdentifier);
+        if doc_maybe.is_none() {
+                return Err(KmipResponseError::new("Thing not found"));
+        }
+    }
+    let doc = doc_maybe.unwrap();
+
+    // TODO - can we get rid of clone?
+    let mo : ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    let mut resp = GetResponse {
+        ObjectType: ObjectTypeEnum::SymmetricKey,
+        UniqueIdentifier: req.UniqueIdentifier,
+        SymmetricKey: None,
+    };
+
+    match mo.payload {
+        ManagedObjectEnum::SymmetricKey(x) => {
+            resp.SymmetricKey = Some(x);
+        }
+    }
+
+    Ok(resp)
 }
 
 fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {
@@ -1059,13 +1147,11 @@ fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {
 
 // }
 
-fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
+fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     let k: KmipEnumResolver = KmipEnumResolver {};
 
     println!("Request Message: {:?}", buf.hex_dump());
     ttlv::to_print(buf);
-
-    let mut rc = RequestContext::new();
 
     let request = ttlv::from_bytes::<RequestMessage>(&buf, &k).unwrap();
 
@@ -1079,15 +1165,14 @@ fn process_kmip_request(buf: &[u8]) -> Vec<u8> {
     let result = match request.BatchItem {
         RequestBatchItem::Create(x) => {
             println!("Got Create Request");
-            process_create_request(&mut rc, x).map(|r| ResponseOperationEnum::Create(r))
+            process_create_request(&rc, &x).map(|r| ResponseOperationEnum::Create(r))
         }
         RequestBatchItem::Get(x) => {
             println!("Got Get Request");
             process_get_request(&rc, x).map(|r| ResponseOperationEnum::Get(r))
-        }
-        // _ => {
-        //     unimplemented!();
-        // }
+        } // _ => {
+          //     unimplemented!();
+          // }
     };
 
     let vr = match result {
@@ -1250,7 +1335,8 @@ fn test_create_request2() {
         0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    process_kmip_request(bytes.as_slice());
+    let mut rc = RequestContext::new();
+    process_kmip_request(&mut rc, bytes.as_slice());
 
     //unimplemented!();
 }
