@@ -38,7 +38,8 @@ extern crate confy;
 
 extern crate chrono;
 
-use chrono::*;
+use chrono::DateTime;
+use chrono::Utc;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -85,6 +86,7 @@ use ttlv::*;
 use store::KmipMemoryStore;
 use store::KmipMongoDBStore;
 use store::KmipStore;
+use store::ManagedAttributes;
 use store::ManagedObject;
 use store::ManagedObjectEnum;
 
@@ -596,32 +598,51 @@ where
     return None;
 }
 
+fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAttribute>)
+{
+    for ta in tas {
+        for attr in &ta.attribute {
+            match attr {
+                messages::AttributesEnum::CryptographicAlgorithm(a) => {
+                    // TODO - validate
+                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
+                }
+                messages::AttributesEnum::CryptographicLength(a) => {
+                    // TODO - validate
+                    ma.cryptographic_length = Some(*a);
+                }
+                messages::AttributesEnum::CryptographicUsageMask(a) => {
+                    // TODO - validate
+                    ma.cryptographic_usage_mask = Some(*a);
+                }
+            }
+        }
+    }
+}
+
+
 fn process_create_request(
     rc: &RequestContext,
     req: &CreateRequest,
 ) -> std::result::Result<CreateResponse, KmipResponseError> {
+
+    let mut ma = ManagedAttributes {
+        state : ObjectStateEnum::PreActive,
+        initial_date : Utc::now(),
+    cryptographic_algorithm : None,
+
+    cryptographic_length : None,
+
+    cryptographic_usage_mask : None,
+    };
+
     match req.object_type {
         ObjectTypeEnum::SymmetricKey => {
             // TODO - validate message
-            let algo2 = find_attr(&req.template_attribute, |x| {
-                if let messages::AttributesEnum::CryptographicAlgorithm(a) = x {
-                    Some(*a)
-                } else {
-                    None
-                }
-            })
-            .unwrap();
+            merge_to_managed_attributes(&mut ma, &req.template_attribute);
 
-            let algo: CryptographicAlgorithm = num::FromPrimitive::from_i32(algo2).unwrap();
-
-            let crypt_len = find_attr(&req.template_attribute, |x| {
-                if let messages::AttributesEnum::CryptographicLength(a) = x {
-                    Some(*a)
-                } else {
-                    None
-                }
-            })
-            .unwrap();
+            let crypt_len = ma.cryptographic_length.unwrap();
+            let algo = ma.cryptographic_algorithm.clone().unwrap();
 
             // key lengths are in bits
             let key = KmipCrypto::gen_rand_bytes((crypt_len / 8) as usize);
@@ -638,12 +659,7 @@ fn process_create_request(
                         cryptographic_length: crypt_len,
                     },
                 }),
-                attributes: req
-                    .template_attribute
-                    .iter()
-                    .map(|x| x.attribute.clone())
-                    .flatten()
-                    .collect(),
+                attributes: ma
             };
 
             let d = bson::to_bson(&mo).unwrap();

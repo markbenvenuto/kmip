@@ -1,6 +1,7 @@
 use serde_enum::{Deserialize_enum, Serialize_enum};
 
-use chrono::*;
+use chrono::DateTime;
+use chrono::Utc;
 
 use strum::AsStaticRef;
 
@@ -86,7 +87,7 @@ pub enum NameTypeEnum {
     URI = 0x00000002,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, Clone)]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
     DES = 0x00000001,
