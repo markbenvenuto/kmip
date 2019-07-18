@@ -34,7 +34,7 @@ pub fn deserialize<'de, D>(
 where
     D: Deserializer<'de>,
 {
-    let s = i64::deserialize(deserializer)?;
+    i64::deserialize(deserializer)?;
 
     return Ok(chrono::Utc::now());
 }

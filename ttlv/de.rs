@@ -3,26 +3,18 @@ use std::io::Read;
 
 use std::string::ToString;
 
-use std::ops::{AddAssign, MulAssign, Neg};
-
 use serde::de::{
-    self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
+    self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess,
     Visitor,
 };
 use serde::Deserialize;
-use serde::Serialize;
 
 use crate::error::{Error, Result};
-
-use chrono::*;
 
 extern crate num;
 //#[macro_use]
 extern crate num_derive;
 extern crate num_traits;
-
-use num_traits::FromPrimitive;
-use num_traits::ToPrimitive;
 
 extern crate byteorder;
 use byteorder::{BigEndian, ReadBytesExt};
@@ -30,7 +22,6 @@ use pretty_hex::*;
 //use self::enums;
 
 use crate::kmip_enums::*;
-use crate::my_date_format;
 
 fn compute_padding(len: usize) -> usize {
     if len % 8 == 0 {
@@ -293,21 +284,21 @@ impl<'a> NestedReader<'a> {
         };
     }
 
-    fn begin_inner(&mut self) {
-        let t = read_tag_enum(&mut self.cur);
+    // fn begin_inner(&mut self) {
+    //     let t = read_tag_enum(&mut self.cur);
 
-        //println!("read_inner: {:?} - {:?}", t, self.cur.position());
-        let t = read_type(&mut self.cur);
-        assert_eq!(t, ItemType::Structure);
+    //     //println!("read_inner: {:?} - {:?}", t, self.cur.position());
+    //     let t = read_type(&mut self.cur);
+    //     assert_eq!(t, ItemType::Structure);
 
-        self.state = ReaderState::LengthValue;
+    //     self.state = ReaderState::LengthValue;
 
-        self.begin_inner_skip();
-    }
+    //     self.begin_inner_skip();
+    // }
 
     fn begin_inner_or_more(&mut self) {
         if self.state == ReaderState::Tag {
-            let t = read_tag_enum(&mut self.cur);
+            let _t = read_tag_enum(&mut self.cur);
 
             //println!("read_inner: {:?} - {:?}", t, self.cur.position());
             self.state = ReaderState::Type;
@@ -408,15 +399,15 @@ impl<'a> NestedReader<'a> {
         return read_datetime_i64(&mut self.cur);
     }
 
-    fn read_string_and_more(&mut self) -> String {
-        if self.state == ReaderState::Tag {
-            self.read_tag();
-        }
-        assert_eq!(self.read_type(), ItemType::TextString);
-        assert_eq!(self.state, ReaderState::Type);
-        self.state = ReaderState::Tag;
-        return read_string(&mut self.cur);
-    }
+    // fn read_string_and_more(&mut self) -> String {
+    //     if self.state == ReaderState::Tag {
+    //         self.read_tag();
+    //     }
+    //     assert_eq!(self.read_type(), ItemType::TextString);
+    //     assert_eq!(self.state, ReaderState::Type);
+    //     self.state = ReaderState::Tag;
+    //     return read_string(&mut self.cur);
+    // }
 
     fn read_string(&mut self) -> String {
         assert_eq!(self.state, ReaderState::Type);
@@ -546,7 +537,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // does not. In the `toml` crate, a Datetime in the input is deserialized by
     // mapping it to a Serde data model "struct" type with a special name and a
     // single field containing the Datetime represented as a string.
-    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -818,7 +809,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     fn deserialize_enum<V>(
-        mut self,
+        self,
         _name: &'static str,
         _variants: &'static [&'static str],
         visitor: V,
@@ -1023,7 +1014,7 @@ impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
 
     // Tuple variants are represented in JSON as `{ NAME: [DATA...] }` so
     // deserialize the sequence of data here.
-    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> Result<V::Value>
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -1045,11 +1036,10 @@ impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
 }
 
 
-struct TestEnumResolver {
-}
+struct TestEnumResolver;
 
 impl EnumResolver for TestEnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> String {
+    fn resolve_enum(&self, _name: &str, _value: i32) -> String {
         unimplemented!{}
     }
 }

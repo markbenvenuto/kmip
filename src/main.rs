@@ -19,11 +19,8 @@ extern crate serde_derive;
 
 //#[macro_use]
 extern crate serde_enum;
-use serde_enum::{Deserialize_enum, Serialize_enum};
 
-use std::io::prelude::*;
 use std::path::Path;
-// use std::io::Cursor;
 
 #[macro_use]
 extern crate structopt;
@@ -69,9 +66,7 @@ use std::string::ToString;
 
 use strum::AsStaticRef;
 
-use serde::ser::{Serialize, SerializeStruct, Serializer};
-
-#[macro_use(bson, doc)]
+//#[macro_use(bson, doc)]
 extern crate bson;
 
 extern crate ring;
@@ -211,7 +206,6 @@ struct Connection {
     closing: bool,
     closed: bool,
     tls_session: rustls::ServerSession,
-    sent_http_response: bool,
     server_context : ServerContext,
 }
 
@@ -238,7 +232,6 @@ impl Connection {
             closing: false,
             closed: false,
             tls_session,
-            sent_http_response: false,
             server_context : server_context,
         }
     }
@@ -523,11 +516,11 @@ struct ServerContextInner {
 #[derive(Clone)]
 struct ServerContext {
     inner: Arc<Mutex<ServerContextInner>>,
-    store : Arc<KmipStore>,
+    store : Arc<dyn KmipStore>,
 }
 
 impl ServerContext {
-    fn new(store: Arc<KmipStore> ) -> ServerContext {
+    fn new(store: Arc<dyn KmipStore> ) -> ServerContext {
         ServerContext {
             inner : Arc::new(Mutex::new(ServerContextInner {
                 count : 0
@@ -536,7 +529,7 @@ impl ServerContext {
         }
     }
 
-    fn get_store(&self) -> &KmipStore {
+    fn get_store(&self) -> &dyn KmipStore {
         return self.store.as_ref();
     }
 }
@@ -590,20 +583,20 @@ impl<'a> RequestContext<'a> {
 
 fn create_error_response(msg: Option<String>) -> Vec<u8> {
     let r = messages::ResponseMessage {
-        ResponseHeader: messages::ResponseHeader {
-            ProtocolVersion: messages::ProtocolVersion {
-                ProtocolVersionMajor: 1,
-                ProtocolVersionMinor: 0,
+        response_header: messages::ResponseHeader {
+            protocol_version: messages::ProtocolVersion {
+                protocol_version_major: 1,
+                protocol_version_minor: 0,
             },
-            TimeStamp: Utc::now(),
-            BatchCount: 1,
+            time_stamp: Utc::now(),
+            batch_count: 1,
         },
-        BatchItem: messages::ResponseBatchItem {
+        batch_item: messages::ResponseBatchItem {
             //Operation: None,
-            ResultStatus: messages::ResultStatus::OperationFailed,
-            ResultReason: messages::ResultReason::GeneralFailure,
-            ResultMessage: msg,
-            ResponsePayload: None,
+            result_status: messages::ResultStatus::OperationFailed,
+            result_reason: messages::ResultReason::GeneralFailure,
+            result_message: msg,
+            response_payload: None,
             // ResponseOperation: None,
         },
     };
@@ -653,7 +646,7 @@ fn find_attr<F>(tas: &Vec<TemplateAttribute>, func: F) -> Option<i32>
     where F: Fn(&messages::CreateRequestAttributes) -> Option<i32>
 {
     for ta in tas {
-        for attr in &ta.Attribute {
+        for attr in &ta.attribute {
             let r = func(&attr);
             if r.is_some() {
                 return r;
@@ -668,15 +661,15 @@ fn process_create_request(
     rc: &RequestContext,
     req: &CreateRequest,
 ) -> std::result::Result<CreateResponse, KmipResponseError> {
-    match req.ObjectType {
+    match req.object_type {
         ObjectTypeEnum::SymmetricKey => {
             // TODO - validate message
-            let algo2 = find_attr(&req.TemplateAttribute,
+            let algo2 = find_attr(&req.template_attribute,
                 |x| if let messages::CreateRequestAttributes::CryptographicAlgorithm(a) = x { Some(*a) } else {None}  ).unwrap();
 
             let algo : CryptographicAlgorithm = num::FromPrimitive::from_i32(algo2).unwrap();
 
-            let crypt_len = find_attr(&req.TemplateAttribute,
+            let crypt_len = find_attr(&req.template_attribute,
                 |x| if let messages::CreateRequestAttributes::CryptographicLength(a) = x { Some(*a) } else {None}  ).unwrap();
 
             let key = KmipCrypto::gen_rand_bytes((crypt_len / 8)  as usize);
@@ -686,14 +679,14 @@ fn process_create_request(
                 id: id.to_string(),
                 payload: ManagedObjectEnum::SymmetricKey(
                     SymmetricKey {
-                        KeyBlock : KeyBlock {
-                            KeyFormatType: KeyFormatTypeEnum::Raw,
-                            KeyValue : KeyValue {
-                                KeyMaterial: key,
+                        key_block : KeyBlock {
+                            key_format_type: KeyFormatTypeEnum::Raw,
+                            key_value : KeyValue {
+                                key_material: key,
                             },
-                            KeyCompressionType: None,
-                            CryptographicAlgorithm: algo,
-                            CryptographicLength: crypt_len,
+                            key_compression_type: None,
+                            cryptographic_algorithm: algo,
+                            cryptographic_length: crypt_len,
                         }
                     }
                 ),
@@ -705,8 +698,8 @@ fn process_create_request(
                 rc.get_server_context().get_store().add(id.as_ref(), d1);
 
                 return Ok(CreateResponse {
-                    ObjectType: ObjectTypeEnum::SymmetricKey,
-                    UniqueIdentifier: id,
+                    object_type: ObjectTypeEnum::SymmetricKey,
+                    unique_identifier: id,
                 });
             } else {
                 return Err(KmipResponseError::new("Barff"));
@@ -720,7 +713,7 @@ fn process_get_request(
     rc: &RequestContext,
     req: GetRequest,
 ) -> std::result::Result<GetResponse, KmipResponseError> {
-    let doc_maybe = rc.get_server_context().get_store().get(&req.UniqueIdentifier);
+    let doc_maybe = rc.get_server_context().get_store().get(&req.unique_identifier);
     if doc_maybe.is_none() {
             return Err(KmipResponseError::new("Thing not found"));
     }
@@ -729,14 +722,14 @@ fn process_get_request(
     let mo : ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
 
     let mut resp = GetResponse {
-        ObjectType: ObjectTypeEnum::SymmetricKey,
-        UniqueIdentifier: req.UniqueIdentifier,
-        SymmetricKey: None,
+        object_type: ObjectTypeEnum::SymmetricKey,
+        unique_identifier: req.unique_identifier,
+        symmetric_key: None,
     };
 
     match mo.payload {
         ManagedObjectEnum::SymmetricKey(x) => {
-            resp.SymmetricKey = Some(x);
+            resp.symmetric_key = Some(x);
         }
     }
 
@@ -744,20 +737,20 @@ fn process_get_request(
 }
 
 fn create_ok_response(op: messages::ResponseOperationEnum) -> Vec<u8> {
-    let r = ResponseMessage {
-        ResponseHeader: ResponseHeader {
-            ProtocolVersion: ProtocolVersion {
-                ProtocolVersionMajor: 1,
-                ProtocolVersionMinor: 0,
+    let r = messages::ResponseMessage {
+        response_header: messages::ResponseHeader {
+            protocol_version: messages::ProtocolVersion {
+                protocol_version_major: 1,
+                protocol_version_minor: 0,
             },
-            TimeStamp: Utc::now(),
-            BatchCount: 1,
+            time_stamp: Utc::now(),
+            batch_count: 1,
         },
-        BatchItem: ResponseBatchItem {
-            ResultStatus: ResultStatus::Success,
-            ResultReason: ResultReason::GeneralFailure,
-            ResultMessage: None,
-            ResponsePayload: Some(op),
+        batch_item: messages::ResponseBatchItem {
+            result_status: messages::ResultStatus::Success,
+            result_reason: messages::ResultReason::GeneralFailure,
+            result_message: None,
+            response_payload: Some(op),
             // ResponseOperation: None,
         },
     };
@@ -780,11 +773,11 @@ fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     // TODO - check protocol version
     info!(
         "Received message: {}.{}",
-        request.RequestHeader.ProtocolVersion.ProtocolVersionMajor,
-        request.RequestHeader.ProtocolVersion.ProtocolVersionMinor
+        request.request_header.protocol_version.protocol_version_major,
+        request.request_header.protocol_version.protocol_version_minor
     );
 
-    let result = match request.BatchItem {
+    let result = match request.batch_item {
         RequestBatchItem::Create(x) => {
             info!("Got Create Request");
             process_create_request(&rc, &x).map(|r| ResponseOperationEnum::Create(r))
@@ -857,7 +850,7 @@ fn main() {
 
     // confy::store("qrb", cfg).expect("foooooo3124123");
 
-    let mut addr: net::SocketAddr = "0.0.0.0:7000".parse().unwrap();
+    let addr: net::SocketAddr = "0.0.0.0:7000".parse().unwrap();
     //TODO addr.set_port(args.flag_port.unwrap_or(7000));
 
     let listener = TcpListener::bind(&addr).expect("cannot listen on port");

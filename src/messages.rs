@@ -1,20 +1,10 @@
-use log::{info, warn};
-
 use serde_enum::{Deserialize_enum, Serialize_enum};
 
 use chrono::*;
 
-use std::collections::HashMap;
-use std::fs;
-use std::io::{Read, Write};
-use std::string::ToString;
-
 use strum::AsStaticRef;
 
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-
-use ttlv::*;
-
 
 #[derive(FromPrimitive, Serialize_enum, Deserialize_enum, Debug, AsStaticStr)]
 #[repr(i32)]
@@ -231,43 +221,53 @@ pub enum ResultReason {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyValue {
-    #[serde(with = "serde_bytes")]
-    pub KeyMaterial: Vec<u8>,
+    #[serde(with = "serde_bytes", rename="KeyMaterial")]
+    pub key_material: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyBlock {
-    pub KeyFormatType: KeyFormatTypeEnum,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub KeyCompressionType: Option<KeyCompressionType>,
+    #[serde(rename = "KeyFormatType")]
+    pub key_format_type: KeyFormatTypeEnum,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename="KeyCompressionType")]
+    pub key_compression_type: Option<KeyCompressionType>,
 
     // TODO : this type is not just a struct all the time
-    pub KeyValue: KeyValue,
+    #[serde(rename = "KeyValue")]
+    pub key_value: KeyValue,
 
     // TODO - omitted in some cases
-    pub CryptographicAlgorithm: CryptographicAlgorithm,
-    pub CryptographicLength: i32,
+    #[serde(rename = "CryptographicAlgorithm")]
+    pub cryptographic_algorithm: CryptographicAlgorithm,
+    #[serde(rename = "CryptographicLength")]
+    pub cryptographic_length: i32,
     // TODO
     // KeyWrappingData  : KeyWrappingData
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SymmetricKey {
-    pub KeyBlock: KeyBlock,
+    #[serde(rename = "KeyBlock")]
+    pub key_block: KeyBlock,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AttributeStruct {
-    pub AttributeName: String,
-    pub AttributeIndex: Option<i32>,
+    #[serde(rename = "AttributeName")]
+    pub attribute_name: String,
+    #[serde(rename = "AttributeIndex")]
+    pub attribute_index: Option<i32>,
     // AttributeValue type varies based on type
     //AttributeValue: ???
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NameStruct {
-    pub NameValue: String,
-    pub NameType: NameTypeEnum,
+        #[serde(rename = "NameValue")]
+    pub name_value: String,
+        #[serde(rename = "NameType")]
+    pub name_type: NameTypeEnum,
 }
 
 // #[derive(Serialize, Deserialize, Debug)]
@@ -294,51 +294,60 @@ pub enum CreateRequestAttributes {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TemplateAttribute {
-    pub Name: Option<NameStruct>,
+    #[serde(rename = "Name")]
+    pub name: Option<NameStruct>,
 
     #[serde(rename = "Attribute")]
-    pub Attribute: Vec<CreateRequestAttributes>,
+    pub attribute: Vec<CreateRequestAttributes>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct CreateRequest {
-    pub ObjectType: ObjectTypeEnum,
-    pub TemplateAttribute: Vec<TemplateAttribute>,
+    #[serde(rename = "ObjectType")]
+    pub object_type: ObjectTypeEnum,
+    #[serde(rename = "TemplateAttribute")]
+    pub template_attribute: Vec<TemplateAttribute>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "ResponsePayload")]
 pub struct CreateResponse {
-    pub ObjectType: ObjectTypeEnum,
-    pub UniqueIdentifier: String,
+    #[serde(rename = "ObjectType")]
+    pub object_type: ObjectTypeEnum,
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct GetRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    pub UniqueIdentifier: String,
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub KeyFormatType: Option<KeyFormatTypeEnum>,
+    #[serde(skip_serializing_if = "Option::is_none", rename="KeyFormatType")]
+    pub key_format_type: Option<KeyFormatTypeEnum>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub KeyWrapType: Option<KeyFormatTypeEnum>,
+    #[serde(skip_serializing_if = "Option::is_none", rename="KeyWrapType")]
+    pub key_wrap_type: Option<KeyFormatTypeEnum>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub KeyCompressionType: Option<KeyCompressionType>,
+    #[serde(skip_serializing_if = "Option::is_none", rename="KeyCompressionType")]
+    pub key_compression_type: Option<KeyCompressionType>,
     // TODO KeyWrappingSpecification: KeyWrappingSpecification
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "ResponsePayload")]
 pub struct GetResponse {
-    pub ObjectType: ObjectTypeEnum,
-    pub UniqueIdentifier: String,
+    #[serde(rename = "ObjectType")]
+    pub object_type: ObjectTypeEnum,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub SymmetricKey: Option<SymmetricKey>,
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename="SymmetricKey")]
+    pub symmetric_key: Option<SymmetricKey>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -351,30 +360,44 @@ pub enum RequestBatchItem {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ProtocolVersion {
-    pub ProtocolVersionMajor: i32,
-    pub ProtocolVersionMinor: i32,
+    #[serde(rename = "ProtocolVersionMajor")]
+    pub protocol_version_major: i32,
+
+    #[serde(rename = "ProtocolVersionMinor")]
+    pub protocol_version_minor: i32,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RequestHeader {
-    pub ProtocolVersion: ProtocolVersion,
+    #[serde(rename = "ProtocolVersion")]
+    pub protocol_version: ProtocolVersion,
+
     // TODO: Other fields are optional
-    pub BatchCount: i32,
+
+    #[serde(rename = "BatchCount")]
+    pub batch_count: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestMessage {
-    pub RequestHeader: RequestHeader,
-    pub BatchItem: RequestBatchItem,
+    #[serde(rename = "RequestHeader")]
+    pub request_header: RequestHeader,
+
+    #[serde(rename = "BatchItem")]
+    pub batch_item: RequestBatchItem,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ResponseHeader {
-    pub ProtocolVersion: ProtocolVersion,
-    #[serde(with = "ttlv::my_date_format")]
-    pub TimeStamp: chrono::DateTime<Utc>,
+    #[serde(rename = "ProtocolVersion")]
+    pub protocol_version: ProtocolVersion,
+
+    #[serde(with = "ttlv::my_date_format", rename="TimeStamp")]
+    pub time_stamp: chrono::DateTime<Utc>,
     // TODO: Other fields are optional
-    pub BatchCount: i32,
+
+    #[serde(rename = "BatchCount")]
+    pub batch_count: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -391,17 +414,27 @@ pub enum ResponseOperationEnum {
 #[serde(rename = "BatchItem")]
 pub struct ResponseBatchItem {
     //Operation: Option<String>,
-    pub ResultStatus: ResultStatus,
-    pub ResultReason: ResultReason,
-    pub ResultMessage: Option<String>,
-    pub ResponsePayload: Option<ResponseOperationEnum>,
+
+    #[serde(rename = "ResultStatus")]
+    pub result_status: ResultStatus,
+
+    #[serde(rename = "ResultReason")]
+    pub result_reason: ResultReason,
+
+    #[serde(rename = "ResultMessage")]
+    pub result_message: Option<String>,
+
+    #[serde(rename = "ResponsePayload")]
+    pub response_payload: Option<ResponseOperationEnum>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ResponseMessage {
-    pub ResponseHeader: ResponseHeader,
+    #[serde(rename = "ResponseHeader")]
+    pub response_header: ResponseHeader,
+
     #[serde(rename = "BatchItem")]
-    pub BatchItem: ResponseBatchItem,
+    pub batch_item: ResponseBatchItem,
 }
 
 impl Serialize for ResponseBatchItem {
@@ -414,11 +447,11 @@ impl Serialize for ResponseBatchItem {
         let mut serialize_operation = false;
         let mut serialize_message = false;
 
-        if self.ResultStatus == ResultStatus::OperationFailed {
+        if self.result_status == ResultStatus::OperationFailed {
             field_count += 1;
             serialize_reason = true;
 
-            if self.ResultMessage.is_some() {
+            if self.result_message.is_some() {
                 field_count += 1;
                 serialize_message = true;
             }
@@ -430,7 +463,7 @@ impl Serialize for ResponseBatchItem {
         // //            assert_eq!(self.Operation.is_some(), self.ResponsePayload.is_some() );
         //         }
 
-        if self.ResponsePayload.is_some() {
+        if self.response_payload.is_some() {
             field_count += 2;
             serialize_operation = true;
         }
@@ -444,7 +477,7 @@ impl Serialize for ResponseBatchItem {
 
         if serialize_operation {
             // TODO - use a macro to derive this stuff
-            match self.ResponsePayload.as_ref().unwrap() {
+            match self.response_payload.as_ref().unwrap() {
                 ResponseOperationEnum::Create(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Create)?;
                 }
@@ -455,20 +488,20 @@ impl Serialize for ResponseBatchItem {
             }
         }
 
-        ser_struct.serialize_field("ResultStatus", &self.ResultStatus)?;
+        ser_struct.serialize_field("ResultStatus", &self.result_status)?;
 
         if serialize_reason {
-            ser_struct.serialize_field("ResultReason", &self.ResultReason)?;
+            ser_struct.serialize_field("ResultReason", &self.result_reason)?;
         }
 
         if serialize_message {
-            ser_struct.serialize_field("ResultMessage", &self.ResultMessage)?;
+            ser_struct.serialize_field("ResultMessage", &self.result_message)?;
         }
 
         if serialize_operation {
             // TODO - use a macro to derive this stuff
-            //ser_struct.serialize_field("ResultPayload", &self.ResponsePayload.as_ref())?;
-            match self.ResponsePayload.as_ref().unwrap() {
+            //ser_struct.serialize_field("ResultPayload", &self.response_payload.as_ref())?;
+            match self.response_payload.as_ref().unwrap() {
                 ResponseOperationEnum::Create(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
@@ -484,7 +517,7 @@ impl Serialize for ResponseBatchItem {
 }
 
 
-pub struct KmipEnumResolver;
+struct KmipEnumResolver;
 
 impl ttlv::EnumResolver for KmipEnumResolver {
     fn resolve_enum(&self, name: &str, value: i32) -> String {

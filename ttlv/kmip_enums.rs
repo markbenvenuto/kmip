@@ -3,8 +3,6 @@ extern crate num;
 extern crate num_derive;
 extern crate num_traits;
 
-use num_traits::FromPrimitive;
-
 #[derive(FromPrimitive, Debug, PartialEq, Copy, Clone)]
 pub enum ItemType {
     Structure = 0x01,

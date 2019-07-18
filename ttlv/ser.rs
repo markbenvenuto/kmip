@@ -13,29 +13,23 @@ extern crate num_traits;
 extern crate byteorder;
 use byteorder::{BigEndian, WriteBytesExt};
 
-use chrono::*;
-
 //use self::enums;
 use crate::kmip_enums::*;
-use crate::my_date_format;
 
-use crate::de::to_print;
-use pretty_hex::*;
-
-fn write_tag(writer: &mut dyn Write, tag: u16) {
-    // println!("write_tag");
-    // 0x42 for tags built into the protocol
-    // 0x54 for extension tags
-    writer.write_u8(0x42).unwrap();
-    writer.write_u16::<BigEndian>(tag).unwrap();
-}
+// fn write_tag(writer: &mut dyn Write, tag: u16) {
+//     // println!("write_tag");
+//     // 0x42 for tags built into the protocol
+//     // 0x54 for extension tags
+//     writer.write_u8(0x42).unwrap();
+//     writer.write_u16::<BigEndian>(tag).unwrap();
+// }
 
 fn write_tag_enum(writer: &mut dyn Write, tag: Tag) {
     // println!("write_Tag");
     // 0x42 for tags built into the protocol
     // 0x54 for extension tags
-    writer.write_u8(0x42).unwrap();
     let tag_u32 = num::ToPrimitive::to_u32(&tag).unwrap();
+    writer.write_u8(0x42).unwrap();
     writer.write_u16::<BigEndian>(tag_u32 as u16).unwrap();
 }
 
@@ -57,7 +51,7 @@ pub fn write_string(writer: &mut dyn Write, value: &str) {
     writer.write(value.as_bytes()).unwrap();
 
     let padded_length = compute_padding(value.len());
-    for padding in 0..(padded_length - value.len()) {
+    for _ in 0..(padded_length - value.len()) {
         writer.write_u8(0).unwrap();
     }
 }
@@ -71,7 +65,7 @@ pub fn write_bytes(writer: &mut dyn Write, value: &[u8]) {
     writer.write(value).unwrap();
 
     let padded_length = compute_padding(value.len());
-    for padding in 0..(padded_length - value.len()) {
+    for _ in 0..(padded_length - value.len()) {
         writer.write_u8(0).unwrap();
     }
 }
@@ -108,9 +102,9 @@ pub fn write_enumeration(writer: &mut dyn Write, value: i32) {
     writer.write_u32::<BigEndian>(0).unwrap();
 }
 
-pub fn write_datetime(writer: &mut dyn Write, value: chrono::NaiveDateTime) {
-    write_i64_datetime(writer, value.timestamp_millis());
-}
+// fn write_datetime(writer: &mut dyn Write, value: chrono::NaiveDateTime) {
+//     write_i64_datetime(writer, value.timestamp_millis());
+// }
 
 pub fn write_i64_datetime(writer: &mut dyn Write, value: i64) {
     writer.write_u8(ItemType::DateTime as u8).unwrap();
@@ -734,7 +728,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     type SerializeStruct = Self;
     type SerializeStructVariant = Self;
 
-    fn serialize_bool(self, v: bool) -> Result<()> {
+    fn serialize_bool(self, _v: bool) -> Result<()> {
         Err(Error::UnsupportedType)
     }
 
@@ -1138,7 +1132,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     type SerializeStruct = Self;
     type SerializeStructVariant = Self;
 
-    fn serialize_bool(self, v: bool) -> Result<()> {
+    fn serialize_bool(self, _v: bool) -> Result<()> {
         Err(Error::UnsupportedType)
     }
 
