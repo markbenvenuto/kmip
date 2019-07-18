@@ -22,3 +22,11 @@ pub use de::to_print;
 
 
 pub use de::EnumResolver;
+
+
+pub use de::read_tag;
+pub use de::read_type;
+pub use de::read_len;
+
+pub use kmip_enums::ItemType;
+pub use kmip_enums::Tag;

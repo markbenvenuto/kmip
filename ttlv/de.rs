@@ -41,7 +41,7 @@ fn compute_padding(len: usize) -> usize {
     return len + padding;
 }
 
-fn read_tag(reader: &mut dyn Read) -> u32 {
+pub fn read_tag(reader: &mut dyn Read) -> u32 {
     //println!("Read Tag");
     let v = reader.read_u8().unwrap();
     assert_eq!(v, 0x42);
@@ -59,12 +59,12 @@ fn read_tag_enum(reader: &mut dyn Read) -> Tag {
     return t;
 }
 
-fn read_len(reader: &mut dyn Read) -> u32 {
+pub fn read_len(reader: &mut dyn Read) -> u32 {
     let len = reader.read_u32::<BigEndian>().unwrap();
     return len;
 }
 
-fn read_type(reader: &mut dyn Read) -> ItemType {
+pub fn read_type(reader: &mut dyn Read) -> ItemType {
     let i = reader.read_u8().unwrap();
     let t = num::FromPrimitive::from_u8(i).unwrap();
     //println!("Read Type {:?}", t);

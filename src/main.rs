@@ -58,6 +58,7 @@ use mio;
 use mio::tcp::{Shutdown, TcpListener, TcpStream};
 
 use std::io;
+use std::io::Cursor;
 use vecio::Rawv;
 
 use std::collections::HashMap;
@@ -361,15 +362,17 @@ struct TlsServer {
     connections: HashMap<mio::Token, Connection>,
     next_id: usize,
     tls_config: Arc<rustls::ServerConfig>,
+    server_context : ServerContext,
 }
 
 impl TlsServer {
-    fn new(server: TcpListener, cfg: Arc<rustls::ServerConfig>) -> TlsServer {
+    fn new(server: TcpListener, server_context: ServerContext, cfg: Arc<rustls::ServerConfig>) -> TlsServer {
         TlsServer {
             server,
             connections: HashMap::new(),
             next_id: 2,
             tls_config: cfg,
+            server_context : server_context,
         }
     }
 
@@ -384,7 +387,7 @@ impl TlsServer {
                 self.next_id += 1;
 
                 self.connections
-                    .insert(token, Connection::new(socket, token, tls_session));
+                    .insert(token, Connection::new(socket, token, self.server_context.clone(), tls_session));
                 self.connections[&token].register(poll);
                 true
             }
@@ -420,6 +423,7 @@ struct Connection {
     closed: bool,
     tls_session: rustls::ServerSession,
     sent_http_response: bool,
+    server_context : ServerContext,
 }
 
 /// This used to be conveniently exposed by mio: map EWOULDBLOCK
@@ -438,7 +442,7 @@ fn try_read(r: io::Result<usize>) -> io::Result<Option<usize>> {
 }
 
 impl Connection {
-    fn new(socket: TcpStream, token: mio::Token, tls_session: rustls::ServerSession) -> Connection {
+    fn new(socket: TcpStream, token: mio::Token, server_context: ServerContext, tls_session: rustls::ServerSession) -> Connection {
         Connection {
             socket,
             token,
@@ -446,6 +450,7 @@ impl Connection {
             closed: false,
             tls_session,
             sent_http_response: false,
+            server_context : server_context,
         }
     }
 
@@ -520,14 +525,36 @@ impl Connection {
 
     /// Process some amount of received plaintext.
     fn incoming_plaintext(&mut self, buf: &[u8]) {
+        if buf.len() < 8 {
+            error!("Invalid KMIP Request, less then 8 bytes");
+            return;
+        }
 
-        let mut rc = RequestContext::new();
+        // Check length
+        let mut cur = Cursor::new(buf);
+        read_tag(&mut cur);
+        let t = read_type(&mut cur);
+        if t != ttlv::ItemType::Structure {
+            error!("Expected struct, received {:?}", t);
+            return;
+        }
+
+        let len = read_len(&mut cur) as usize;
+        if buf.len() < len  {
+            error!("Unexpected leng, received {:?}, expected {:?}", buf.len(), len);
+            return;
+        }
+
+
+        let mut rc = RequestContext::new(&self.server_context);
 
         rc.set_peer_addr(self.socket.peer_addr().unwrap());
 
         let response = process_kmip_request(&mut rc, buf);
 
         self.tls_session.write_all(response.as_slice()).unwrap();
+
+        // TODO
         //self.tls_session.send_close_notify();
     }
 
@@ -884,41 +911,81 @@ struct ManagedObject {
 }
 
 ////////////////////////////////////
-struct KmipStore {
+struct KmipStoreInner {
     documents: HashMap<String, bson::Document>,
     counter: i32,
+}
+
+struct KmipStore {
+    inner: Mutex<KmipStoreInner>,
 }
 
 impl KmipStore {
     fn new() -> KmipStore {
         KmipStore {
+            inner: Mutex::new(KmipStoreInner {
             documents: HashMap::new(),
             counter: 0,
+            })
         }
     }
 
-    fn add(&mut self, id: &str, doc: bson::Document) {
-        let r = self.documents.insert(id.to_string(), doc);
+    fn add(&self, id: &str, doc: bson::Document) {
+        let r = self.inner.lock().unwrap().documents.insert(id.to_string(), doc);
         assert!(r.is_none());
     }
 
-    fn gen_id(&mut self) -> String {
-        self.counter += 1;
-        return self.counter.to_string();
+    fn gen_id(&self) -> String {
+        let c : i32;
+        {
+            let mut lock = self.inner.lock().unwrap();
+            lock.counter += 1;
+            c = lock.counter;
+        }
+        return c.to_string();
     }
 
     fn get(&self, id: &String) -> Option<bson::Document> {
-        let doc = self.documents.get(id);
-        if let Some(d) = doc {
-            return Some(d.clone());
+        {
+            let lock = self.inner.lock().unwrap();
+            let doc = lock.documents.get(id);
+            if let Some(d) = doc {
+                return Some(d.clone());
+            }
         }
         return None;
     }
 }
 
-lazy_static! {
-    static ref GLOBAL_STORE: Mutex<KmipStore> = Mutex::new(KmipStore::new());
+// lazy_static! {
+//     static ref GLOBAL_STORE: KmipStore = KmipStore::new();
+// }
+
+struct ServerContextInner {
+    count : i32,
 }
+
+#[derive(Clone)]
+struct ServerContext {
+    inner: Arc<Mutex<ServerContextInner>>,
+    store : Arc<KmipStore>,
+}
+
+impl ServerContext {
+    fn new(store: Arc<KmipStore> ) -> ServerContext {
+        ServerContext {
+            inner : Arc::new(Mutex::new(ServerContextInner {
+                count : 0
+            })),
+            store : store,
+        }
+    }
+
+    fn get_store(&self) -> &KmipStore {
+        return self.store.as_ref();
+    }
+}
+
 
 ///////////////////////
 
@@ -939,16 +1006,22 @@ impl KmipCrypto {
     }
 }
 
-struct RequestContext {
+struct RequestContext<'a> {
     //store: &'a mut KmipStore,
     peer_addr : Option<SocketAddr>,
+    server_context : &'a ServerContext,
 }
 
-impl RequestContext {
-    fn new() -> RequestContext {
+impl<'a> RequestContext<'a> {
+    fn new(server_context : &'a ServerContext ) -> RequestContext<'a> {
         RequestContext {
             peer_addr : None,
+            server_context : server_context,
         }
+    }
+
+    fn get_server_context(&self) -> &ServerContext {
+        return self.server_context;
     }
 
     fn set_peer_addr(&mut self, addr : SocketAddr) {
@@ -1053,7 +1126,7 @@ fn process_create_request(
 
             let key = KmipCrypto::gen_rand_bytes((crypt_len / 8)  as usize);
 
-            let id = GLOBAL_STORE.lock().unwrap().gen_id();
+            let id = rc.get_server_context().get_store().gen_id();
             let mo = ManagedObject {
                 id: id.to_string(),
                 payload: ManagedObjectEnum::SymmetricKey(
@@ -1074,7 +1147,7 @@ fn process_create_request(
             let d = bson::to_bson(&mo).unwrap();
 
             if let bson::Bson::Document(d1) = d {
-                GLOBAL_STORE.lock().unwrap().add(id.as_ref(), d1);
+                rc.get_server_context().get_store().add(id.as_ref(), d1);
 
                 return Ok(CreateResponse {
                     ObjectType: ObjectTypeEnum::SymmetricKey,
@@ -1092,18 +1165,12 @@ fn process_get_request(
     rc: &RequestContext,
     req: GetRequest,
 ) -> std::result::Result<GetResponse, KmipResponseError> {
-    let doc_maybe : Option<bson::Document>;
-
-    {
-        let locked = GLOBAL_STORE.lock().unwrap();
-        doc_maybe = locked.get(&req.UniqueIdentifier);
-        if doc_maybe.is_none() {
-                return Err(KmipResponseError::new("Thing not found"));
-        }
+    let doc_maybe = rc.get_server_context().get_store().get(&req.UniqueIdentifier);
+    if doc_maybe.is_none() {
+            return Err(KmipResponseError::new("Thing not found"));
     }
     let doc = doc_maybe.unwrap();
 
-    // TODO - can we get rid of clone?
     let mo : ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
 
     let mut resp = GetResponse {
@@ -1259,7 +1326,11 @@ fn main() {
 
     server_config.set_single_cert(server_certs, privkey);
 
-    let mut tlsserv = TlsServer::new(listener, Arc::new(server_config));
+    let store  = Arc::new(KmipStore::new());
+
+    let server_context = ServerContext::new(store);
+
+    let mut tlsserv = TlsServer::new(listener, server_context, Arc::new(server_config));
 
     let mut events = mio::Events::with_capacity(256);
     loop {
@@ -1335,7 +1406,11 @@ fn test_create_request2() {
         0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    let mut rc = RequestContext::new();
+    let store  = Arc::new(KmipStore::new());
+
+    let server_context = ServerContext::new(store);
+
+    let mut rc = RequestContext::new(&server_context);
     process_kmip_request(&mut rc, bytes.as_slice());
 
     //unimplemented!();
