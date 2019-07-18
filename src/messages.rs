@@ -517,7 +517,7 @@ impl Serialize for ResponseBatchItem {
 }
 
 
-struct KmipEnumResolver;
+pub struct KmipEnumResolver;
 
 impl ttlv::EnumResolver for KmipEnumResolver {
     fn resolve_enum(&self, name: &str, value: i32) -> String {

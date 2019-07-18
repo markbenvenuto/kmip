@@ -77,10 +77,15 @@ use ring::rand::*;
 // mod git;
 // mod watchman;
 mod messages;
+mod store;
 
 use messages::*;
 use ttlv::*;
 
+use store::KmipStore;
+use store::ManagedObject;
+use store::ManagedObjectEnum;
+use store::KmipMemoryStore;
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
@@ -430,85 +435,6 @@ fn load_private_key(filename: &str) -> rustls::PrivateKey {
     }
 }
 
-/////////////////////////////////
-
-#[derive(Serialize, Deserialize, Debug)]
-enum ManagedObjectEnum {
-    SymmetricKey(messages::SymmetricKey),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ManagedObject {
-    id: String,
-    payload: ManagedObjectEnum,
-}
-
-////////////////////////////////////
-
-
-pub trait KmipStore {
-    fn add(&self, id: &str, doc: bson::Document);
-
-    fn gen_id(&self) -> String;
-
-    fn get(&self, id: &String) -> Option<bson::Document>;
-}
-
-
-///////////////////////////////////////
-
-struct KmipMemoryStoreInner {
-    documents: HashMap<String, bson::Document>,
-    counter: i32,
-}
-
-struct KmipMemoryStore {
-    inner: Mutex<KmipMemoryStoreInner>,
-}
-
-impl KmipMemoryStore  {
-    fn new() -> KmipMemoryStore {
-        KmipMemoryStore {
-            inner: Mutex::new(KmipMemoryStoreInner {
-            documents: HashMap::new(),
-            counter: 0,
-            })
-        }
-    }
-}
-
-impl KmipStore for KmipMemoryStore  {
-    fn add(&self, id: &str, doc: bson::Document) {
-        let r = self.inner.lock().unwrap().documents.insert(id.to_string(), doc);
-        assert!(r.is_none());
-    }
-
-    fn gen_id(&self) -> String {
-        let c : i32;
-        {
-            let mut lock = self.inner.lock().unwrap();
-            lock.counter += 1;
-            c = lock.counter;
-        }
-        return c.to_string();
-    }
-
-    fn get(&self, id: &String) -> Option<bson::Document> {
-        {
-            let lock = self.inner.lock().unwrap();
-            let doc = lock.documents.get(id);
-            if let Some(d) = doc {
-                return Some(d.clone());
-            }
-        }
-        return None;
-    }
-}
-
-// lazy_static! {
-//     static ref GLOBAL_STORE: KmipStore = KmipStore::new();
-// }
-
 struct ServerContextInner {
     count : i32,
 }
@@ -672,12 +598,13 @@ fn process_create_request(
             let crypt_len = find_attr(&req.template_attribute,
                 |x| if let messages::CreateRequestAttributes::CryptographicLength(a) = x { Some(*a) } else {None}  ).unwrap();
 
+            // key lengths are in bits
             let key = KmipCrypto::gen_rand_bytes((crypt_len / 8)  as usize);
 
             let id = rc.get_server_context().get_store().gen_id();
-            let mo = ManagedObject {
+            let mo = store::ManagedObject {
                 id: id.to_string(),
-                payload: ManagedObjectEnum::SymmetricKey(
+                payload: store::ManagedObjectEnum::SymmetricKey(
                     SymmetricKey {
                         key_block : KeyBlock {
                             key_format_type: KeyFormatTypeEnum::Raw,
@@ -763,7 +690,7 @@ fn create_ok_response(op: messages::ResponseOperationEnum) -> Vec<u8> {
 // }
 
 fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
-    let k: KmipEnumResolver = KmipEnumResolver {};
+    let k: KmipEnumResolver = messages::KmipEnumResolver {};
 
     info!("Request Message: {:?}", buf.hex_dump());
     ttlv::to_print(buf);
@@ -803,32 +730,6 @@ fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     ttlv::to_print(vr.as_slice());
 
     return vr;
-}
-
-struct KmipEnumResolver;
-
-impl ttlv::EnumResolver for KmipEnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> String {
-        match name {
-            "Foo" => "Bar".to_owned(),
-            "Operation" => {
-                let o: Operation = num::FromPrimitive::from_i32(value).unwrap();
-                return o.as_static().to_owned();
-            }
-            "ObjectType" => {
-                let o: ObjectTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
-                return o.as_static().to_owned();
-            }
-            "CryptographicAlgorithm" => {
-                let o: CryptographicAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
-                return o.as_static().to_owned();
-            }
-            _ => {
-                println!("Not implemented: {:?}", name);
-                unimplemented! {}
-            }
-        }
-    }
 }
 
 fn main() {
