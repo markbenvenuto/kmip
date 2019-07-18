@@ -379,7 +379,7 @@ impl TlsServer {
     fn accept(&mut self, poll: &mut mio::Poll) -> bool {
         match self.server.accept() {
             Ok((socket, addr)) => {
-                debug!("Accepting new connection from {:?}", addr);
+                info!("Accepting new connection from {:?}", addr);
 
                 let tls_session = rustls::ServerSession::new(&self.tls_config);
 
@@ -392,7 +392,7 @@ impl TlsServer {
                 true
             }
             Err(e) => {
-                println!("encountered error while accepting connection; err={:?}", e);
+                error!("encountered error while accepting connection; err={:?}", e);
                 false
             }
         }
@@ -911,25 +911,40 @@ struct ManagedObject {
 }
 
 ////////////////////////////////////
-struct KmipStoreInner {
+
+
+pub trait KmipStore {
+    fn add(&self, id: &str, doc: bson::Document);
+
+    fn gen_id(&self) -> String;
+
+    fn get(&self, id: &String) -> Option<bson::Document>;
+}
+
+
+///////////////////////////////////////
+
+struct KmipMemoryStoreInner {
     documents: HashMap<String, bson::Document>,
     counter: i32,
 }
 
-struct KmipStore {
-    inner: Mutex<KmipStoreInner>,
+struct KmipMemoryStore {
+    inner: Mutex<KmipMemoryStoreInner>,
 }
 
-impl KmipStore {
-    fn new() -> KmipStore {
-        KmipStore {
-            inner: Mutex::new(KmipStoreInner {
+impl KmipMemoryStore  {
+    fn new() -> KmipMemoryStore {
+        KmipMemoryStore {
+            inner: Mutex::new(KmipMemoryStoreInner {
             documents: HashMap::new(),
             counter: 0,
             })
         }
     }
+}
 
+impl KmipStore for KmipMemoryStore  {
     fn add(&self, id: &str, doc: bson::Document) {
         let r = self.inner.lock().unwrap().documents.insert(id.to_string(), doc);
         assert!(r.is_none());
@@ -1217,13 +1232,13 @@ fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {
 fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     let k: KmipEnumResolver = KmipEnumResolver {};
 
-    println!("Request Message: {:?}", buf.hex_dump());
+    info!("Request Message: {:?}", buf.hex_dump());
     ttlv::to_print(buf);
 
     let request = ttlv::from_bytes::<RequestMessage>(&buf, &k).unwrap();
 
     // TODO - check protocol version
-    println!(
+    info!(
         "Received message: {}.{}",
         request.RequestHeader.ProtocolVersion.ProtocolVersionMajor,
         request.RequestHeader.ProtocolVersion.ProtocolVersionMinor
@@ -1231,11 +1246,11 @@ fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
 
     let result = match request.BatchItem {
         RequestBatchItem::Create(x) => {
-            println!("Got Create Request");
+            info!("Got Create Request");
             process_create_request(&rc, &x).map(|r| ResponseOperationEnum::Create(r))
         }
         RequestBatchItem::Get(x) => {
-            println!("Got Get Request");
+            info!("Got Get Request");
             process_get_request(&rc, x).map(|r| ResponseOperationEnum::Get(r))
         } // _ => {
           //     unimplemented!();
@@ -1250,7 +1265,7 @@ fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         }
     };
 
-    println!("Response Message: {:?}", vr.hex_dump());
+    info!("Response Message: {:?}", vr.hex_dump());
 
     ttlv::to_print(vr.as_slice());
 
@@ -1286,7 +1301,7 @@ impl ttlv::EnumResolver for KmipEnumResolver {
 fn main() {
     println!("Hello, world!");
 
-    //    env_logger::init();
+    env_logger::init();
 
     let args = CmdLine::from_args();
     println!("{:?}", args);
@@ -1326,7 +1341,7 @@ fn main() {
 
     server_config.set_single_cert(server_certs, privkey);
 
-    let store  = Arc::new(KmipStore::new());
+    let store  = Arc::new(KmipMemoryStore::new());
 
     let server_context = ServerContext::new(store);
 
@@ -1406,7 +1421,7 @@ fn test_create_request2() {
         0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    let store  = Arc::new(KmipStore::new());
+    let store  = Arc::new(KmipMemoryStore::new());
 
     let server_context = ServerContext::new(store);
 
