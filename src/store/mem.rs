@@ -1,5 +1,5 @@
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 use crate::store::KmipStore;
 
@@ -12,25 +12,30 @@ pub struct KmipMemoryStore {
     inner: Mutex<KmipMemoryStoreInner>,
 }
 
-impl KmipMemoryStore  {
+impl KmipMemoryStore {
     pub fn new() -> KmipMemoryStore {
         KmipMemoryStore {
             inner: Mutex::new(KmipMemoryStoreInner {
-            documents: HashMap::new(),
-            counter: 0,
-            })
+                documents: HashMap::new(),
+                counter: 0,
+            }),
         }
     }
 }
 
-impl KmipStore for KmipMemoryStore  {
+impl KmipStore for KmipMemoryStore {
     fn add(&self, id: &str, doc: bson::Document) {
-        let r = self.inner.lock().unwrap().documents.insert(id.to_string(), doc);
+        let r = self
+            .inner
+            .lock()
+            .unwrap()
+            .documents
+            .insert(id.to_string(), doc);
         assert!(r.is_none());
     }
 
     fn gen_id(&self) -> String {
-        let c : i32;
+        let c: i32;
         {
             let mut lock = self.inner.lock().unwrap();
             lock.counter += 1;

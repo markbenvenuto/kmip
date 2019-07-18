@@ -82,12 +82,11 @@ mod store;
 use messages::*;
 use ttlv::*;
 
+use store::KmipMemoryStore;
+use store::KmipMongoDBStore;
 use store::KmipStore;
 use store::ManagedObject;
 use store::ManagedObjectEnum;
-use store::KmipMemoryStore;
-use store::KmipMongoDBStore;
-
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
@@ -153,17 +152,21 @@ struct TlsServer {
     connections: HashMap<mio::Token, Connection>,
     next_id: usize,
     tls_config: Arc<rustls::ServerConfig>,
-    server_context : ServerContext,
+    server_context: ServerContext,
 }
 
 impl TlsServer {
-    fn new(server: TcpListener, server_context: ServerContext, cfg: Arc<rustls::ServerConfig>) -> TlsServer {
+    fn new(
+        server: TcpListener,
+        server_context: ServerContext,
+        cfg: Arc<rustls::ServerConfig>,
+    ) -> TlsServer {
         TlsServer {
             server,
             connections: HashMap::new(),
             next_id: 2,
             tls_config: cfg,
-            server_context : server_context,
+            server_context: server_context,
         }
     }
 
@@ -177,8 +180,10 @@ impl TlsServer {
                 let token = mio::Token(self.next_id);
                 self.next_id += 1;
 
-                self.connections
-                    .insert(token, Connection::new(socket, token, self.server_context.clone(), tls_session));
+                self.connections.insert(
+                    token,
+                    Connection::new(socket, token, self.server_context.clone(), tls_session),
+                );
                 self.connections[&token].register(poll);
                 true
             }
@@ -213,7 +218,7 @@ struct Connection {
     closing: bool,
     closed: bool,
     tls_session: rustls::ServerSession,
-    server_context : ServerContext,
+    server_context: ServerContext,
 }
 
 /// This used to be conveniently exposed by mio: map EWOULDBLOCK
@@ -232,14 +237,19 @@ fn try_read(r: io::Result<usize>) -> io::Result<Option<usize>> {
 }
 
 impl Connection {
-    fn new(socket: TcpStream, token: mio::Token, server_context: ServerContext, tls_session: rustls::ServerSession) -> Connection {
+    fn new(
+        socket: TcpStream,
+        token: mio::Token,
+        server_context: ServerContext,
+        tls_session: rustls::ServerSession,
+    ) -> Connection {
         Connection {
             socket,
             token,
             closing: false,
             closed: false,
             tls_session,
-            server_context : server_context,
+            server_context: server_context,
         }
     }
 
@@ -329,11 +339,14 @@ impl Connection {
         }
 
         let len = read_len(&mut cur) as usize;
-        if buf.len() < len  {
-            error!("Unexpected leng, received {:?}, expected {:?}", buf.len(), len);
+        if buf.len() < len {
+            error!(
+                "Unexpected leng, received {:?}, expected {:?}",
+                buf.len(),
+                len
+            );
             return;
         }
-
 
         let mut rc = RequestContext::new(&self.server_context);
 
@@ -438,22 +451,20 @@ fn load_private_key(filename: &str) -> rustls::PrivateKey {
 }
 
 struct ServerContextInner {
-    count : i32,
+    count: i32,
 }
 
 #[derive(Clone)]
 struct ServerContext {
     inner: Arc<Mutex<ServerContextInner>>,
-    store : Arc<dyn KmipStore>,
+    store: Arc<dyn KmipStore>,
 }
 
 impl ServerContext {
-    fn new(store: Arc<dyn KmipStore> ) -> ServerContext {
+    fn new(store: Arc<dyn KmipStore>) -> ServerContext {
         ServerContext {
-            inner : Arc::new(Mutex::new(ServerContextInner {
-                count : 0
-            })),
-            store : store,
+            inner: Arc::new(Mutex::new(ServerContextInner { count: 0 })),
+            store: store,
         }
     }
 
@@ -461,7 +472,6 @@ impl ServerContext {
         return self.store.as_ref();
     }
 }
-
 
 ///////////////////////
 
@@ -474,7 +484,7 @@ struct KmipCrypto;
 impl KmipCrypto {
     // TODO - is there a secure vector?
     fn gen_rand_bytes(len: usize) -> Vec<u8> {
-        let mut a : Vec<u8> = Vec::new();
+        let mut a: Vec<u8> = Vec::new();
         a.resize(len, 0);
         GLOBAL_RAND.fill(a.as_mut());
 
@@ -484,15 +494,15 @@ impl KmipCrypto {
 
 struct RequestContext<'a> {
     //store: &'a mut KmipStore,
-    peer_addr : Option<SocketAddr>,
-    server_context : &'a ServerContext,
+    peer_addr: Option<SocketAddr>,
+    server_context: &'a ServerContext,
 }
 
 impl<'a> RequestContext<'a> {
-    fn new(server_context : &'a ServerContext ) -> RequestContext<'a> {
+    fn new(server_context: &'a ServerContext) -> RequestContext<'a> {
         RequestContext {
-            peer_addr : None,
-            server_context : server_context,
+            peer_addr: None,
+            server_context: server_context,
         }
     }
 
@@ -500,7 +510,7 @@ impl<'a> RequestContext<'a> {
         return self.server_context;
     }
 
-    fn set_peer_addr(&mut self, addr : SocketAddr) {
+    fn set_peer_addr(&mut self, addr: SocketAddr) {
         self.peer_addr = Some(addr);
     }
 
@@ -571,7 +581,8 @@ impl Error for KmipResponseError {
 // }
 
 fn find_attr<F>(tas: &Vec<TemplateAttribute>, func: F) -> Option<i32>
-    where F: Fn(&messages::AttributesEnum) -> Option<i32>
+where
+    F: Fn(&messages::AttributesEnum) -> Option<i32>,
 {
     for ta in tas {
         for attr in &ta.attribute {
@@ -592,34 +603,47 @@ fn process_create_request(
     match req.object_type {
         ObjectTypeEnum::SymmetricKey => {
             // TODO - validate message
-            let algo2 = find_attr(&req.template_attribute,
-                |x| if let messages::AttributesEnum::CryptographicAlgorithm(a) = x { Some(*a) } else {None}  ).unwrap();
+            let algo2 = find_attr(&req.template_attribute, |x| {
+                if let messages::AttributesEnum::CryptographicAlgorithm(a) = x {
+                    Some(*a)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
 
-            let algo : CryptographicAlgorithm = num::FromPrimitive::from_i32(algo2).unwrap();
+            let algo: CryptographicAlgorithm = num::FromPrimitive::from_i32(algo2).unwrap();
 
-            let crypt_len = find_attr(&req.template_attribute,
-                |x| if let messages::AttributesEnum::CryptographicLength(a) = x { Some(*a) } else {None}  ).unwrap();
+            let crypt_len = find_attr(&req.template_attribute, |x| {
+                if let messages::AttributesEnum::CryptographicLength(a) = x {
+                    Some(*a)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
 
             // key lengths are in bits
-            let key = KmipCrypto::gen_rand_bytes((crypt_len / 8)  as usize);
+            let key = KmipCrypto::gen_rand_bytes((crypt_len / 8) as usize);
 
             let id = rc.get_server_context().get_store().gen_id();
             let mo = store::ManagedObject {
                 id: id.to_string(),
-                payload: store::ManagedObjectEnum::SymmetricKey(
-                    SymmetricKey {
-                        key_block : KeyBlock {
-                            key_format_type: KeyFormatTypeEnum::Raw,
-                            key_value : KeyValue {
-                                key_material: key,
-                            },
-                            key_compression_type: None,
-                            cryptographic_algorithm: algo,
-                            cryptographic_length: crypt_len,
-                        }
-                    }
-                ),
-                attributes: req.template_attribute.iter().map( |x| x.attribute.clone()).flatten().collect(),
+                payload: store::ManagedObjectEnum::SymmetricKey(SymmetricKey {
+                    key_block: KeyBlock {
+                        key_format_type: KeyFormatTypeEnum::Raw,
+                        key_value: KeyValue { key_material: key },
+                        key_compression_type: None,
+                        cryptographic_algorithm: algo,
+                        cryptographic_length: crypt_len,
+                    },
+                }),
+                attributes: req
+                    .template_attribute
+                    .iter()
+                    .map(|x| x.attribute.clone())
+                    .flatten()
+                    .collect(),
             };
 
             let d = bson::to_bson(&mo).unwrap();
@@ -643,13 +667,16 @@ fn process_get_request(
     rc: &RequestContext,
     req: GetRequest,
 ) -> std::result::Result<GetResponse, KmipResponseError> {
-    let doc_maybe = rc.get_server_context().get_store().get(&req.unique_identifier);
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(&req.unique_identifier);
     if doc_maybe.is_none() {
-            return Err(KmipResponseError::new("Thing not found"));
+        return Err(KmipResponseError::new("Thing not found"));
     }
     let doc = doc_maybe.unwrap();
 
-    let mo : ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
 
     let mut resp = GetResponse {
         object_type: ObjectTypeEnum::SymmetricKey,
@@ -692,7 +719,7 @@ fn create_ok_response(op: messages::ResponseOperationEnum) -> Vec<u8> {
 
 // }
 
-fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
+fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     let k: KmipEnumResolver = messages::KmipEnumResolver {};
 
     info!("Request Message: {:?}", buf.hex_dump());
@@ -703,8 +730,14 @@ fn process_kmip_request(rc : &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     // TODO - check protocol version
     info!(
         "Received message: {}.{}",
-        request.request_header.protocol_version.protocol_version_major,
-        request.request_header.protocol_version.protocol_version_minor
+        request
+            .request_header
+            .protocol_version
+            .protocol_version_major,
+        request
+            .request_header
+            .protocol_version
+            .protocol_version_minor
     );
 
     let result = match request.batch_item {
@@ -778,11 +811,10 @@ fn main() {
 
     server_config.set_single_cert(server_certs, privkey);
 
+    let uri = "mongodb://localhost:27017/";
 
-    let uri ="mongodb://localhost:27017/";
-
-//    let store  = Arc::new(KmipMemoryStore::new());
-    let store  = Arc::new(KmipMongoDBStore::new(uri));
+    //    let store  = Arc::new(KmipMemoryStore::new());
+    let store = Arc::new(KmipMongoDBStore::new(uri));
 
     let server_context = ServerContext::new(store);
 
@@ -862,7 +894,7 @@ fn test_create_request2() {
         0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    let store  = Arc::new(KmipMemoryStore::new());
+    let store = Arc::new(KmipMemoryStore::new());
 
     let server_context = ServerContext::new(store);
 

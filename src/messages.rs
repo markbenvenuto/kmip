@@ -70,6 +70,17 @@ pub enum ObjectTypeEnum {
 
 #[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
 #[repr(i32)]
+pub enum ObjectStateEnum {
+    PreActive = 0x00000001,
+    Active = 0x00000002,
+    Deactivated = 0x00000003,
+    Compromised = 0x00000004,
+    Destroyed = 0x00000005,
+    DestroyedCompromised = 0x00000006,
+}
+
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
+#[repr(i32)]
 pub enum NameTypeEnum {
     UninterpretedTextString = 0x00000001,
     URI = 0x00000002,
@@ -221,7 +232,7 @@ pub enum ResultReason {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyValue {
-    #[serde(with = "serde_bytes", rename="KeyMaterial")]
+    #[serde(with = "serde_bytes", rename = "KeyMaterial")]
     pub key_material: Vec<u8>,
 }
 
@@ -230,7 +241,7 @@ pub struct KeyBlock {
     #[serde(rename = "KeyFormatType")]
     pub key_format_type: KeyFormatTypeEnum,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename="KeyCompressionType")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyCompressionType")]
     pub key_compression_type: Option<KeyCompressionType>,
 
     // TODO : this type is not just a struct all the time
@@ -264,9 +275,9 @@ pub struct SymmetricKey {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NameStruct {
-        #[serde(rename = "NameValue")]
+    #[serde(rename = "NameValue")]
     pub name_value: String,
-        #[serde(rename = "NameType")]
+    #[serde(rename = "NameType")]
     pub name_type: NameTypeEnum,
 }
 
@@ -326,13 +337,13 @@ pub struct GetRequest {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename="KeyFormatType")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyFormatType")]
     pub key_format_type: Option<KeyFormatTypeEnum>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename="KeyWrapType")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyWrapType")]
     pub key_wrap_type: Option<KeyFormatTypeEnum>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename="KeyCompressionType")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyCompressionType")]
     pub key_compression_type: Option<KeyCompressionType>,
     // TODO KeyWrappingSpecification: KeyWrappingSpecification
 }
@@ -346,7 +357,7 @@ pub struct GetResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename="SymmetricKey")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "SymmetricKey")]
     pub symmetric_key: Option<SymmetricKey>,
 }
 
@@ -373,7 +384,6 @@ pub struct RequestHeader {
     pub protocol_version: ProtocolVersion,
 
     // TODO: Other fields are optional
-
     #[serde(rename = "BatchCount")]
     pub batch_count: i32,
 }
@@ -392,10 +402,9 @@ pub struct ResponseHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
 
-    #[serde(with = "ttlv::my_date_format", rename="TimeStamp")]
+    #[serde(with = "ttlv::my_date_format", rename = "TimeStamp")]
     pub time_stamp: chrono::DateTime<Utc>,
     // TODO: Other fields are optional
-
     #[serde(rename = "BatchCount")]
     pub batch_count: i32,
 }
@@ -414,7 +423,6 @@ pub enum ResponseOperationEnum {
 #[serde(rename = "BatchItem")]
 pub struct ResponseBatchItem {
     //Operation: Option<String>,
-
     #[serde(rename = "ResultStatus")]
     pub result_status: ResultStatus,
 
@@ -515,7 +523,6 @@ impl Serialize for ResponseBatchItem {
         ser_struct.end()
     }
 }
-
 
 pub struct KmipEnumResolver;
 

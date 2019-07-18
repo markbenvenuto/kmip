@@ -1,12 +1,11 @@
 mod mem;
 mod mongodb;
 
-pub use mem::KmipMemoryStore;
 pub use crate::store::mongodb::KmipMongoDBStore;
+pub use mem::KmipMemoryStore;
 
-use crate::messages::SymmetricKey;
 use crate::messages::AttributesEnum;
-
+use crate::messages::SymmetricKey;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ManagedObjectEnum {
@@ -15,8 +14,7 @@ pub enum ManagedObjectEnum {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ManagedObject {
-
-    #[serde(rename="_id")]
+    #[serde(rename = "_id")]
     pub id: String,
     pub payload: ManagedObjectEnum,
 
@@ -25,7 +23,6 @@ pub struct ManagedObject {
 
 ////////////////////////////////////
 
-
 pub trait KmipStore {
     fn add(&self, id: &str, doc: bson::Document);
 
@@ -33,5 +30,3 @@ pub trait KmipStore {
 
     fn get(&self, id: &String) -> Option<bson::Document>;
 }
-
-

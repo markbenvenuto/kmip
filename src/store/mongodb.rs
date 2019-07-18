@@ -1,26 +1,26 @@
 use std::sync::Mutex;
 
-use mongodb::*;
 use bson::Document;
+use mongodb::*;
 
 use crate::store::KmipStore;
 
 struct KmipMongoDBStoreInner {
     counter: i32,
-    uri : String,
+    uri: String,
 }
 
 pub struct KmipMongoDBStore {
     inner: Mutex<KmipMongoDBStoreInner>,
 }
 
-impl KmipMongoDBStore  {
+impl KmipMongoDBStore {
     pub fn new(uri: &str) -> KmipMongoDBStore {
         KmipMongoDBStore {
             inner: Mutex::new(KmipMongoDBStoreInner {
-            uri : uri.to_string(),
-            counter: 0,
-            })
+                uri: uri.to_string(),
+                counter: 0,
+            }),
         }
     }
 
@@ -36,7 +36,7 @@ impl KmipMongoDBStore  {
     }
 }
 
-impl KmipStore for KmipMongoDBStore  {
+impl KmipStore for KmipMongoDBStore {
     fn add(&self, id: &str, doc: bson::Document) {
         let collection = self.make_connection();
 
@@ -45,7 +45,7 @@ impl KmipStore for KmipMongoDBStore  {
 
     // TODO - improve
     fn gen_id(&self) -> String {
-                let c : i32;
+        let c: i32;
         {
             let mut lock = self.inner.lock().unwrap();
             lock.counter += 1;
@@ -57,13 +57,13 @@ impl KmipStore for KmipMongoDBStore  {
     fn get(&self, id: &String) -> Option<bson::Document> {
         let collection = self.make_connection();
 
-        let doc = doc!{
+        let doc = doc! {
             "_id" : id
         };
 
         let cursor = collection.find(Some(doc), None);
 
-        let mut results : Vec<mongodb::error::Result<Document>> = cursor.unwrap().collect();
+        let mut results: Vec<mongodb::error::Result<Document>> = cursor.unwrap().collect();
         if results.len() == 0 {
             return None;
         }
