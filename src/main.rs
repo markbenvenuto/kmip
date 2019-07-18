@@ -66,7 +66,7 @@ use std::string::ToString;
 
 use strum::AsStaticRef;
 
-//#[macro_use(bson, doc)]
+#[macro_use(bson, doc)]
 extern crate bson;
 
 extern crate ring;
@@ -86,6 +86,8 @@ use store::KmipStore;
 use store::ManagedObject;
 use store::ManagedObjectEnum;
 use store::KmipMemoryStore;
+use store::KmipMongoDBStore;
+
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
@@ -569,7 +571,7 @@ impl Error for KmipResponseError {
 // }
 
 fn find_attr<F>(tas: &Vec<TemplateAttribute>, func: F) -> Option<i32>
-    where F: Fn(&messages::CreateRequestAttributes) -> Option<i32>
+    where F: Fn(&messages::AttributesEnum) -> Option<i32>
 {
     for ta in tas {
         for attr in &ta.attribute {
@@ -591,12 +593,12 @@ fn process_create_request(
         ObjectTypeEnum::SymmetricKey => {
             // TODO - validate message
             let algo2 = find_attr(&req.template_attribute,
-                |x| if let messages::CreateRequestAttributes::CryptographicAlgorithm(a) = x { Some(*a) } else {None}  ).unwrap();
+                |x| if let messages::AttributesEnum::CryptographicAlgorithm(a) = x { Some(*a) } else {None}  ).unwrap();
 
             let algo : CryptographicAlgorithm = num::FromPrimitive::from_i32(algo2).unwrap();
 
             let crypt_len = find_attr(&req.template_attribute,
-                |x| if let messages::CreateRequestAttributes::CryptographicLength(a) = x { Some(*a) } else {None}  ).unwrap();
+                |x| if let messages::AttributesEnum::CryptographicLength(a) = x { Some(*a) } else {None}  ).unwrap();
 
             // key lengths are in bits
             let key = KmipCrypto::gen_rand_bytes((crypt_len / 8)  as usize);
@@ -617,6 +619,7 @@ fn process_create_request(
                         }
                     }
                 ),
+                attributes: req.template_attribute.iter().map( |x| x.attribute.clone()).flatten().collect(),
             };
 
             let d = bson::to_bson(&mo).unwrap();
@@ -775,7 +778,11 @@ fn main() {
 
     server_config.set_single_cert(server_certs, privkey);
 
-    let store  = Arc::new(KmipMemoryStore::new());
+
+    let uri ="mongodb://localhost:27017/";
+
+//    let store  = Arc::new(KmipMemoryStore::new());
+    let store  = Arc::new(KmipMongoDBStore::new(uri));
 
     let server_context = ServerContext::new(store);
 

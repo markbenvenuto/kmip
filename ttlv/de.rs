@@ -849,7 +849,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 visitor.visit_string ( self.input.read_string())
 
             }
-            _ => { unreachable!{} }
+            _ => {
+                error!("Unknown Identifier Type: {:?}", t);
+                unreachable!{}
+                }
         }
 
         //self.deserialize_string(visitor)

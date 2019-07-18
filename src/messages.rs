@@ -252,15 +252,15 @@ pub struct SymmetricKey {
     pub key_block: KeyBlock,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct AttributeStruct {
-    #[serde(rename = "AttributeName")]
-    pub attribute_name: String,
-    #[serde(rename = "AttributeIndex")]
-    pub attribute_index: Option<i32>,
-    // AttributeValue type varies based on type
-    //AttributeValue: ???
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct AttributeStruct {
+//     #[serde(rename = "AttributeName")]
+//     pub attribute_name: String,
+//     #[serde(rename = "AttributeIndex")]
+//     pub attribute_index: Option<i32>,
+//     // AttributeValue type varies based on type
+//     //AttributeValue: ???
+// }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NameStruct {
@@ -276,9 +276,9 @@ pub struct NameStruct {
 //     Attribute : AttributeStruct,
 // }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "AttributeName", content = "AttributeValue")]
-pub enum CreateRequestAttributes {
+pub enum AttributesEnum {
     #[serde(rename = "Cryptographic Algorithm")]
     // TODO - use CryptographicAlgorithm as the type but serde calls deserialize_identifier
     // and we do not have enough context to realize it is CryptographicAlgorithm, we think it is AttributeValue
@@ -298,7 +298,7 @@ pub struct TemplateAttribute {
     pub name: Option<NameStruct>,
 
     #[serde(rename = "Attribute")]
-    pub attribute: Vec<CreateRequestAttributes>,
+    pub attribute: Vec<AttributesEnum>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -24,6 +24,7 @@ strum = "0.15.0"
 strum_macros = "0.15.0"
 
 chrono = "0.4.7"
+log = "0.4.7"
 
 #serde_enum = {path="serde_enum"}
 
