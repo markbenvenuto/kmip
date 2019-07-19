@@ -341,6 +341,7 @@ impl<'a> NestedReader<'a> {
 
     fn read_type(&mut self) -> ItemType {
         assert_eq!(self.state, ReaderState::Type);
+                self.state = ReaderState::LengthValue;
         return read_type(&mut self.cur);
     }
 
@@ -369,32 +370,32 @@ impl<'a> NestedReader<'a> {
     }
 
     fn reverse_tag(&mut self) {
-        assert_eq!(self.state, ReaderState::Type);
+        assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         let pos = self.cur.position();
         self.cur.set_position(pos - 3);
     }
 
     fn read_i32(&mut self) -> i32 {
-        assert_eq!(self.state, ReaderState::Type);
+        assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         return read_i32(&mut self.cur);
     }
 
     fn read_enumeration(&mut self) -> i32 {
-        assert_eq!(self.state, ReaderState::Type);
+        assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         return read_enumeration(&mut self.cur);
     }
 
     fn read_i64(&mut self) -> i64 {
-        assert_eq!(self.state, ReaderState::Type);
+        assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         return read_i64(&mut self.cur);
     }
 
     fn read_datetime_i64(&mut self) -> i64 {
-        assert_eq!(self.state, ReaderState::Type);
+        assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         return read_datetime_i64(&mut self.cur);
     }
@@ -404,19 +405,19 @@ impl<'a> NestedReader<'a> {
     //         self.read_tag();
     //     }
     //     assert_eq!(self.read_type(), ItemType::TextString);
-    //     assert_eq!(self.state, ReaderState::Type);
+    //     assert_eq!(self.state, ReaderState::LengthValue);
     //     self.state = ReaderState::Tag;
     //     return read_string(&mut self.cur);
     // }
 
     fn read_string(&mut self) -> String {
-        assert_eq!(self.state, ReaderState::Type);
+        assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         return read_string(&mut self.cur);
     }
 
     fn read_bytes(&mut self) -> Vec<u8> {
-        assert_eq!(self.state, ReaderState::Type);
+        assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         return read_bytes(&mut self.cur);
     }
@@ -693,11 +694,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        assert_eq!(self.input.read_type(), ItemType::ByteString);
+        let bytes = self.input.read_bytes();
+        visitor.visit_bytes(&bytes)
     }
 
     // An absent optional is represented as the JSON `null` and a present
@@ -708,11 +711,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // serialize as just `null`. Unfortunately this is typically what people
     // expect when working with JSON. Other formats are encouraged to behave
     // more intelligently if possible.
-    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unimplemented!();
+        // Option::None is simply omitted on serialization
+        // If we are asked to deserialize an option by serde, it is because it exists
+        // so just deserialize it as is
+        visitor.visit_some(self)
     }
 
     // In Serde, unit means an anonymous value containing no data.

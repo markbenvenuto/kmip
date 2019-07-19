@@ -12,3 +12,7 @@ protocol = {path="../protocol"}
 log= "0.4.7"
 
 pretty-hex = "0.1.0"
+
+num = "0.2.0"
+num-traits = "0.2"
+num-derive = "0.2.5"

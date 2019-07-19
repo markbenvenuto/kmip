@@ -1,7 +1,12 @@
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate num_derive;
+
 use std::io::{Read,Write};
+
+use pretty_hex::*;
 
 use protocol::*;
 
@@ -33,9 +38,20 @@ impl<'a, T> Client<'a, T> where T : 'a + Read + Write {
             }
     }
 
+    pub fn create_symmetric_key(&mut self, algo: CryptographicAlgorithm, len: i32 ) -> CreateResponse {
+
+        let algo2 = num::ToPrimitive::to_i32(&algo).unwrap();
+
+        let attributes = vec![
+            AttributesEnum::CryptographicAlgorithm(algo2),
+            AttributesEnum::CryptographicLength(len),
+        ];
+
+        return self.create(ObjectTypeEnum::SymmetricKey, attributes);
+    }
 
 
-    pub fn create(&mut self, object_type: ObjectTypeEnum, attributes: Vec<AttributesEnum>) -> ResponseOperationEnum {
+    pub fn create(&mut self, object_type: ObjectTypeEnum, attributes: Vec<AttributesEnum>) -> CreateResponse {
 
         let req = RequestBatchItem::Create(CreateRequest {
             object_type : object_type,
@@ -48,18 +64,6 @@ impl<'a, T> Client<'a, T> where T : 'a + Read + Write {
         });
 
         let mut bytes = create_ok_request(req);
-
-        self.stream.write_all(&mut bytes);
-
-        let msg = read_msg(&mut self.stream);
-
-        // TODO validate request
-        let response = ttlv::from_bytes::<ResponseMessage>(&buf, &k).unwrap();
-
-        // TODO check response
-
-        return response.batch_item.response_payload;
-
         // TODO - validate
         // let req = match object_type {
         //     ObjectTypeEnum::SymmetricKey => {
@@ -68,7 +72,55 @@ impl<'a, T> Client<'a, T> where T : 'a + Read + Write {
         //     _ => { unimplemented!() }
         // };
 
+        let rsp = self.make_request(&mut bytes);
+        if let ResponseOperationEnum::Create(x) = rsp {
+            return x;
+        } else {
+            panic!();
+        }
+    }
 
+    pub fn get(&mut self, id : &str) -> GetResponse {
+
+        let req = RequestBatchItem::Get(GetRequest {
+            unique_identifier : id.to_owned(),
+key_format_type : None,
+key_wrap_type : None,
+key_compression_type : None,
+        });
+
+        let mut bytes = create_ok_request(req);
+
+        let rsp = self.make_request(&mut bytes);
+        if let ResponseOperationEnum::Get(x) = rsp {
+            return x;
+        } else {
+            panic!();
+        }
+    }
+
+
+    fn make_request(&mut self, bytes: &mut [u8]) -> ResponseOperationEnum {
+        self.stream.write_all(bytes);
+
+        debug!("Waiting for data....");
+
+        let msg = read_msg(&mut self.stream);
+
+        info!("Response Message: {:?}", msg.hex_dump());
+
+        ttlv::to_print(&msg);
+
+        let k: KmipEnumResolver = KmipEnumResolver {};
+
+        // TODO validate request
+        let response = ttlv::from_bytes::<ResponseMessage>(&msg, &k).unwrap();
+
+        //println!("Response: {:?} ", response);
+
+        // TODO check response
+
+        return response.batch_item.response_payload.unwrap();
 
     }
 

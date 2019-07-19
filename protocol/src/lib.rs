@@ -16,6 +16,8 @@ use serde_enum::{Deserialize_enum, Serialize_enum};
 use chrono::DateTime;
 use chrono::Utc;
 use std::io::{Read, Write, stdout, Cursor};
+use std::fmt;
+
 
 #[macro_use]
 extern crate log;
@@ -23,6 +25,7 @@ extern crate log;
 use strum::AsStaticRef;
 
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
 
 #[derive(FromPrimitive, Serialize_enum, Deserialize_enum, Debug, AsStaticStr)]
 #[repr(i32)]
@@ -104,7 +107,7 @@ pub enum NameTypeEnum {
     URI = 0x00000002,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, Clone)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, ToPrimitive, AsStaticStr, Clone)]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
     DES = 0x00000001,
@@ -149,7 +152,8 @@ pub enum CryptographicAlgorithm {
     SHAKE256 = 0x00000028,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[repr(i32)]
 pub enum CryptographicUsageMask {
     Sign = 0x00000001,
     Verify = 0x00000002,
@@ -306,7 +310,7 @@ pub struct NameStruct {
 // }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "AttributeName", content = "AttributeValue")]
+#[serde(rename = "Attribute", tag = "AttributeName", content = "AttributeValue")]
 pub enum AttributesEnum {
     #[serde(rename = "Cryptographic Algorithm")]
     // TODO - use CryptographicAlgorithm as the type but serde calls deserialize_identifier
@@ -326,7 +330,7 @@ pub enum AttributesEnum {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TemplateAttribute {
-    #[serde(rename = "Name")]
+    #[serde(rename = "Name", skip_serializing_if = "Option::is_none")]
     pub name: Option<NameStruct>,
 
     #[serde(rename = "Attribute")]
@@ -334,7 +338,7 @@ pub struct TemplateAttribute {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename="RequestPayload")]
 pub struct CreateRequest {
     #[serde(rename = "ObjectType")]
     pub object_type: ObjectTypeEnum,
@@ -353,7 +357,7 @@ pub struct CreateResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename="RequestPayload")]
 pub struct GetRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -385,7 +389,7 @@ pub struct GetResponse {
 
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename="RequestPayload")]
 pub struct ActivateRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -393,7 +397,7 @@ pub struct ActivateRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename = "ResponsePayload")]
 pub struct ActivateResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -401,7 +405,7 @@ pub struct ActivateResponse {
 
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "Operation", content = "RequestPayload")]
+#[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
 pub enum RequestBatchItem {
     Create(CreateRequest),
     Get(GetRequest),
@@ -460,20 +464,20 @@ pub enum ResponseOperationEnum {
 }
 
 // TODO - remove Deserialize
-#[derive(Deserialize, Debug)]
-#[serde(rename = "BatchItem")]
+#[derive(Debug)]
+//#[serde(rename = "BatchItem")]
 pub struct ResponseBatchItem {
     //Operation: Option<String>,
-    #[serde(rename = "ResultStatus")]
+    //#[serde(rename = "ResultStatus")]
     pub result_status: ResultStatus,
 
-    #[serde(rename = "ResultReason")]
-    pub result_reason: ResultReason,
+    //#[serde(rename = "ResultReason")]
+    pub result_reason: Option<ResultReason>,
 
-    #[serde(rename = "ResultMessage")]
+    //#[serde(rename = "ResultMessage")]
     pub result_message: Option<String>,
 
-    #[serde(rename = "ResponsePayload")]
+    //#[serde(rename = "ResponsePayload")]
     pub response_payload: Option<ResponseOperationEnum>,
 }
 
@@ -570,6 +574,141 @@ impl Serialize for ResponseBatchItem {
         ser_struct.end()
     }
 }
+
+impl<'de> Deserialize<'de> for ResponseBatchItem {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field { Operation, ResultStatus, ResultReason, ResultMessage, ResponsePayload };
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("response batch item`")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: de::Error,
+                    {
+                        info!("VISITING: {:?}", value);
+                        // TODO - include
+                        match value {
+                            "Operation" => Ok(Field::Operation),
+                            "ResultStatus" => Ok(Field::ResultStatus),
+                            "ResultReason" => Ok(Field::ResultReason),
+                            "ResultMessage" => Ok(Field::ResultMessage),
+                            "ResponsePayload" => Ok(Field::ResponsePayload),
+                            _ => Err(de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct ResponseBatchItemVisitor;
+
+        impl<'de> Visitor<'de> for ResponseBatchItemVisitor {
+            type Value = ResponseBatchItem;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct ResponseBatchItem")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<ResponseBatchItem, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut operation : Option<Operation> = None;
+                let mut result_status : Option<ResultStatus> = None;
+                let mut result_reason : Option<ResultReason> = None;
+                let mut result_message  : Option<String> = None;
+                let mut response_payload : Option<ResponseOperationEnum> = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Operation => {
+                            if operation.is_some() {
+                                return Err(de::Error::duplicate_field("operation"));
+                            }
+                            operation = Some(map.next_value()?);
+                        }
+                        Field::ResultStatus => {
+                            if result_status.is_some() {
+                                return Err(de::Error::duplicate_field("result_status"));
+                            }
+                            result_status = Some(map.next_value()?);
+                        }
+                        Field::ResultReason => {
+                            if result_reason.is_some() {
+                                return Err(de::Error::duplicate_field("result_reason"));
+                            }
+                            result_reason = Some(map.next_value()?);
+                        }
+                        Field::ResultMessage => {
+                            if result_message.is_some() {
+                                return Err(de::Error::duplicate_field("result_message"));
+                            }
+                            result_message = Some(map.next_value()?);
+                        }
+                        Field::ResponsePayload => {
+                            if response_payload.is_some() {
+                                return Err(de::Error::duplicate_field("response_payload"));
+                            }
+
+                            let op = operation.as_ref().expect("Operation must come before ResponsePayload");
+
+                            response_payload = match op {
+                                Operation::Create => {
+                                    let c : CreateResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::Create(c))
+                                }
+                                Operation::Get => {
+                                    let c : GetResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::Get(c))
+                                }
+                                Operation::Activate => {
+                                    let c : ActivateResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::Activate(c))
+                                }
+                                _ => {
+                                    unimplemented!();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let _operation = operation.ok_or_else(|| de::Error::missing_field("Operation"))?;
+                let result_status = result_status.ok_or_else(|| de::Error::missing_field("ResultStatus"))?;
+
+                // TODO check for reason and message per KMIP rules
+
+                Ok(ResponseBatchItem{
+                    result_status : result_status,
+                    result_reason : result_reason,
+                    result_message : result_message,
+                    response_payload : response_payload,
+                     })
+            }
+        }
+
+        const FIELDS: &'static [&'static str] = &["Operation", "ResultStatus", "ResultReason", "ResultMessage", "ResponsePayload"];
+        deserializer.deserialize_struct("ResponseBatchItem", FIELDS, ResponseBatchItemVisitor)
+    }
+}
+
 
 pub struct KmipEnumResolver;
 

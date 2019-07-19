@@ -896,15 +896,15 @@ fn main() {
 
     server_config.set_single_cert(server_certs, privkey);
 
-    let uri = "mongodb://localhost:27017/";
 
     let store: Arc<dyn KmipStore> = match args.store {
         StoreType::Memory => {
             info!("Using Memory Store");
-            Arc::new(KmipMongoDBStore::new(uri))
+            Arc::new(KmipMemoryStore::new())
         }
         StoreType::MongoDB => {
             info!("Using MongoDB Store");
+            let uri = "mongodb://localhost:27017/";
             Arc::new(KmipMongoDBStore::new(uri))
         }
     };
