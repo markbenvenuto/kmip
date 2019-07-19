@@ -47,11 +47,19 @@ impl KmipStore for KmipMemoryStore {
     fn get(&self, id: &String) -> Option<bson::Document> {
         {
             let lock = self.inner.lock().unwrap();
-            let doc = lock.documents.get(id);
-            if let Some(d) = doc {
+            if let Some(d) = lock.documents.get(id) {
                 return Some(d.clone());
             }
         }
         return None;
+    }
+
+    fn update(&self, id: &String, doc: bson::Document) {
+        {
+            let mut lock = self.inner.lock().unwrap();
+            if let Some(d) = lock.documents.get_mut(id) {
+                *d = doc;
+            }
+        }
     }
 }

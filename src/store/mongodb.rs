@@ -57,11 +57,11 @@ impl KmipStore for KmipMongoDBStore {
     fn get(&self, id: &String) -> Option<bson::Document> {
         let collection = self.make_connection();
 
-        let doc = doc! {
+        let filter = doc! {
             "_id" : id
         };
 
-        let cursor = collection.find(Some(doc), None);
+        let cursor = collection.find(Some(filter), None);
 
         let mut results: Vec<mongodb::error::Result<Document>> = cursor.unwrap().collect();
         if results.len() == 0 {
@@ -71,5 +71,16 @@ impl KmipStore for KmipMongoDBStore {
         assert_eq!(results.len(), 1);
 
         return Some(results.remove(0).unwrap());
+    }
+
+    fn update(&self, id: &String, doc: bson::Document) {
+        let collection = self.make_connection();
+
+
+        let filter = doc! {
+            "_id" : id
+        };
+
+        collection.find_one_and_replace(doc, filter, None);
     }
 }

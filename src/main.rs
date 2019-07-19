@@ -582,21 +582,21 @@ impl Error for KmipResponseError {
 //     return None;
 // }
 
-fn find_attr<F>(tas: &Vec<TemplateAttribute>, func: F) -> Option<i32>
-where
-    F: Fn(&messages::AttributesEnum) -> Option<i32>,
-{
-    for ta in tas {
-        for attr in &ta.attribute {
-            let r = func(&attr);
-            if r.is_some() {
-                return r;
-            }
-        }
-    }
+// fn find_attr<F>(tas: &Vec<TemplateAttribute>, func: F) -> Option<i32>
+// where
+//     F: Fn(&messages::AttributesEnum) -> Option<i32>,
+// {
+//     for ta in tas {
+//         for attr in &ta.attribute {
+//             let r = func(&attr);
+//             if r.is_some() {
+//                 return r;
+//             }
+//         }
+//     }
 
-    return None;
-}
+//     return None;
+// }
 
 fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAttribute>)
 {
@@ -605,15 +605,20 @@ fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAtt
             match attr {
                 messages::AttributesEnum::CryptographicAlgorithm(a) => {
                     // TODO - validate
-                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
+                    ma.cryptographic_algorithm = Some(*a);
                 }
                 messages::AttributesEnum::CryptographicLength(a) => {
                     // TODO - validate
                     ma.cryptographic_length = Some(*a);
+                    //                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
                 }
                 messages::AttributesEnum::CryptographicUsageMask(a) => {
                     // TODO - validate
                     ma.cryptographic_usage_mask = Some(*a);
+                }
+                messages::AttributesEnum::ActivationDate(a) => {
+                    // TODO - validate
+                    ma.activation_date = Some(*a);
                 }
             }
         }
@@ -629,11 +634,14 @@ fn process_create_request(
     let mut ma = ManagedAttributes {
         state : ObjectStateEnum::PreActive,
         initial_date : Utc::now(),
-    cryptographic_algorithm : None,
 
-    cryptographic_length : None,
+        activation_date: None,
 
-    cryptographic_usage_mask : None,
+        cryptographic_algorithm : None,
+
+        cryptographic_length : None,
+
+        cryptographic_usage_mask : None,
     };
 
     match req.object_type {
@@ -642,7 +650,10 @@ fn process_create_request(
             merge_to_managed_attributes(&mut ma, &req.template_attribute);
 
             let crypt_len = ma.cryptographic_length.unwrap();
-            let algo = ma.cryptographic_algorithm.clone().unwrap();
+            let algo = num::FromPrimitive::from_i32(ma.cryptographic_algorithm.unwrap()).unwrap();
+//                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
+
+            // TODO - process activation date if set
 
             // key lengths are in bits
             let key = KmipCrypto::gen_rand_bytes((crypt_len / 8) as usize);
@@ -709,6 +720,44 @@ fn process_get_request(
     Ok(resp)
 }
 
+fn process_activate_request(
+    rc: &RequestContext,
+    req: ActivateRequest,
+) -> std::result::Result<ActivateResponse, KmipResponseError> {
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(&req.unique_identifier);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+
+    let mut mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    // TODO - throw an error on illegal state transition??
+    if mo.attributes.state == ObjectStateEnum::PreActive {
+        mo.attributes.state = ObjectStateEnum::Active;
+
+            let d = bson::to_bson(&mo).unwrap();
+
+            if let bson::Bson::Document(d1) = d {
+         rc
+        .get_server_context()
+        .get_store().update(&req.unique_identifier, d1);
+                        } else {
+                return Err(KmipResponseError::new("Barff"));
+            }
+    }
+
+    let resp = ActivateResponse {
+        unique_identifier: req.unique_identifier,
+    };
+
+    Ok(resp)
+}
+
+
 fn create_ok_response(op: messages::ResponseOperationEnum) -> Vec<u8> {
     let r = messages::ResponseMessage {
         response_header: messages::ResponseHeader {
@@ -764,9 +813,11 @@ fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         RequestBatchItem::Get(x) => {
             info!("Got Get Request");
             process_get_request(&rc, x).map(|r| ResponseOperationEnum::Get(r))
-        } // _ => {
-          //     unimplemented!();
-          // }
+        }
+        RequestBatchItem::Activate(x) => {
+            info!("Got Activate Request");
+            process_activate_request(&rc, x).map(|r| ResponseOperationEnum::Activate(r))
+        }
     };
 
     let vr = match result {
@@ -827,9 +878,9 @@ fn main() {
 
     server_config.set_single_cert(server_certs, privkey);
 
-    let uri = "mongodb://localhost:27017/";
+  let uri = "mongodb://localhost:27017/";
 
-    //    let store  = Arc::new(KmipMemoryStore::new());
+   // let store  = Arc::new(KmipMemoryStore::new());
     let store = Arc::new(KmipMongoDBStore::new(uri));
 
     let server_context = ServerContext::new(store);
@@ -916,6 +967,55 @@ fn test_create_request2() {
 
     let mut rc = RequestContext::new(&server_context);
     process_kmip_request(&mut rc, bytes.as_slice());
+
+    //unimplemented!();
+}
+
+
+#[test]
+fn test_create_request3() {
+    let bytes = vec![
+        0x42, 0x00, 0x78, 0x01, 0x00, 0x00, 0x01, 0x20, 0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00,
+        0x38, 0x42, 0x00, 0x69, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,
+        0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00,
+        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02,
+        0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0f,
+        0x01, 0x00, 0x00, 0x00, 0xd8, 0x42, 0x00, 0x5c, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0xc0, 0x42,
+        0x00, 0x57, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x91, 0x01, 0x00, 0x00, 0x00, 0xa8, 0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00,
+        0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00, 0x17, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f,
+        0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20, 0x41, 0x6c, 0x67, 0x6f, 0x72, 0x69, 0x74,
+        0x68, 0x6d, 0x00, 0x42, 0x00, 0x0b, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03,
+        0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a,
+        0x07, 0x00, 0x00, 0x00, 0x14, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70,
+        0x68, 0x69, 0x63, 0x20, 0x4c, 0x65, 0x6e, 0x67, 0x74, 0x68, 0x00, 0x00, 0x00, 0x00, 0x42,
+        0x00, 0x0b, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x0a, 0x07, 0x00, 0x00, 0x00,
+        0x18, 0x43, 0x72, 0x79, 0x70, 0x74, 0x6f, 0x67, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x20,
+        0x55, 0x73, 0x61, 0x67, 0x65, 0x20, 0x4d, 0x61, 0x73, 0x6b, 0x42, 0x00, 0x0b, 0x02, 0x00,
+        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
+    ];
+
+    let store = Arc::new(KmipMemoryStore::new());
+
+    let server_context = ServerContext::new(store);
+
+    let mut rc = RequestContext::new(&server_context);
+    process_kmip_request(&mut rc, bytes.as_slice());
+
+    let get_bytes = vec![
+0x42, 0x00, 0x78, 0x01, 0x00, 0x00, 0x00, 0x70, 0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x38,
+0x42, 0x00, 0x69, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00, 0x04,
+0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00, 0x00, 0x04,
+0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00, 0x00, 0x00, 0x04,
+0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0f, 0x01, 0x00, 0x00, 0x00, 0x28,
+0x42, 0x00, 0x5c, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00,
+0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0x10, 0x42, 0x00, 0x94, 0x07, 0x00, 0x00, 0x00, 0x01,
+0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+
+    process_kmip_request(&mut rc, get_bytes.as_slice());
+
 
     //unimplemented!();
 }

@@ -69,7 +69,7 @@ pub enum ObjectTypeEnum {
     PGPKey = 0x00000009,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
 #[repr(i32)]
 pub enum ObjectStateEnum {
     PreActive = 0x00000001,
@@ -301,6 +301,9 @@ pub enum AttributesEnum {
 
     #[serde(rename = "Cryptographic Usage Mask")]
     CryptographicUsageMask(i32),
+
+    #[serde(rename = "Activation Date")]
+    ActivationDate(DateTime<Utc>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -318,6 +321,7 @@ pub struct TemplateAttribute {
 pub struct CreateRequest {
     #[serde(rename = "ObjectType")]
     pub object_type: ObjectTypeEnum,
+
     #[serde(rename = "TemplateAttribute")]
     pub template_attribute: Vec<TemplateAttribute>,
 }
@@ -362,11 +366,29 @@ pub struct GetResponse {
     pub symmetric_key: Option<SymmetricKey>,
 }
 
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct ActivateRequest {
+    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct ActivateResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+}
+
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "Operation", content = "RequestPayload")]
 pub enum RequestBatchItem {
     Create(CreateRequest),
     Get(GetRequest),
+    Activate(ActivateRequest),
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
 
@@ -415,6 +437,7 @@ pub struct ResponseHeader {
 pub enum ResponseOperationEnum {
     Create(CreateResponse),
     Get(GetResponse),
+    Activate(ActivateResponse),
     Empty,
     // TODO - add support for: Unique Batch Item ID
 }
@@ -493,6 +516,9 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Get(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Get)?;
                 }
+                ResponseOperationEnum::Activate(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::Activate)?;
+                }
                 ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
@@ -517,7 +543,10 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Get(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
-                ResponseOperationEnum::Empty => unimplemented!(),
+                ResponseOperationEnum::Activate(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                                ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
 
