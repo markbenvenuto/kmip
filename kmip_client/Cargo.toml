@@ -1,5 +1,5 @@
 [package]
-name = "client"
+name = "kmip_client"
 version = "0.1.0"
 authors = ["Mark Benvenuto <mark.benvenuto@mongodb.com>"]
 edition = "2018"
@@ -9,20 +9,6 @@ edition = "2018"
 [dependencies]
 ttlv = {path="../ttlv"}
 protocol = {path="../protocol"}
-kmip_client = {path="../kmip_client"}
-
-structopt = "0.2.18"
-clap-verbosity-flag = "0.2.0"
-clap-log-flag = "0.2.1"
 log= "0.4.7"
-env_logger= "0.6.2"
-
-confy = "0.3.1"
 
 pretty-hex = "0.1.0"
-
-rustls = "0.15.2"
-mio = "0.6.19"
-
-# use older verion
-webpki = "0.19.0"

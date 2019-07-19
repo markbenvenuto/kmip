@@ -25,6 +25,8 @@ use protocol::read_msg;
 
 use ttlv::*;
 
+use kmip_client::Client;
+
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
 #[structopt(raw(setting = "structopt::clap::AppSettings::ColoredHelp"))]
@@ -92,6 +94,21 @@ struct CmdLine {
 // }
 
 
+// struct StreamAdapter<'a> {
+//     stream : &'a mut rustls::Stream<'a>,
+// }
+
+// impl<'a> StreamAdapter<'a> {
+//     fn new(stream : &'a mut rustls::Stream)  -> StreamAdapter<'a> {
+//         return StreamAdapter {
+//             stream : stream,
+//         }
+//     }
+// }
+
+// impl<'a> kmip_client::Stream  for StreamAdapter<'a>  {
+
+// }
 
 fn main() {
     println!("Hello, world!");
@@ -131,6 +148,9 @@ fn main() {
     let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
     let mut sock = TcpStream::connect( (args.host.as_str(), args.port)).unwrap();
     let mut tls = rustls::Stream::new(&mut sess, &mut sock);
+
+    //let kmip_stream = StreamAdapter::new(&mut tls);
+    let mut client = Client::create_from_stream(&mut tls);
 
     // tls.write(concat!("GET / HTTP/1.1\r\n",
     //                   "Host: google.com\r\n",
