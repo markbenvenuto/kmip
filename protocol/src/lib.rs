@@ -18,8 +18,6 @@ use chrono::Utc;
 
 use strum::AsStaticRef;
 
-use ttlv::my_date_format;
-
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 #[derive(FromPrimitive, Serialize_enum, Deserialize_enum, Debug, AsStaticStr)]

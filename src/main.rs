@@ -28,9 +28,9 @@ extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
 use structopt::StructOpt;
 
-extern crate strum;
-#[macro_use]
-extern crate strum_macros;
+// extern crate strum;
+// #[macro_use]
+// extern crate strum_macros;
 
 use pretty_hex::*;
 
@@ -64,8 +64,6 @@ use std::fs;
 use std::io::{BufReader, Read, Write};
 use std::net;
 use std::string::ToString;
-
-use strum::AsStaticRef;
 
 #[macro_use(bson, doc)]
 extern crate bson;
