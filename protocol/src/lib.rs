@@ -15,6 +15,10 @@ use serde_enum::{Deserialize_enum, Serialize_enum};
 
 use chrono::DateTime;
 use chrono::Utc;
+use std::io::{Read, Write, stdout, Cursor};
+
+#[macro_use]
+extern crate log;
 
 use strum::AsStaticRef;
 
@@ -591,4 +595,37 @@ impl ttlv::EnumResolver for KmipEnumResolver {
             }
         }
     }
+}
+
+
+pub fn read_msg(reader: &mut dyn Read) -> Vec<u8> {
+    let mut msg : Vec<u8> = Vec::new();
+    msg.resize(8, 0);
+
+    let ret = reader.read_exact(msg.as_mut());
+    ret.expect("Expected 8 bytes");
+
+    // Check length
+    let len : usize;
+    {
+        let mut cur = Cursor::new(msg);
+        ttlv::read_tag(&mut cur);
+        let t = ttlv::read_type(&mut cur);
+        if t != ttlv::ItemType::Structure {
+            error!("Expected struct, received {:?}", t);
+            panic!{}
+        }
+
+        len = ttlv::read_len(&mut cur) as usize;
+
+        msg = cur.into_inner();
+    }
+
+    msg.resize(msg.len() + len , 0);
+
+    let mut slice : &mut [u8] = msg.as_mut();
+    let ret2 = reader.read_exact(&mut slice[8..]);
+    ret2.expect("Expected N bytes");
+
+    return msg;
 }

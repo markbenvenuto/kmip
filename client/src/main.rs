@@ -4,7 +4,7 @@ use std::net::TcpStream;
 use std::io::{Read, Write, stdout};
 use std::fs;
 use std::io::{BufReader};
-
+use std::path::PathBuf;
 
 #[macro_use]
 extern crate structopt;
@@ -17,9 +17,13 @@ extern crate log;
 
 use rustls;
 use webpki;
-use webpki_roots;
-
 use rustls::Session;
+
+use pretty_hex::*;
+
+use protocol::read_msg;
+
+use ttlv::*;
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
@@ -35,11 +39,25 @@ struct CmdLine {
     /// Debug output
     debug: bool,
 
-    serverCertFile: String,
+    /// Client PEM Certificate
+    #[structopt(parse(from_os_str), name = "clientCert", long = "clientCert")]
+    client_cert_file: PathBuf,
 
-    serverKeyFile: String,
+    /// Client Key Certificate
+    #[structopt(parse(from_os_str), name = "clientKey", long = "clientKey")]
+    client_key_file: PathBuf,
 
-    caCertFile: String,
+    /// CA Certificate File
+    #[structopt(parse(from_os_str), name = "caFile", long = "caFile")]
+    ca_cert_file: PathBuf,
+
+    /// Host name to connect to
+    #[structopt(name = "host", long = "host", default_value="localhost")]
+    host: String,
+
+    /// Port to connect to
+    #[structopt(name = "port", long = "port", default_value="7000")]
+    port: u16,
 }
 
 
@@ -89,12 +107,13 @@ fn main() {
     warn!("oops, nothing implemented!");
 
 
+    // TODO - add client auth
 
     let mut config = rustls::ClientConfig::new();
     //config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
 
 
-    let certfile = fs::File::open(args.caCertFile).expect("Cannot open CA file");
+    let certfile = fs::File::open(args.ca_cert_file).expect("Cannot open CA file");
     let mut reader = BufReader::new(certfile);
     config.root_store
         .add_pem_file(&mut reader)
@@ -107,9 +126,10 @@ fn main() {
     // let mut ca_certs = load_certs(args.caCertFile.as_ref());
 
 
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
+
+    let dns_name = webpki::DNSNameRef::try_from_ascii_str(&args.host).unwrap();
     let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
-    let mut sock = TcpStream::connect("localhost:7000").unwrap();
+    let mut sock = TcpStream::connect( (args.host.as_str(), args.port)).unwrap();
     let mut tls = rustls::Stream::new(&mut sess, &mut sock);
 
     // tls.write(concat!("GET / HTTP/1.1\r\n",
@@ -148,8 +168,15 @@ fn main() {
     let ciphersuite = tls.sess.get_negotiated_ciphersuite().unwrap();
     writeln!(&mut std::io::stderr(), "Current ciphersuite: {:?}", ciphersuite.suite).unwrap();
 
-    let mut plaintext = Vec::new();
-    tls.read_to_end(&mut plaintext).unwrap();
+    info!("Waiting for data....");
 
-    stdout().write_all(&plaintext).unwrap();
+    let mut plaintext : Vec<u8> = Vec::new();
+    let msg = read_msg(&mut tls);
+    info!("Response Message: {:?}", msg.hex_dump());
+
+    to_print(&msg);
+
+   //tls.read_to_end(&mut plaintext).unwrap();
+
+    //stdout().write_all(&plaintext).unwrap();
 }

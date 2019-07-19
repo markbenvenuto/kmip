@@ -28,9 +28,9 @@ extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
 use structopt::StructOpt;
 
-// extern crate strum;
-// #[macro_use]
-// extern crate strum_macros;
+extern crate strum;
+#[macro_use]
+extern crate strum_macros;
 
 use pretty_hex::*;
 
@@ -61,6 +61,7 @@ use vecio::Rawv;
 
 use std::collections::HashMap;
 use std::fs;
+use std::path::PathBuf;
 use std::io::{BufReader, Read, Write};
 use std::net;
 use std::string::ToString;
@@ -87,6 +88,12 @@ use store::ManagedAttributes;
 use store::ManagedObject;
 use store::ManagedObjectEnum;
 
+#[derive(Debug, EnumString)]
+enum StoreType {
+    Memory,
+    MongoDB,
+}
+
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
 #[structopt(raw(setting = "structopt::clap::AppSettings::ColoredHelp"))]
@@ -101,11 +108,25 @@ struct CmdLine {
     /// Debug output
     debug: bool,
 
-    serverCertFile: String,
+    /// Server PEM Certificate
+    #[structopt(parse(from_os_str), name = "serverCert", long = "serverCert")]
+    server_cert_file: PathBuf,
 
-    serverKeyFile: String,
+    /// Server Key Certificate
+    #[structopt(parse(from_os_str), name = "serverKey", long = "serverKey")]
+    server_key_file: PathBuf,
 
-    caCertFile: String,
+    /// CA Certificate File
+    #[structopt(parse(from_os_str), name = "caFile", long = "caFile")]
+    ca_cert_file: PathBuf,
+
+    /// Port to listen on
+    #[structopt(name = "port", long = "port", default_value="7000")]
+    port: u16,
+
+    /// Store to use
+    #[structopt(name = "store", long = "store", default_value="Memory")]
+    store: StoreType,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -419,13 +440,13 @@ impl Connection {
     }
 }
 
-fn load_certs(filename: &str) -> Vec<rustls::Certificate> {
+fn load_certs(filename: &PathBuf) -> Vec<rustls::Certificate> {
     let certfile = fs::File::open(filename).expect("cannot open certificate file");
     let mut reader = BufReader::new(certfile);
     rustls::internal::pemfile::certs(&mut reader).unwrap()
 }
 
-fn load_private_key(filename: &str) -> rustls::PrivateKey {
+fn load_private_key(filename: &PathBuf) -> rustls::PrivateKey {
     let rsa_keys = {
         let keyfile = fs::File::open(filename).expect("cannot open private key file");
         let mut reader = BufReader::new(keyfile);
@@ -866,19 +887,27 @@ fn main() {
 
     let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
 
-    let mut server_certs = load_certs(args.serverCertFile.as_ref());
-    let privkey = load_private_key(args.serverKeyFile.as_ref());
+    let mut server_certs = load_certs(&args.server_cert_file);
+    let privkey = load_private_key(&args.server_key_file);
 
-    let mut ca_certs = load_certs(args.caCertFile.as_ref());
+    let mut ca_certs = load_certs(&args.ca_cert_file);
 
     server_certs.append(&mut ca_certs);
 
     server_config.set_single_cert(server_certs, privkey);
 
-  let uri = "mongodb://localhost:27017/";
+    let uri = "mongodb://localhost:27017/";
 
-   // let store  = Arc::new(KmipMemoryStore::new());
-    let store = Arc::new(KmipMongoDBStore::new(uri));
+    let store: Arc<dyn KmipStore> = match args.store {
+        StoreType::Memory => {
+            info!("Using Memory Store");
+            Arc::new(KmipMongoDBStore::new(uri))
+        }
+        StoreType::MongoDB => {
+            info!("Using MongoDB Store");
+            Arc::new(KmipMongoDBStore::new(uri))
+        }
+    };
 
     let server_context = ServerContext::new(store);
 
