@@ -5,3 +5,4 @@
 
 ttlv/target/
 serde_enum/target/
+protocol/target/

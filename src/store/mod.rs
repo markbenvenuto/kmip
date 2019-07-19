@@ -11,10 +11,10 @@ pub use mem::KmipMemoryStore;
 
 use option_datefmt::option_datefmt;
 
-use crate::messages::AttributesEnum;
-use crate::messages::SymmetricKey;
-use crate::messages::ObjectStateEnum;
-use crate::messages::CryptographicAlgorithm;
+use protocol::AttributesEnum;
+use protocol::SymmetricKey;
+use protocol::ObjectStateEnum;
+use protocol::CryptographicAlgorithm;
 
 
 #[derive(Serialize, Deserialize, Debug)]

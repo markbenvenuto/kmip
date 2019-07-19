@@ -7,7 +7,7 @@ extern crate lazy_static;
 
 #[allow(unused_imports)]
 extern crate pretty_hex;
-extern crate serde_transcode;
+//extern crate serde_transcode;
 
 #[macro_use]
 extern crate log;
@@ -77,10 +77,9 @@ use ring::rand::*;
 
 // mod git;
 // mod watchman;
-mod messages;
 mod store;
 
-use messages::*;
+use protocol::*;
 use ttlv::*;
 
 use store::KmipMemoryStore;
@@ -522,19 +521,19 @@ impl<'a> RequestContext<'a> {
 }
 
 fn create_error_response(msg: Option<String>) -> Vec<u8> {
-    let r = messages::ResponseMessage {
-        response_header: messages::ResponseHeader {
-            protocol_version: messages::ProtocolVersion {
+    let r = protocol::ResponseMessage {
+        response_header: protocol::ResponseHeader {
+            protocol_version: protocol::ProtocolVersion {
                 protocol_version_major: 1,
                 protocol_version_minor: 0,
             },
             time_stamp: Utc::now(),
             batch_count: 1,
         },
-        batch_item: messages::ResponseBatchItem {
+        batch_item: protocol::ResponseBatchItem {
             //Operation: None,
-            result_status: messages::ResultStatus::OperationFailed,
-            result_reason: messages::ResultReason::GeneralFailure,
+            result_status: protocol::ResultStatus::OperationFailed,
+            result_reason: protocol::ResultReason::GeneralFailure,
             result_message: msg,
             response_payload: None,
             // ResponseOperation: None,
@@ -584,7 +583,7 @@ impl Error for KmipResponseError {
 
 // fn find_attr<F>(tas: &Vec<TemplateAttribute>, func: F) -> Option<i32>
 // where
-//     F: Fn(&messages::AttributesEnum) -> Option<i32>,
+//     F: Fn(&protocol::AttributesEnum) -> Option<i32>,
 // {
 //     for ta in tas {
 //         for attr in &ta.attribute {
@@ -603,20 +602,20 @@ fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAtt
     for ta in tas {
         for attr in &ta.attribute {
             match attr {
-                messages::AttributesEnum::CryptographicAlgorithm(a) => {
+                protocol::AttributesEnum::CryptographicAlgorithm(a) => {
                     // TODO - validate
                     ma.cryptographic_algorithm = Some(*a);
                 }
-                messages::AttributesEnum::CryptographicLength(a) => {
+                protocol::AttributesEnum::CryptographicLength(a) => {
                     // TODO - validate
                     ma.cryptographic_length = Some(*a);
                     //                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
                 }
-                messages::AttributesEnum::CryptographicUsageMask(a) => {
+                protocol::AttributesEnum::CryptographicUsageMask(a) => {
                     // TODO - validate
                     ma.cryptographic_usage_mask = Some(*a);
                 }
-                messages::AttributesEnum::ActivationDate(a) => {
+                protocol::AttributesEnum::ActivationDate(a) => {
                     // TODO - validate
                     ma.activation_date = Some(*a);
                 }
@@ -758,19 +757,19 @@ fn process_activate_request(
 }
 
 
-fn create_ok_response(op: messages::ResponseOperationEnum) -> Vec<u8> {
-    let r = messages::ResponseMessage {
-        response_header: messages::ResponseHeader {
-            protocol_version: messages::ProtocolVersion {
+fn create_ok_response(op: protocol::ResponseOperationEnum) -> Vec<u8> {
+    let r = protocol::ResponseMessage {
+        response_header: protocol::ResponseHeader {
+            protocol_version: protocol::ProtocolVersion {
                 protocol_version_major: 1,
                 protocol_version_minor: 0,
             },
             time_stamp: Utc::now(),
             batch_count: 1,
         },
-        batch_item: messages::ResponseBatchItem {
-            result_status: messages::ResultStatus::Success,
-            result_reason: messages::ResultReason::GeneralFailure,
+        batch_item: protocol::ResponseBatchItem {
+            result_status: protocol::ResultStatus::Success,
+            result_reason: protocol::ResultReason::GeneralFailure,
             result_message: None,
             response_payload: Some(op),
             // ResponseOperation: None,
@@ -785,7 +784,7 @@ fn create_ok_response(op: messages::ResponseOperationEnum) -> Vec<u8> {
 // }
 
 fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
-    let k: KmipEnumResolver = messages::KmipEnumResolver {};
+    let k: KmipEnumResolver = protocol::KmipEnumResolver {};
 
     info!("Request Message: {:?}", buf.hex_dump());
     ttlv::to_print(buf);
