@@ -55,3 +55,8 @@ bson = "0.13"
 
 # mongodb = #{ git = "ssh://git@github.com/10gen/mongo-rust-driver.git", branch = "unreviewed-impl" }
 mongodb = { path = "/home/mark/src/mongo-rust-driver" }
+
+
+# TODO - consider https://github.com/rust-cli/human-panic
+
+# TODO - https://github.com/RustCrypto/block-ciphers?

@@ -552,7 +552,7 @@ fn create_error_response(msg: Option<String>) -> Vec<u8> {
         batch_item: protocol::ResponseBatchItem {
             //Operation: None,
             result_status: protocol::ResultStatus::OperationFailed,
-            result_reason: protocol::ResultReason::GeneralFailure,
+            result_reason: Some(protocol::ResultReason::GeneralFailure),
             result_message: msg,
             response_payload: None,
             // ResponseOperation: None,
@@ -788,7 +788,7 @@ fn create_ok_response(op: protocol::ResponseOperationEnum) -> Vec<u8> {
         },
         batch_item: protocol::ResponseBatchItem {
             result_status: protocol::ResultStatus::Success,
-            result_reason: protocol::ResultReason::GeneralFailure,
+            result_reason: Some(protocol::ResultReason::GeneralFailure),
             result_message: None,
             response_payload: Some(op),
             // ResponseOperation: None,
