@@ -27,6 +27,8 @@ use strum::AsStaticRef;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
 
+use ttlv::TTLVError;
+
 #[derive(FromPrimitive, Serialize_enum, Deserialize_enum, Debug, AsStaticStr)]
 #[repr(i32)]
 pub enum Operation {
@@ -737,7 +739,7 @@ impl ttlv::EnumResolver for KmipEnumResolver {
 }
 
 
-pub fn read_msg(reader: &mut dyn Read) -> Vec<u8> {
+pub fn read_msg(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
     let mut msg : Vec<u8> = Vec::new();
     msg.resize(8, 0);
 
@@ -749,13 +751,12 @@ pub fn read_msg(reader: &mut dyn Read) -> Vec<u8> {
     {
         let mut cur = Cursor::new(msg);
         ttlv::read_tag(&mut cur);
-        let t = ttlv::read_type(&mut cur);
+        let t = ttlv::read_type(&mut cur)?;
         if t != ttlv::ItemType::Structure {
-            error!("Expected struct, received {:?}", t);
-            panic!{}
+            return Err(TTLVError::UnexpectedType(expected: ttlv::ItemType::Structure, actual: t) );
         }
 
-        len = ttlv::read_len(&mut cur) as usize;
+        len = ttlv::read_len(&mut cur)? as usize;
 
         msg = cur.into_inner();
     }
@@ -763,8 +764,7 @@ pub fn read_msg(reader: &mut dyn Read) -> Vec<u8> {
     msg.resize(msg.len() + len , 0);
 
     let mut slice : &mut [u8] = msg.as_mut();
-    let ret2 = reader.read_exact(&mut slice[8..]);
-    ret2.expect("Expected N bytes");
+    let ret2 = reader.read_exact(&mut slice[8..]).map_err(|error| TTLVError::BadRead{count: len, error})?;
 
     return msg;
 }

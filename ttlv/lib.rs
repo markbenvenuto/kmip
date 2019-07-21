@@ -27,7 +27,7 @@ pub use error::{Error, Result};
 pub use ser::{to_bytes, Serializer};
 
 pub use de::to_print;
-
+pub use failures::TTLVError;
 
 pub use de::EnumResolver;
 

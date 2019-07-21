@@ -23,6 +23,11 @@ use pretty_hex::*;
 
 use crate::kmip_enums::*;
 
+use crate::failures::*;
+
+type TTLVResult<T> = std::result::Result<T, TTLVError>;
+
+
 fn compute_padding(len: usize) -> usize {
     if len % 8 == 0 {
         return len;
@@ -32,84 +37,88 @@ fn compute_padding(len: usize) -> usize {
     return len + padding;
 }
 
-pub fn read_tag(reader: &mut dyn Read) -> u32 {
+pub fn read_tag(reader: &mut dyn Read) -> TTLVResult<u32> {
     //println!("Read Tag");
-    let v = reader.read_u8().unwrap();
+    let v = reader.read_u8().map_err(|error| TTLVError::BadRead{count: 1, error})?;
     assert_eq!(v, 0x42);
-    let tag = reader.read_u16::<BigEndian>().unwrap();
+    let tag = reader.read_u16::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 2, error})?;
 
-    return 0x420000 + tag as u32;
+    return Ok(0x420000 + tag as u32);
 }
 
-fn read_tag_enum(reader: &mut dyn Read) -> Tag {
-    let tag_u32 = read_tag(reader);
+fn read_tag_enum(reader: &mut dyn Read) -> TTLVResult<Tag> {
+    let tag_u32 = read_tag(reader)?;
 
-    let t = num::FromPrimitive::from_u32(tag_u32).unwrap();
-    //println!("Read Typed Tag: {:?}", t);
+    if let Some(t) = num::FromPrimitive::from_u32(tag_u32) {
+        return Ok(t);
+    }
 
-    return t;
+    Err(TTLVError::InvalidTag{tag: tag_u32})
 }
 
-pub fn read_len(reader: &mut dyn Read) -> u32 {
-    let len = reader.read_u32::<BigEndian>().unwrap();
-    return len;
+pub fn read_len(reader: &mut dyn Read) -> TTLVResult<u32> {
+    reader.read_u32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 4, error})
 }
 
-pub fn read_type(reader: &mut dyn Read) -> ItemType {
-    let i = reader.read_u8().unwrap();
-    let t = num::FromPrimitive::from_u8(i).unwrap();
-    //println!("Read Type {:?}", t);
-    return t;
+pub fn read_type(reader: &mut dyn Read) -> TTLVResult<ItemType> {
+    let i = reader.read_u8().map_err(|error| TTLVError::BadRead{count: 1, error})?;
+
+    if let Some(t) = num::FromPrimitive::from_u8(i) {
+        //println!("Read Type {:?}", t);
+        return Ok(t);
+    }
+
+    Err(TTLVError::InvalidType{byte: i})
 }
 
-fn read_enumeration(reader: &mut dyn Read) -> i32 {
-    let len = read_len(reader);
+fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
+    let len = read_len(reader)?;
     assert_eq!(len, 4);
-    let v = reader.read_i32::<BigEndian>().unwrap();
+    let v = reader.read_i32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 4, error})?;
 
     // swallow the padding
     // TODO - speed up
-    reader.read_i32::<BigEndian>().unwrap();
+    reader.read_i32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 4, error})?;
 
     //println!("Read i32: {:?}", v);
-    return v;
+    return Ok(v);
 }
 
-fn read_i32(reader: &mut dyn Read) -> i32 {
-    let len = read_len(reader);
+fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
+    let len = read_len(reader)?;
     assert_eq!(len, 4);
-    let v = reader.read_i32::<BigEndian>().unwrap();
+    let v = reader.read_i32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 1, error})?;
 
     // swallow the padding
     // TODO - speed up
-    reader.read_i32::<BigEndian>().unwrap();
+    reader.read_i32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 1, error})?;
 
     //println!("Read i32: {:?}", v);
-    return v;
+    return Ok(v);
 }
 
-fn read_i64(reader: &mut dyn Read) -> i64 {
-    let len = read_len(reader);
+fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
+    let len = read_len(reader)?;
     assert_eq!(len, 8);
 
-    let v = reader.read_i64::<BigEndian>().unwrap();
+    let v = reader.read_i64::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 1, error})?;
     //println!("Read i64: {:?}", v);
-    return v;
+    return Ok(v);
 }
 
 
-fn read_datetime_i64(reader: &mut dyn Read) -> i64 {
-    let len = read_len(reader);
+fn read_datetime_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
+    let len = read_len(reader)?;
     assert_eq!(len, 8);
 
-    let v = reader.read_i64::<BigEndian>().unwrap();
+    let v = reader.read_i64::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 1, error})?;
     //println!("Read DateTime: {:?}", v);
-    return v;
+    return Ok(v);
 }
 
 
-fn read_string(reader: &mut dyn Read) -> String {
-    let len = read_len(reader);
+fn read_string(reader: &mut dyn Read) -> TTLVResult<String> {
+    let len = read_len(reader)?;
 
     let padding = compute_padding(len as usize);
 
@@ -119,18 +128,19 @@ fn read_string(reader: &mut dyn Read) -> String {
     let mut v: Vec<u8> = Vec::new();
     v.resize(padding as usize, 0);
 
-    reader.read(v.as_mut_slice()).unwrap();
+    reader.read(v.as_mut_slice()).map_err(|error| TTLVError::BadRead{count: v.len(), error})?;
 
     v.resize(len as usize, 0);
 
-    let s = String::from_utf8(v).unwrap();
+    let s = String::from_utf8(v).map_err(|error| TTLVError::BadString)?;
+;
     //println!("Read string: {:?}", s);
 
-    return s;
+    return Ok(s);
 }
 
-fn read_bytes(reader: &mut dyn Read) -> Vec<u8> {
-    let len = read_len(reader);
+fn read_bytes(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
+    let len = read_len(reader)?;
 
     let padding = compute_padding(len as usize);
 
@@ -140,22 +150,22 @@ fn read_bytes(reader: &mut dyn Read) -> Vec<u8> {
     let mut v: Vec<u8> = Vec::new();
     v.resize(padding as usize, 0);
 
-    reader.read(v.as_mut_slice()).unwrap();
+    reader.read(v.as_mut_slice()).map_err(|error| TTLVError::BadRead{count: v.len(), error})?;
 
     v.resize(len as usize, 0);
 
-    return v;
+    return Ok(v);
 }
 
-pub fn read_struct(reader: &mut dyn Read) -> Vec<u8> {
-    let len = read_len(reader);
+pub fn read_struct(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
+    let len = read_len(reader)?;
 
     let mut v: Vec<u8> = Vec::new();
     v.resize(len as usize, 0);
 
-    reader.read(v.as_mut_slice()).unwrap();
+    reader.read(v.as_mut_slice()).map_err(|error| TTLVError::BadRead{count: v.len(), error})?;
 
-    return v;
+    return Ok(v);
 }
 
 /////////////////////////////
@@ -189,43 +199,43 @@ impl IndentPrinter {
 
 pub fn to_print(buf: &[u8]) {
     let mut printer: IndentPrinter = IndentPrinter::new();
-    to_print_int(&mut printer, buf);
+    if let Err(r) = to_print_int(&mut printer, buf) {
+        println!("Erroring in to_print: {:?}", r);
+    }
 }
 
-fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) {
+fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()>{
     let mut cur = Cursor::new(buf);
 
     while cur.position() < buf.len() as u64 {
-        let tag_u32 = read_tag(&mut cur);
+        let tag = read_tag_enum(&mut cur)?;
 
-        let tag: Tag = num::FromPrimitive::from_u32(tag_u32).unwrap();
-
-        let item_type = read_type(&mut cur);
+        let item_type = read_type(&mut cur)?;
 
         match item_type {
             ItemType::Integer => {
-                let v = read_i32(&mut cur);
+                let v = read_i32(&mut cur)?;
                 printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::LongInteger => {
-                let v = read_i64(&mut cur);
+                let v = read_i64(&mut cur)?;
                 printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::DateTime => {
                 // TODO:
-                let v = read_i64(&mut cur);
+                let v = read_i64(&mut cur)?;
                 printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::Enumeration => {
-                let v = read_i32(&mut cur);
+                let v = read_i32(&mut cur)?;
                 printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::TextString => {
-                let v = read_string(&mut cur);
+                let v = read_string(&mut cur)?;
                 printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
             }
             ItemType::ByteString => {
-                let v = read_bytes(&mut cur);
+                let v = read_bytes(&mut cur)?;
                 printer.print(format!(
                     "Tag {:?} - Type {:?} - Value {:?}",
                     tag,
@@ -235,7 +245,7 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) {
             }
 
             ItemType::Structure => {
-                let v = read_struct(&mut cur);
+                let v = read_struct(&mut cur)?;
                 printer.print(format!("Tag {:?} - Type {:?} - Structure {{", tag, item_type));
                 printer.indent();
                 to_print_int(printer, v.as_slice());
@@ -247,6 +257,8 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) {
             }
         }
     }
+
+    Ok(())
 }
 
 //////////////////
@@ -296,30 +308,31 @@ impl<'a> NestedReader<'a> {
     //     self.begin_inner_skip();
     // }
 
-    fn begin_inner_or_more(&mut self) {
+    fn begin_inner_or_more(&mut self) -> TTLVResult<()> {
         if self.state == ReaderState::Tag {
-            let _t = read_tag_enum(&mut self.cur);
+            let _t = read_tag_enum(&mut self.cur)?;
 
             //println!("read_inner: {:?} - {:?}", t, self.cur.position());
             self.state = ReaderState::Type;
         }
 
         if self.state == ReaderState::Type {
-            let t = read_type(&mut self.cur);
+            let t = read_type(&mut self.cur)?;
             assert_eq!(t, ItemType::Structure);
             self.state = ReaderState::LengthValue;
         }
 
-        self.begin_inner_skip();
+        self.begin_inner_skip()
     }
 
-    fn begin_inner_skip(&mut self) {
+    fn begin_inner_skip(&mut self) -> TTLVResult<()> {
         assert_eq!(self.state, ReaderState::LengthValue);
 
-        let len = read_len(&mut self.cur) as u64;
+        let len = read_len(&mut self.cur)? as u64;
         //println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
         self.end_positions.push(self.cur.position() + len);
         self.state = ReaderState::Tag;
+        Ok(())
     }
 
     fn close_inner(&mut self) {
@@ -339,10 +352,10 @@ impl<'a> NestedReader<'a> {
         return *(self.end_positions.last().unwrap()) == self.cur.position();
     }
 
-    fn read_type(&mut self) -> ItemType {
+    fn read_type(&mut self) -> TTLVResult<ItemType> {
         assert_eq!(self.state, ReaderState::Type);
                 self.state = ReaderState::LengthValue;
-        return read_type(&mut self.cur);
+       read_type(&mut self.cur)
     }
 
     fn is_tag(&self) -> bool {
@@ -353,20 +366,20 @@ impl<'a> NestedReader<'a> {
         return self.tag.unwrap();
     }
 
-    fn read_tag(&mut self) -> Tag {
+    fn read_tag(&mut self) -> TTLVResult<Tag> {
         assert_eq!(self.state, ReaderState::Tag);
         self.state = ReaderState::Type;
-        let t = read_tag_enum(&mut self.cur);
+        let t = read_tag_enum(&mut self.cur)?;
         self.tag = Some(t);
-        return t;
+        return Ok(t);
     }
 
-    fn peek_tag(&mut self) -> Tag {
+    fn peek_tag(&mut self) -> TTLVResult<Tag> {
         assert_eq!(self.state, ReaderState::Tag);
         let pos = self.cur.position();
-        let tag = read_tag_enum(&mut self.cur);
+        let tag = read_tag_enum(&mut self.cur)?;
         self.cur.set_position(pos);
-        return tag;
+        return Ok(tag);
     }
 
     fn reverse_tag(&mut self) {
@@ -376,50 +389,50 @@ impl<'a> NestedReader<'a> {
         self.cur.set_position(pos - 3);
     }
 
-    fn read_i32(&mut self) -> i32 {
+    fn read_i32(&mut self) -> TTLVResult<i32> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        return read_i32(&mut self.cur);
+        read_i32(&mut self.cur)
     }
 
-    fn read_enumeration(&mut self) -> i32 {
+    fn read_enumeration(&mut self) -> TTLVResult<i32> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        return read_enumeration(&mut self.cur);
+        read_enumeration(&mut self.cur)
     }
 
-    fn read_i64(&mut self) -> i64 {
+    fn read_i64(&mut self) -> TTLVResult<i64> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        return read_i64(&mut self.cur);
+        read_i64(&mut self.cur)
     }
 
-    fn read_datetime_i64(&mut self) -> i64 {
+    fn read_datetime_i64(&mut self) -> TTLVResult<i64> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        return read_datetime_i64(&mut self.cur);
+        read_datetime_i64(&mut self.cur)
     }
 
-    // fn read_string_and_more(&mut self) -> String {
+    // fn read_string_and_more(&mut self) -> TTLVResult<String> {
     //     if self.state == ReaderState::Tag {
     //         self.read_tag();
     //     }
     //     assert_eq!(self.read_type(), ItemType::TextString);
     //     assert_eq!(self.state, ReaderState::LengthValue);
     //     self.state = ReaderState::Tag;
-    //     return read_string(&mut self.cur);
+    //     read_string(&mut self.cur)
     // }
 
-    fn read_string(&mut self) -> String {
+    fn read_string(&mut self) -> TTLVResult<String> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        return read_string(&mut self.cur);
+        read_string(&mut self.cur)
     }
 
-    fn read_bytes(&mut self) -> Vec<u8> {
+    fn read_bytes(&mut self) -> TTLVResult<Vec<u8>> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        return read_bytes(&mut self.cur);
+        read_bytes(&mut self.cur)
     }
 }
 
@@ -432,7 +445,7 @@ impl<'a> NestedReader<'a> {
 ////////////////////
 
 pub trait EnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> String;
+    fn resolve_enum(&self, name: &str, value: i32) -> Result<String>;
 }
 
 pub struct Deserializer<'de> {
@@ -490,31 +503,31 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         //     return Ok(None);
         // }
         if self.input.is_tag() {
-            let tag = self.input.read_tag();
+            let tag = self.input.read_tag()?;
             return visitor.visit_string(tag.as_ref().to_string());
         }
         //self.input.read_tag();
 
-        let t = self.input.read_type();
+        let t = self.input.read_type()?;
         match t {
             ItemType::Integer => {
-                let v = self.input.read_i32();
+                let v = self.input.read_i32()?;
                 visitor.visit_i32(v)
             }
             ItemType::LongInteger => {
-                let v = self.input.read_i64();
+                let v = self.input.read_i64()?;
                 visitor.visit_i64(v)
             }
             ItemType::TextString => {
-                let v = self.input.read_string();
+                let v = self.input.read_string()?;
                 visitor.visit_string(v)
             }
             ItemType::ByteString => {
-                let v = self.input.read_bytes();
+                let v = self.input.read_bytes()?;
                 visitor.visit_bytes(v.as_slice())
             }
             ItemType::Structure => {
-                self.input.begin_inner_skip();
+                self.input.begin_inner_skip()?;
                 visitor.visit_map(MapParser::new(&mut self))
             }
             _ => {
@@ -552,16 +565,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::Integer);
-        visitor.visit_i8(self.input.read_i32() as i8)
+        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        visitor.visit_i8(self.input.read_i32()? as i8)
     }
 
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::Integer);
-        visitor.visit_i16(self.input.read_i32() as i16)
+        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        visitor.visit_i16(self.input.read_i32()? as i16)
     }
 
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
@@ -571,14 +584,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         // assert_eq!(self.input.read_type(), ItemType::Integer);
         // visitor.visit_i32(self.input.read_i32())
 
-        let t = self.input.read_type();
+        let t = self.input.read_type()?;
 
         match t {
             ItemType::Enumeration => {
-                visitor.visit_i32(self.input.read_enumeration())
+                visitor.visit_i32(self.input.read_enumeration()?)
             }
             ItemType::Integer => {
-                visitor.visit_i32(self.input.read_i32())
+                visitor.visit_i32(self.input.read_i32()?)
             }
             _ => { unreachable!{} }
         }
@@ -589,14 +602,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let t = self.input.read_type();
+        let t = self.input.read_type()?;
 
         match t {
             ItemType::DateTime => {
-                        visitor.visit_i64(self.input.read_datetime_i64())
+                        visitor.visit_i64(self.input.read_datetime_i64()?)
             }
             ItemType::LongInteger => {
-                visitor.visit_i64(self.input.read_i64())
+                visitor.visit_i64(self.input.read_i64()?)
             }
             _ => { unreachable!{} }
         }
@@ -606,32 +619,32 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::Integer);
-        visitor.visit_u8(self.input.read_i32() as u8)
+        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        visitor.visit_u8(self.input.read_i32()? as u8)
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::Integer);
-        visitor.visit_u16(self.input.read_i32() as u16)
+        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        visitor.visit_u16(self.input.read_i32()? as u16)
     }
 
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::Integer);
-        visitor.visit_u32(self.input.read_i32() as u32)
+        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        visitor.visit_u32(self.input.read_i32()? as u32)
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::LongInteger);
-        visitor.visit_u64(self.input.read_i64() as u64)
+        assert_eq!(self.input.read_type()?, ItemType::LongInteger);
+        visitor.visit_u64(self.input.read_i64()? as u64)
     }
 
     // Float parsing is stupidly hard.
@@ -676,12 +689,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.input.is_tag() {
-            let tag = self.input.read_tag();
+            let tag = self.input.read_tag()?;
             return visitor.visit_string(tag.as_ref().to_string());
         }
 
-        assert_eq!(self.input.read_type(), ItemType::TextString);
-        visitor.visit_string(self.input.read_string())
+        assert_eq!(self.input.read_type()?, ItemType::TextString);
+        visitor.visit_string(self.input.read_string()?)
         //self.deserialize_str(visitor)
     }
 
@@ -698,8 +711,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type(), ItemType::ByteString);
-        let bytes = self.input.read_bytes();
+        assert_eq!(self.input.read_type()?, ItemType::ByteString);
+        let bytes = self.input.read_bytes()?;
         visitor.visit_bytes(&bytes)
     }
 
@@ -838,21 +851,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
          if self.input.is_tag() {
-            let tag = self.input.read_tag();
+            let tag = self.input.read_tag()?;
 
             //return visitor.visit_i32(num::ToPrimitive::to_i32(&tag).unwrap());
             return visitor.visit_string(tag.as_ref().to_string());
         }
 
-        let t = self.input.read_type();
+        let t = self.input.read_type()?;
 
         match t {
             ItemType::Enumeration => {
-                let e = self.input.read_enumeration();
-                visitor.visit_string ( self.enum_resolver.resolve_enum(self.input.get_tag().as_ref(), e))
+                let e = self.input.read_enumeration()?;
+                visitor.visit_string ( self.enum_resolver.resolve_enum(self.input.get_tag().as_ref(), e)? )
             }
             ItemType::TextString => {
-                visitor.visit_string ( self.input.read_string())
+                visitor.visit_string ( self.input.read_string()?)
 
             }
             _ => {
@@ -952,14 +965,14 @@ impl<'de, 'a> SeqAccess<'de> for SeqParser<'a, 'de> {
         }
 
         if self.tag.is_some() {
-            let tag = self.de.input.peek_tag();
+            let tag = self.de.input.peek_tag()?;
             if tag != self.tag.unwrap() {
                 return Ok(None);
             }
         } else {
             self.de.input.reverse_tag();
         }
-        self.tag = Some(self.de.input.read_tag());
+        self.tag = Some(self.de.input.read_tag()?);
 
         // Deserialize an array element.
         seed.deserialize(&mut *self.de).map(Some)
