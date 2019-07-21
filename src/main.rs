@@ -344,6 +344,7 @@ impl Connection {
 
     /// Process some amount of received plaintext.
     fn incoming_plaintext(&mut self, buf: &[u8]) {
+        // TODO - handle buffering of message
         if buf.len() < 8 {
             error!("Invalid KMIP Request, less then 8 bytes");
             return;
@@ -352,13 +353,13 @@ impl Connection {
         // Check length
         let mut cur = Cursor::new(buf);
         read_tag(&mut cur);
-        let t = read_type(&mut cur);
+        let t = read_type(&mut cur).unwrap_or(ttlv::ItemType::Interval);
         if t != ttlv::ItemType::Structure {
             error!("Expected struct, received {:?}", t);
             return;
         }
 
-        let len = read_len(&mut cur) as usize;
+        let len = read_len(&mut cur).unwrap_or(0) as usize;
         if buf.len() < len {
             error!(
                 "Unexpected leng, received {:?}, expected {:?}",

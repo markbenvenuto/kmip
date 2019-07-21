@@ -715,20 +715,19 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
 pub struct KmipEnumResolver;
 
 impl ttlv::EnumResolver for KmipEnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> String {
+    fn resolve_enum(&self, name: &str, value: i32) -> Result<String, TTLVError> {
         match name {
-            "Foo" => "Bar".to_owned(),
             "Operation" => {
                 let o: Operation = num::FromPrimitive::from_i32(value).unwrap();
-                return o.as_static().to_owned();
+                return Ok(o.as_static().to_owned());
             }
             "ObjectType" => {
                 let o: ObjectTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
-                return o.as_static().to_owned();
+                return Ok(o.as_static().to_owned());
             }
             "CryptographicAlgorithm" => {
                 let o: CryptographicAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
-                return o.as_static().to_owned();
+                return Ok(o.as_static().to_owned());
             }
             _ => {
                 println!("Not implemented: {:?}", name);
@@ -739,12 +738,11 @@ impl ttlv::EnumResolver for KmipEnumResolver {
 }
 
 
-pub fn read_msg(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
+pub fn read_msg(reader: &mut dyn Read) -> Result<Vec<u8>, TTLVError> {
     let mut msg : Vec<u8> = Vec::new();
     msg.resize(8, 0);
 
-    let ret = reader.read_exact(msg.as_mut());
-    ret.expect("Expected 8 bytes");
+    let ret = reader.read_exact(msg.as_mut()).map_err(|error| TTLVError::BadRead{count: 8, error})?;
 
     // Check length
     let len : usize;
@@ -753,7 +751,7 @@ pub fn read_msg(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
         ttlv::read_tag(&mut cur);
         let t = ttlv::read_type(&mut cur)?;
         if t != ttlv::ItemType::Structure {
-            return Err(TTLVError::UnexpectedType(expected: ttlv::ItemType::Structure, actual: t) );
+            return Err(TTLVError::UnexpectedType{expected: ttlv::ItemType::Structure, actual: t} );
         }
 
         len = ttlv::read_len(&mut cur)? as usize;
@@ -766,5 +764,5 @@ pub fn read_msg(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
     let mut slice : &mut [u8] = msg.as_mut();
     let ret2 = reader.read_exact(&mut slice[8..]).map_err(|error| TTLVError::BadRead{count: len, error})?;
 
-    return msg;
+    return Ok(msg);
 }

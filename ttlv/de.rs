@@ -445,7 +445,7 @@ impl<'a> NestedReader<'a> {
 ////////////////////
 
 pub trait EnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> Result<String>;
+    fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
 }
 
 pub struct Deserializer<'de> {
@@ -1081,12 +1081,12 @@ use crate::de::to_print;
 use crate::EnumResolver;
 use crate::de::from_bytes;
 use crate::my_date_format;
-
+use crate::TTLVError;
 
 struct TestEnumResolver;
 
 impl EnumResolver for TestEnumResolver {
-    fn resolve_enum(&self, _name: &str, _value: i32) -> String {
+    fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
         unimplemented!{}
     }
 }
