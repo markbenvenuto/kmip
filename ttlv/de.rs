@@ -370,7 +370,7 @@ impl<'a> NestedReader<'a> {
     }
 
     fn reverse_tag(&mut self) {
-        assert_eq!(self.state, ReaderState::LengthValue);
+        assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
         let pos = self.cur.position();
         self.cur.set_position(pos - 3);
@@ -1045,6 +1045,31 @@ impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
 }
 
 
+#[cfg(test)]
+mod tests {
+
+use crate::kmip_enums::*;
+
+use serde::de::{
+    self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess,
+    Visitor,
+};
+use serde::Deserialize;
+use serde::Serialize;
+
+use chrono::Utc;
+use chrono::DateTime;
+use crate::chrono::TimeZone;
+
+//use pretty_hex::hex_dump;
+use pretty_hex::PrettyHex;
+use crate::de::to_print;
+
+use crate::EnumResolver;
+use crate::de::from_bytes;
+use crate::my_date_format;
+
+
 struct TestEnumResolver;
 
 impl EnumResolver for TestEnumResolver {
@@ -1167,4 +1192,6 @@ fn test_struct_nested() {
 
     let r  : TestEnumResolver=  TestEnumResolver{};
     let a = from_bytes::<RequestMessage>(&good, &r).unwrap();
+}
+
 }

@@ -13,8 +13,14 @@ extern crate num_traits;
 extern crate byteorder;
 use byteorder::{BigEndian, WriteBytesExt};
 
+
 //use self::enums;
 use crate::kmip_enums::*;
+
+use crate::failures::*;
+
+
+type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
 // fn write_tag(writer: &mut dyn Write, tag: u16) {
 //     // println!("write_tag");
@@ -24,13 +30,13 @@ use crate::kmip_enums::*;
 //     writer.write_u16::<BigEndian>(tag).unwrap();
 // }
 
-fn write_tag_enum(writer: &mut dyn Write, tag: Tag) {
+fn write_tag_enum(writer: &mut dyn Write, tag: Tag) -> TTLVResult<()>  {
     // println!("write_Tag");
     // 0x42 for tags built into the protocol
     // 0x54 for extension tags
     let tag_u32 = num::ToPrimitive::to_u32(&tag).unwrap();
-    writer.write_u8(0x42).unwrap();
-    writer.write_u16::<BigEndian>(tag_u32 as u16).unwrap();
+    writer.write_u8(0x42).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
+    writer.write_u16::<BigEndian>(tag_u32 as u16).map_err(|error| TTLVError::BadWrite{count: 2, error})
 }
 
 fn compute_padding(len: usize) -> usize {
@@ -42,76 +48,81 @@ fn compute_padding(len: usize) -> usize {
     return len + padding;
 }
 
-pub fn write_string(writer: &mut dyn Write, value: &str) {
+pub fn write_string(writer: &mut dyn Write, value: &str)  -> TTLVResult<()>{
     // println!("write_string");
-    writer.write_u8(ItemType::TextString as u8).unwrap();
+    writer.write_u8(ItemType::TextString as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
 
-    writer.write_u32::<BigEndian>(value.len() as u32).unwrap();
+    writer.write_u32::<BigEndian>(value.len() as u32).map_err(|error| TTLVError::BadWrite{count: 2, error})?;
 
-    writer.write(value.as_bytes()).unwrap();
+    writer.write(value.as_bytes()).map_err(|error| TTLVError::BadWrite{count: value.len(), error})?;
 
     let padded_length = compute_padding(value.len());
     for _ in 0..(padded_length - value.len()) {
-        writer.write_u8(0).unwrap();
+        writer.write_u8(0).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
     }
+
+    return Ok(());
 }
 
-pub fn write_bytes(writer: &mut dyn Write, value: &[u8]) {
+pub fn write_bytes(writer: &mut dyn Write, value: &[u8])  -> TTLVResult<()>{
     // println!("write_bytes");
-    writer.write_u8(ItemType::ByteString as u8).unwrap();
+    writer.write_u8(ItemType::ByteString as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;;
 
-    writer.write_u32::<BigEndian>(value.len() as u32).unwrap();
+    writer.write_u32::<BigEndian>(value.len() as u32).map_err(|error| TTLVError::BadWrite{count: 2, error})?;
 
-    writer.write(value).unwrap();
+    writer.write(value).map_err(|error| TTLVError::BadWrite{count: value.len(), error})?;
 
     let padded_length = compute_padding(value.len());
     for _ in 0..(padded_length - value.len()) {
-        writer.write_u8(0).unwrap();
+        writer.write_u8(0).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;;
     }
+
+    return Ok(());
 }
 
-pub fn write_i32(writer: &mut dyn Write, value: i32) {
-    writer.write_u8(ItemType::Integer as u8).unwrap();
+pub fn write_i32(writer: &mut dyn Write, value: i32)  -> TTLVResult<()>{
+    writer.write_u8(ItemType::Integer as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
 
-    writer.write_u32::<BigEndian>(4).unwrap();
+    writer.write_u32::<BigEndian>(4).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
 
-    writer.write_i32::<BigEndian>(value).unwrap();
+    writer.write_i32::<BigEndian>(value).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
 
     // Add 4 bytes of padding
     // TODO - make faster
-    writer.write_u32::<BigEndian>(0).unwrap();
+    writer.write_u32::<BigEndian>(0).map_err(|error| TTLVError::BadWrite{count: 4, error})
 }
 
-pub fn write_i64(writer: &mut dyn Write, value: i64) {
-    writer.write_u8(ItemType::LongInteger as u8).unwrap();
+pub fn write_i64(writer: &mut dyn Write, value: i64) -> TTLVResult<()> {
+    writer.write_u8(ItemType::LongInteger as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
 
-    writer.write_u32::<BigEndian>(8).unwrap();
+    writer.write_u32::<BigEndian>(8).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
 
-    writer.write_i64::<BigEndian>(value).unwrap();
+    writer.write_i64::<BigEndian>(value).map_err(|error| TTLVError::BadWrite{count: 8, error})
+
 }
 
-pub fn write_enumeration(writer: &mut dyn Write, value: i32) {
-    writer.write_u8(ItemType::Enumeration as u8).unwrap();
+pub fn write_enumeration(writer: &mut dyn Write, value: i32)  -> TTLVResult<()>{
+    writer.write_u8(ItemType::Enumeration as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
 
-    writer.write_u32::<BigEndian>(4).unwrap();
+    writer.write_u32::<BigEndian>(4).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
 
-    writer.write_i32::<BigEndian>(value).unwrap();
+    writer.write_i32::<BigEndian>(value).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
 
     // Add 4 bytes of padding
     // TODO - make faster
-    writer.write_u32::<BigEndian>(0).unwrap();
+    writer.write_u32::<BigEndian>(0).map_err(|error| TTLVError::BadWrite{count: 4, error})
 }
 
 // fn write_datetime(writer: &mut dyn Write, value: chrono::NaiveDateTime) {
 //     write_i64_datetime(writer, value.timestamp_millis());
 // }
 
-pub fn write_i64_datetime(writer: &mut dyn Write, value: i64) {
-    writer.write_u8(ItemType::DateTime as u8).unwrap();
+pub fn write_i64_datetime(writer: &mut dyn Write, value: i64)  -> TTLVResult<()>{
+    writer.write_u8(ItemType::DateTime as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
 
-    writer.write_u32::<BigEndian>(8).unwrap();
+    writer.write_u32::<BigEndian>(8).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
 
-    writer.write_i64::<BigEndian>(value).unwrap();
+    writer.write_i64::<BigEndian>(value).map_err(|error| TTLVError::BadWrite{count: 8, error})
 }
 
 // struct CountingWriter<'a> {
@@ -171,8 +182,8 @@ pub fn write_i64_datetime(writer: &mut dyn Write, value: i64) {
 //     return StructWriter::new(writer);
 // }
 
-pub fn write_struct(writer: &mut dyn Write) {
-    writer.write_u8(ItemType::Structure as u8).unwrap();
+pub fn write_struct(writer: &mut dyn Write)  -> TTLVResult<()> {
+    writer.write_u8(ItemType::Structure as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})
 }
 
 struct NestedWriter {
@@ -198,10 +209,12 @@ impl NestedWriter {
         self.tag = Some(tag)
     }
 
-    fn write_optional_tag(&mut self) {
+    fn write_optional_tag(&mut self) -> TTLVResult<()> {
         if let Some(t) = &self.tag {
-            write_tag_enum(&mut self.vec, *t);
+            write_tag_enum(&mut self.vec, *t)?;
         }
+
+        Ok(())
     }
 
     // fn flush_tag(&mut self) {
@@ -211,25 +224,28 @@ impl NestedWriter {
     //     self.tag = None;
     // }
 
-    fn begin_inner(&mut self) {
+    fn begin_inner(&mut self) -> TTLVResult<()> {
         //println!("write_innter");
         let pos = self.vec.len();
-        self.vec.write_u32::<BigEndian>(0).unwrap();
-        self.start_positions.push(pos)
+        self.vec.write_u32::<BigEndian>(0).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
+        self.start_positions.push(pos);
+        Ok(())
     }
 
-    fn close_inner(&mut self) {
+    fn close_inner(&mut self) -> TTLVResult<()> {
         let current_pos = self.vec.len();
         let start_pos = self.start_positions.pop().unwrap();
         // offset by 4
         let len = current_pos - start_pos - 4;
 
         let mut v1: Vec<u8> = Vec::new();
-        v1.write_u32::<BigEndian>(len as u32).unwrap();
+        v1.write_u32::<BigEndian>(len as u32).map_err(|error| TTLVError::BadWrite{count: 4, error})?;;
 
         for i in 0..4 {
             self.vec[start_pos + i] = v1[i];
         }
+        
+        Ok(())
     }
 }
 
@@ -306,16 +322,16 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        self.output.write_optional_tag();
-        write_i32(&mut self.output, v);
+        self.output.write_optional_tag()?;
+        write_i32(&mut self.output, v)?;
         Ok(())
     }
 
     // Not particularly efficient but this is example code anyway. A more
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.output.write_optional_tag();
-        write_i64(&mut self.output, v);
+        self.output.write_optional_tag()?;
+        write_i64(&mut self.output, v)?;
         Ok(())
     }
 
@@ -353,8 +369,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // get the idea. For example it would emit invalid JSON if the input string
     // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.output.write_optional_tag();
-        write_string(&mut self.output, v);
+        self.output.write_optional_tag()?;
+        write_string(&mut self.output, v)?;
         Ok(())
     }
 
@@ -362,8 +378,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // string here. Binary formats will typically represent byte arrays more
     // compactly.
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        self.output.write_optional_tag();
-        write_bytes(&mut self.output, v);
+        self.output.write_optional_tag()?;
+        write_bytes(&mut self.output, v)?;
         Ok(())
     }
 
@@ -439,7 +455,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // Serialize this to JSON in externally tagged form as `{ NAME: VALUE }`.
     fn serialize_newtype_variant<T>(
         self,
-        _name: &'static str,
+        name: &'static str,
         _variant_index: u32,
         _variant: &'static str,
         value: &T,
@@ -447,10 +463,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        let tag = Tag::from_str(_name).unwrap();
-        write_tag_enum(&mut self.output, tag);
-        value.serialize(&mut *self)?;
-        Ok(())
+        let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName{name: name.to_owned()})?;
+        write_tag_enum(&mut self.output, tag)?;
+        value.serialize(&mut *self)
     }
 
     // Now we get to the serialization of compound types.
@@ -498,8 +513,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     // Maps are represented in JSON as `{ K: V, K: V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        write_struct(&mut self.output);
-        self.output.begin_inner();
+        write_struct(&mut self.output)?;
+        self.output.begin_inner()?;
         Ok(self)
     }
 
@@ -508,10 +523,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // omit the field names when serializing structs because the corresponding
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        println!("serializing: {:?}", _name);
-        let tag = Tag::from_str(_name).unwrap();
-        write_tag_enum(&mut self.output, tag);
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        println!("serializing: {:?}", name);
+        let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName{name: name.to_owned()})?;
+        write_tag_enum(&mut self.output, tag)?;
 
         self.serialize_map(Some(len))
     }
@@ -668,7 +683,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         println!("serializing {:?}", key);
-        let tag = Tag::from_str(key).unwrap();
+        let tag = Tag::from_str(key).map_err(|_| TTLVError::InvalidTagName{name: key.to_owned()})?;
         self.output.set_tag(tag);
 
         value.serialize(&mut **self)
@@ -676,8 +691,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
 
     fn end(self) -> Result<()> {
         //println!("write_innter_close");
-
-        self.output.close_inner();
+        self.output.close_inner()?;
 
         Ok(())
     }
@@ -694,7 +708,7 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         let tag = Tag::from_str(key).unwrap();
-        write_tag_enum(&mut self.output, tag);
+        write_tag_enum(&mut self.output, tag)?;
         value.serialize(&mut **self)
     }
 
@@ -751,8 +765,8 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     // Not particularly efficient but this is example code anyway. A more
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<()> {
-    self.output.write_optional_tag();
-     write_i64_datetime(&mut self.output, v);
+    self.output.write_optional_tag()?;
+     write_i64_datetime(&mut self.output, v)?;
      Ok(())
     }
 
@@ -1149,8 +1163,8 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-    self.output.write_optional_tag();
-     write_enumeration(&mut self.output, v);
+    self.output.write_optional_tag()?;
+     write_enumeration(&mut self.output, v)?;
      Ok(())
     }
 
@@ -1511,8 +1525,28 @@ impl<'a> ser::SerializeStructVariant for &'a mut MyEnumSerializer<'a> {
 }
 
 
+#[cfg(test)]
+mod tests {
 
+use crate::kmip_enums::*;
 
+use serde::de::{
+    self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess,
+    Visitor,
+};
+use serde::Deserialize;
+use serde::Serialize;
+
+use chrono::Utc;
+use chrono::DateTime;
+use crate::chrono::TimeZone;
+
+//use pretty_hex::hex_dump;
+use pretty_hex::PrettyHex;
+use crate::de::to_print;
+
+use crate::ser::to_bytes;
+use crate::my_date_format;
 
 #[test]
 fn test_struct() {
@@ -1729,4 +1763,6 @@ fn test_Datetime() {
     assert_eq!(v.len(), 24);
 
     assert_eq!(v, good);
+}
+
 }

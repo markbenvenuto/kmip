@@ -2,6 +2,7 @@ mod de;
 mod error;
 mod ser;
 mod kmip_enums;
+mod failures;
 pub mod my_date_format;
 
 extern crate strum;
@@ -10,6 +11,11 @@ extern crate strum_macros;
 
 #[macro_use]
 extern crate num_derive;
+
+#[macro_use]
+extern crate failure_derive;
+extern crate failure;
+
 
 #[macro_use]
 extern crate log;

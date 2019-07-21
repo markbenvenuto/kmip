@@ -28,6 +28,9 @@ log = "0.4.7"
 
 #serde_enum = {path="serde_enum"}
 
+failure = "0.1.5"
+failure_derive = "0.1.5"
+
 
 [lib]
 name = "ttlv"

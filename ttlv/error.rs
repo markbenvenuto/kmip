@@ -2,6 +2,7 @@ use std;
 use std::fmt::{self, Display};
 
 use serde::{de, ser};
+use crate::failures::TTLVError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -18,6 +19,7 @@ pub enum Error {
     // field is missing.
     Message(String),
 
+    TTLVError(String),
     // Zero or more variants that can be created directly by the Serializer and
     // Deserializer without going through `ser::Error` and `de::Error`. These
     // are specific to the format, in this case JSON.
@@ -63,7 +65,14 @@ impl std::error::Error for Error {
             Error::Message(ref msg) => msg,
             Error::Eof => "unexpected end of input",
             Error::UnsupportedType => "unsupported type",
+            Error::TTLVError(ref err) => "ttlv error",
             /* and so forth */
         }
+    }
+}
+
+impl std::convert::From<TTLVError> for Error {
+    fn from(e: TTLVError) -> Self {
+        Error::TTLVError(format!("ttlv error: {}", e))
     }
 }
