@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use std::net::TcpStream;
-use std::io::{Read, Write, stdout};
 use std::fs;
-use std::io::{BufReader};
+use std::io::BufReader;
+use std::io::{stdout, Read, Write};
+use std::net::TcpStream;
 use std::path::PathBuf;
 
 #[macro_use]
@@ -16,8 +16,8 @@ use structopt::StructOpt;
 extern crate log;
 
 use rustls;
-use webpki;
 use rustls::Session;
+use webpki;
 
 use pretty_hex::*;
 
@@ -54,18 +54,16 @@ struct CmdLine {
     ca_cert_file: PathBuf,
 
     /// Host name to connect to
-    #[structopt(name = "host", long = "host", default_value="localhost")]
+    #[structopt(name = "host", long = "host", default_value = "localhost")]
     host: String,
 
     /// Port to connect to
-    #[structopt(name = "port", long = "port", default_value="7000")]
+    #[structopt(name = "port", long = "port", default_value = "7000")]
     port: u16,
 
-    #[structopt(subcommand)]  // Note that we mark a field as a subcommand
-    cmd: Command
+    #[structopt(subcommand)] // Note that we mark a field as a subcommand
+    cmd: Command,
 }
-
-
 
 #[derive(Debug, StructOpt)]
 enum Command {
@@ -73,19 +71,17 @@ enum Command {
     /// Create a symmetric key
     CreateSymmetricKey {
         /// Remote Directory
-        #[structopt(name="remote_path",  long="remote-path", value_name="PATH")]
+        #[structopt(name = "remote_path", long = "remote-path", value_name = "PATH")]
         remote_path: String,
-
     },
     #[structopt(name = "get")]
     /// Do a remote build of a project
     Get {
         /// ID of thing to get
         //#[structopt(short = "p")]
-        id: String
-    }
+        id: String,
+    },
 }
-
 
 // fn load_certs(filename: &str) -> Vec<rustls::Certificate> {
 //     let certfile = fs::File::open(filename).expect("cannot open certificate file");
@@ -117,7 +113,6 @@ enum Command {
 //     }
 // }
 
-
 // struct StreamAdapter<'a> {
 //     stream : &'a mut rustls::Stream<'a>,
 // }
@@ -147,30 +142,23 @@ fn main() {
     info!("starting up");
     warn!("oops, nothing implemented!");
 
-
     // TODO - add client auth
 
     let mut config = rustls::ClientConfig::new();
     //config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
 
-
     let certfile = fs::File::open(args.ca_cert_file).expect("Cannot open CA file");
     let mut reader = BufReader::new(certfile);
-    config.root_store
-        .add_pem_file(&mut reader)
-        .unwrap();
-
+    config.root_store.add_pem_file(&mut reader).unwrap();
 
     // let mut server_certs = load_certs(args.serverCertFile.as_ref());
     // let privkey = load_private_key(args.serverKeyFile.as_ref());
 
     // let mut ca_certs = load_certs(args.caCertFile.as_ref());
 
-
-
     let dns_name = webpki::DNSNameRef::try_from_ascii_str(&args.host).unwrap();
     let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
-    let mut sock = TcpStream::connect( (args.host.as_str(), args.port)).unwrap();
+    let mut sock = TcpStream::connect((args.host.as_str(), args.port)).unwrap();
     let mut tls = rustls::Stream::new(&mut sess, &mut sock);
 
     //let kmip_stream = StreamAdapter::new(&mut tls);
@@ -185,12 +173,12 @@ fn main() {
     //     .unwrap();
 
     match args.cmd {
-        Command::CreateSymmetricKey{remote_path} => {
+        Command::CreateSymmetricKey { remote_path } => {
             let response = client.create_symmetric_key(CryptographicAlgorithm::AES, 256);
 
             println!("Response: {:#?} ", response);
         }
-        Command::Get{id} => {
+        Command::Get { id } => {
             let response = client.get(&id);
 
             println!("Response: {:#?} ", response);
@@ -200,9 +188,13 @@ fn main() {
         }
     };
 
-
     let ciphersuite = tls.sess.get_negotiated_ciphersuite().unwrap();
-    writeln!(&mut std::io::stderr(), "Current ciphersuite: {:?}", ciphersuite.suite).unwrap();
+    writeln!(
+        &mut std::io::stderr(),
+        "Current ciphersuite: {:?}",
+        ciphersuite.suite
+    )
+    .unwrap();
 
     // tls.write(&bytes).unwrap();
     // info!("Waiting for data....");
@@ -213,7 +205,7 @@ fn main() {
 
     // to_print(&msg);
 
-   //tls.read_to_end(&mut plaintext).unwrap();
+    //tls.read_to_end(&mut plaintext).unwrap();
 
     //stdout().write_all(&plaintext).unwrap();
 }

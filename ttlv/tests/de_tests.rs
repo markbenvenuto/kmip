@@ -25,9 +25,8 @@ use pretty_hex::*;
 //use self::enums;
 
 //use ttlv::kmip_enums::*;
-use ttlv::to_print;
 use ttlv::from_bytes;
-
+use ttlv::to_print;
 
 // #[derive(Serialize, Deserialize, Debug)]
 // struct RequestHeader {

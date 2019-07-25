@@ -13,12 +13,10 @@ extern crate num_traits;
 extern crate byteorder;
 use byteorder::{BigEndian, WriteBytesExt};
 
-
 //use self::enums;
 use crate::kmip_enums::*;
 
 use crate::failures::*;
-
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
@@ -30,13 +28,17 @@ type TTLVResult<T> = std::result::Result<T, TTLVError>;
 //     writer.write_u16::<BigEndian>(tag).unwrap();
 // }
 
-fn write_tag_enum(writer: &mut dyn Write, tag: Tag) -> TTLVResult<()>  {
+fn write_tag_enum(writer: &mut dyn Write, tag: Tag) -> TTLVResult<()> {
     // println!("write_Tag");
     // 0x42 for tags built into the protocol
     // 0x54 for extension tags
     let tag_u32 = num::ToPrimitive::to_u32(&tag).unwrap();
-    writer.write_u8(0x42).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
-    writer.write_u16::<BigEndian>(tag_u32 as u16).map_err(|error| TTLVError::BadWrite{count: 2, error})
+    writer
+        .write_u8(0x42)
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
+    writer
+        .write_u16::<BigEndian>(tag_u32 as u16)
+        .map_err(|error| TTLVError::BadWrite { count: 2, error })
 }
 
 fn compute_padding(len: usize) -> usize {
@@ -48,81 +50,128 @@ fn compute_padding(len: usize) -> usize {
     return len + padding;
 }
 
-pub fn write_string(writer: &mut dyn Write, value: &str)  -> TTLVResult<()>{
+pub fn write_string(writer: &mut dyn Write, value: &str) -> TTLVResult<()> {
     // println!("write_string");
-    writer.write_u8(ItemType::TextString as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
+    writer
+        .write_u8(ItemType::TextString as u8)
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
 
-    writer.write_u32::<BigEndian>(value.len() as u32).map_err(|error| TTLVError::BadWrite{count: 2, error})?;
+    writer
+        .write_u32::<BigEndian>(value.len() as u32)
+        .map_err(|error| TTLVError::BadWrite { count: 2, error })?;
 
-    writer.write(value.as_bytes()).map_err(|error| TTLVError::BadWrite{count: value.len(), error})?;
+    writer
+        .write(value.as_bytes())
+        .map_err(|error| TTLVError::BadWrite {
+            count: value.len(),
+            error,
+        })?;
 
     let padded_length = compute_padding(value.len());
     for _ in 0..(padded_length - value.len()) {
-        writer.write_u8(0).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
+        writer
+            .write_u8(0)
+            .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
     }
 
     return Ok(());
 }
 
-pub fn write_bytes(writer: &mut dyn Write, value: &[u8])  -> TTLVResult<()>{
+pub fn write_bytes(writer: &mut dyn Write, value: &[u8]) -> TTLVResult<()> {
     // println!("write_bytes");
-    writer.write_u8(ItemType::ByteString as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;;
+    writer
+        .write_u8(ItemType::ByteString as u8)
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;;
 
-    writer.write_u32::<BigEndian>(value.len() as u32).map_err(|error| TTLVError::BadWrite{count: 2, error})?;
+    writer
+        .write_u32::<BigEndian>(value.len() as u32)
+        .map_err(|error| TTLVError::BadWrite { count: 2, error })?;
 
-    writer.write(value).map_err(|error| TTLVError::BadWrite{count: value.len(), error})?;
+    writer.write(value).map_err(|error| TTLVError::BadWrite {
+        count: value.len(),
+        error,
+    })?;
 
     let padded_length = compute_padding(value.len());
     for _ in 0..(padded_length - value.len()) {
-        writer.write_u8(0).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;;
+        writer
+            .write_u8(0)
+            .map_err(|error| TTLVError::BadWrite { count: 1, error })?;;
     }
 
     return Ok(());
 }
 
-pub fn write_i32(writer: &mut dyn Write, value: i32)  -> TTLVResult<()>{
-    writer.write_u8(ItemType::Integer as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
+pub fn write_i32(writer: &mut dyn Write, value: i32) -> TTLVResult<()> {
+    writer
+        .write_u8(ItemType::Integer as u8)
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
 
-    writer.write_u32::<BigEndian>(4).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
+    writer
+        .write_u32::<BigEndian>(4)
+        .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
-    writer.write_i32::<BigEndian>(value).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
+    writer
+        .write_i32::<BigEndian>(value)
+        .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
     // Add 4 bytes of padding
     // TODO - make faster
-    writer.write_u32::<BigEndian>(0).map_err(|error| TTLVError::BadWrite{count: 4, error})
+    writer
+        .write_u32::<BigEndian>(0)
+        .map_err(|error| TTLVError::BadWrite { count: 4, error })
 }
 
 pub fn write_i64(writer: &mut dyn Write, value: i64) -> TTLVResult<()> {
-    writer.write_u8(ItemType::LongInteger as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
+    writer
+        .write_u8(ItemType::LongInteger as u8)
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
 
-    writer.write_u32::<BigEndian>(8).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
+    writer
+        .write_u32::<BigEndian>(8)
+        .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
-    writer.write_i64::<BigEndian>(value).map_err(|error| TTLVError::BadWrite{count: 8, error})
-
+    writer
+        .write_i64::<BigEndian>(value)
+        .map_err(|error| TTLVError::BadWrite { count: 8, error })
 }
 
-pub fn write_enumeration(writer: &mut dyn Write, value: i32)  -> TTLVResult<()>{
-    writer.write_u8(ItemType::Enumeration as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
+pub fn write_enumeration(writer: &mut dyn Write, value: i32) -> TTLVResult<()> {
+    writer
+        .write_u8(ItemType::Enumeration as u8)
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
 
-    writer.write_u32::<BigEndian>(4).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
+    writer
+        .write_u32::<BigEndian>(4)
+        .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
-    writer.write_i32::<BigEndian>(value).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
+    writer
+        .write_i32::<BigEndian>(value)
+        .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
     // Add 4 bytes of padding
     // TODO - make faster
-    writer.write_u32::<BigEndian>(0).map_err(|error| TTLVError::BadWrite{count: 4, error})
+    writer
+        .write_u32::<BigEndian>(0)
+        .map_err(|error| TTLVError::BadWrite { count: 4, error })
 }
 
 // fn write_datetime(writer: &mut dyn Write, value: chrono::NaiveDateTime) {
 //     write_i64_datetime(writer, value.timestamp_millis());
 // }
 
-pub fn write_i64_datetime(writer: &mut dyn Write, value: i64)  -> TTLVResult<()>{
-    writer.write_u8(ItemType::DateTime as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})?;
+pub fn write_i64_datetime(writer: &mut dyn Write, value: i64) -> TTLVResult<()> {
+    writer
+        .write_u8(ItemType::DateTime as u8)
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
 
-    writer.write_u32::<BigEndian>(8).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
+    writer
+        .write_u32::<BigEndian>(8)
+        .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
-    writer.write_i64::<BigEndian>(value).map_err(|error| TTLVError::BadWrite{count: 8, error})
+    writer
+        .write_i64::<BigEndian>(value)
+        .map_err(|error| TTLVError::BadWrite { count: 8, error })
 }
 
 // struct CountingWriter<'a> {
@@ -182,8 +231,10 @@ pub fn write_i64_datetime(writer: &mut dyn Write, value: i64)  -> TTLVResult<()>
 //     return StructWriter::new(writer);
 // }
 
-pub fn write_struct(writer: &mut dyn Write)  -> TTLVResult<()> {
-    writer.write_u8(ItemType::Structure as u8).map_err(|error| TTLVError::BadWrite{ count: 1, error})
+pub fn write_struct(writer: &mut dyn Write) -> TTLVResult<()> {
+    writer
+        .write_u8(ItemType::Structure as u8)
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })
 }
 
 struct NestedWriter {
@@ -227,7 +278,9 @@ impl NestedWriter {
     fn begin_inner(&mut self) -> TTLVResult<()> {
         //println!("write_innter");
         let pos = self.vec.len();
-        self.vec.write_u32::<BigEndian>(0).map_err(|error| TTLVError::BadWrite{count: 4, error})?;
+        self.vec
+            .write_u32::<BigEndian>(0)
+            .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
         self.start_positions.push(pos);
         Ok(())
     }
@@ -239,12 +292,13 @@ impl NestedWriter {
         let len = current_pos - start_pos - 4;
 
         let mut v1: Vec<u8> = Vec::new();
-        v1.write_u32::<BigEndian>(len as u32).map_err(|error| TTLVError::BadWrite{count: 4, error})?;;
+        v1.write_u32::<BigEndian>(len as u32)
+            .map_err(|error| TTLVError::BadWrite { count: 4, error })?;;
 
         for i in 0..4 {
             self.vec[start_pos + i] = v1[i];
         }
-        
+
         Ok(())
     }
 }
@@ -433,15 +487,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         if _name == "my_date" {
-            let mut mydate_serializer = MyDateSerializer::new(
-                            &mut self.output
-                        );
+            let mut mydate_serializer = MyDateSerializer::new(&mut self.output);
             return value.serialize(&mut mydate_serializer);
-        }
-        else if _name == "my_enum" {
-            let mut myenum_serializer = MyEnumSerializer::new(
-                            &mut self.output
-                        );
+        } else if _name == "my_enum" {
+            let mut myenum_serializer = MyEnumSerializer::new(&mut self.output);
             return value.serialize(&mut myenum_serializer);
         }
 
@@ -463,7 +512,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName{name: name.to_owned()})?;
+        let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
+            name: name.to_owned(),
+        })?;
         write_tag_enum(&mut self.output, tag)?;
         value.serialize(&mut *self)
     }
@@ -525,7 +576,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         println!("serializing: {:?}", name);
-        let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName{name: name.to_owned()})?;
+        let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
+            name: name.to_owned(),
+        })?;
         write_tag_enum(&mut self.output, tag)?;
 
         self.serialize_map(Some(len))
@@ -683,7 +736,9 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         println!("serializing {:?}", key);
-        let tag = Tag::from_str(key).map_err(|_| TTLVError::InvalidTagName{name: key.to_owned()})?;
+        let tag = Tag::from_str(key).map_err(|_| TTLVError::InvalidTagName {
+            name: key.to_owned(),
+        })?;
         self.output.set_tag(tag);
 
         value.serialize(&mut **self)
@@ -717,18 +772,15 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     }
 }
 
-
-struct MyDateSerializer<'a>{
-    output: &'a mut NestedWriter
+struct MyDateSerializer<'a> {
+    output: &'a mut NestedWriter,
 }
-
 
 impl<'a> MyDateSerializer<'a> {
     pub fn new(output: &'a mut NestedWriter) -> MyDateSerializer {
-        MyDateSerializer{output: output}
+        MyDateSerializer { output: output }
     }
 }
-
 
 impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     type Ok = ();
@@ -765,9 +817,9 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     // Not particularly efficient but this is example code anyway. A more
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<()> {
-    self.output.write_optional_tag()?;
-     write_i64_datetime(&mut self.output, v)?;
-     Ok(())
+        self.output.write_optional_tag()?;
+        write_i64_datetime(&mut self.output, v)?;
+        Ok(())
     }
 
     fn serialize_u8(self, _v: u8) -> Result<()> {
@@ -783,17 +835,15 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     }
 
     fn serialize_u64(self, _v: u64) -> Result<()> {
-                Err(Error::UnsupportedType)
-
+        Err(Error::UnsupportedType)
     }
 
     fn serialize_f32(self, _v: f32) -> Result<()> {
-                Err(Error::UnsupportedType)
-
+        Err(Error::UnsupportedType)
     }
 
     fn serialize_f64(self, _v: f64) -> Result<()> {
-                Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Serialize a char as a single-character string. Other formats may
@@ -806,19 +856,19 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     // get the idea. For example it would emit invalid JSON if the input string
     // contains a '"' character.
     fn serialize_str(self, _v: &str) -> Result<()> {
-                Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Serialize a byte array as an array of bytes. Could also use a base64
     // string here. Binary formats will typically represent byte arrays more
     // compactly.
     fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
-                Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // An absent optional is represented as the JSON `null`.
     fn serialize_none(self) -> Result<()> {
-                Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // A present optional is represented as just the contained value. Note that
@@ -830,20 +880,20 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-                        Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // In Serde, unit means an anonymous value containing no data. Map this to
     // JSON as `null`.
     fn serialize_unit(self) -> Result<()> {
-                        Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Unit struct means a named value containing no data. Again, since there is
     // no data, map this to JSON as `null`. There is no need to serialize the
     // name in most formats.
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
-          Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // When serializing a unit variant (or any other kind of variant), formats
@@ -856,8 +906,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
         _variant_index: u32,
         _variant: &'static str,
     ) -> Result<()> {
-       Err(Error::UnsupportedType)
-
+        Err(Error::UnsupportedType)
     }
 
     // As is done here, serializers are encouraged to treat newtype structs as
@@ -866,7 +915,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Note that newtype variant (and all of the other variant serialization
@@ -884,7 +933,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Now we get to the serialization of compound types.
@@ -898,7 +947,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     // explicitly in the serialized form. Some serializers may only be able to
     // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Tuples look just like sequences in JSON. Some formats may be able to
@@ -906,7 +955,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     // means that the corresponding `Deserialize implementation will know the
     // length without needing to look at the serialized data.
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Tuple structs look just like sequences in JSON.
@@ -915,7 +964,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Tuple variants are represented in JSON as `{ NAME: [DATA...] }`. Again
@@ -927,12 +976,12 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Maps are represented in JSON as `{ K: V, K: V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Structs look just like maps in JSON. In particular, JSON requires that we
@@ -941,7 +990,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Struct variants are represented in JSON as `{ NAME: { K: V, ... } }`.
@@ -953,7 +1002,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 }
 
@@ -968,13 +1017,12 @@ impl<'a> ser::SerializeSeq for &'a mut MyDateSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-          Err(Error::UnsupportedType)
-
+        Err(Error::UnsupportedType)
     }
 
     // Close the sequence.
     fn end(self) -> Result<()> {
-           Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 }
 
@@ -987,11 +1035,11 @@ impl<'a> ser::SerializeTuple for &'a mut MyDateSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-    Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     fn end(self) -> Result<()> {
-    Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 }
 
@@ -1005,12 +1053,10 @@ impl<'a> ser::SerializeTupleStruct for &'a mut MyDateSerializer<'a> {
         T: ?Sized + Serialize,
     {
         Err(Error::UnsupportedType)
-
     }
 
     fn end(self) -> Result<()> {
         Err(Error::UnsupportedType)
-
     }
 }
 
@@ -1032,12 +1078,10 @@ impl<'a> ser::SerializeTupleVariant for &'a mut MyDateSerializer<'a> {
         T: ?Sized + Serialize,
     {
         Err(Error::UnsupportedType)
-
     }
 
     fn end(self) -> Result<()> {
         Err(Error::UnsupportedType)
-
     }
 }
 
@@ -1066,7 +1110,6 @@ impl<'a> ser::SerializeMap for &'a mut MyDateSerializer<'a> {
         T: ?Sized + Serialize,
     {
         Err(Error::UnsupportedType)
-
     }
 
     // It doesn't make a difference whether the colon is printed at the end of
@@ -1120,19 +1163,15 @@ impl<'a> ser::SerializeStructVariant for &'a mut MyDateSerializer<'a> {
     }
 }
 
-
-
-struct MyEnumSerializer<'a>{
-    output: &'a mut NestedWriter
+struct MyEnumSerializer<'a> {
+    output: &'a mut NestedWriter,
 }
-
 
 impl<'a> MyEnumSerializer<'a> {
     pub fn new(output: &'a mut NestedWriter) -> MyEnumSerializer {
-        MyEnumSerializer{output: output}
+        MyEnumSerializer { output: output }
     }
 }
-
 
 impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     type Ok = ();
@@ -1163,9 +1202,9 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-    self.output.write_optional_tag()?;
-     write_enumeration(&mut self.output, v)?;
-     Ok(())
+        self.output.write_optional_tag()?;
+        write_enumeration(&mut self.output, v)?;
+        Ok(())
     }
 
     // Not particularly efficient but this is example code anyway. A more
@@ -1187,17 +1226,15 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     }
 
     fn serialize_u64(self, _v: u64) -> Result<()> {
-                Err(Error::UnsupportedType)
-
+        Err(Error::UnsupportedType)
     }
 
     fn serialize_f32(self, _v: f32) -> Result<()> {
-                Err(Error::UnsupportedType)
-
+        Err(Error::UnsupportedType)
     }
 
     fn serialize_f64(self, _v: f64) -> Result<()> {
-                Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Serialize a char as a single-character string. Other formats may
@@ -1210,19 +1247,19 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     // get the idea. For example it would emit invalid JSON if the input string
     // contains a '"' character.
     fn serialize_str(self, _v: &str) -> Result<()> {
-                Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Serialize a byte array as an array of bytes. Could also use a base64
     // string here. Binary formats will typically represent byte arrays more
     // compactly.
     fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
-                Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // An absent optional is represented as the JSON `null`.
     fn serialize_none(self) -> Result<()> {
-                Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // A present optional is represented as just the contained value. Note that
@@ -1234,20 +1271,20 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-                        Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // In Serde, unit means an anonymous value containing no data. Map this to
     // JSON as `null`.
     fn serialize_unit(self) -> Result<()> {
-                        Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Unit struct means a named value containing no data. Again, since there is
     // no data, map this to JSON as `null`. There is no need to serialize the
     // name in most formats.
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
-          Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // When serializing a unit variant (or any other kind of variant), formats
@@ -1260,8 +1297,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
         _variant_index: u32,
         _variant: &'static str,
     ) -> Result<()> {
-       Err(Error::UnsupportedType)
-
+        Err(Error::UnsupportedType)
     }
 
     // As is done here, serializers are encouraged to treat newtype structs as
@@ -1270,7 +1306,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Note that newtype variant (and all of the other variant serialization
@@ -1288,7 +1324,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Now we get to the serialization of compound types.
@@ -1302,7 +1338,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     // explicitly in the serialized form. Some serializers may only be able to
     // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Tuples look just like sequences in JSON. Some formats may be able to
@@ -1310,7 +1346,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     // means that the corresponding `Deserialize implementation will know the
     // length without needing to look at the serialized data.
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Tuple structs look just like sequences in JSON.
@@ -1319,7 +1355,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
         _name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Tuple variants are represented in JSON as `{ NAME: [DATA...] }`. Again
@@ -1331,12 +1367,12 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Maps are represented in JSON as `{ K: V, K: V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Structs look just like maps in JSON. In particular, JSON requires that we
@@ -1345,7 +1381,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     // Struct variants are represented in JSON as `{ NAME: { K: V, ... } }`.
@@ -1357,7 +1393,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-       Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 }
 
@@ -1372,13 +1408,12 @@ impl<'a> ser::SerializeSeq for &'a mut MyEnumSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-          Err(Error::UnsupportedType)
-
+        Err(Error::UnsupportedType)
     }
 
     // Close the sequence.
     fn end(self) -> Result<()> {
-           Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 }
 
@@ -1391,11 +1426,11 @@ impl<'a> ser::SerializeTuple for &'a mut MyEnumSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-    Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 
     fn end(self) -> Result<()> {
-    Err(Error::UnsupportedType)
+        Err(Error::UnsupportedType)
     }
 }
 
@@ -1409,12 +1444,10 @@ impl<'a> ser::SerializeTupleStruct for &'a mut MyEnumSerializer<'a> {
         T: ?Sized + Serialize,
     {
         Err(Error::UnsupportedType)
-
     }
 
     fn end(self) -> Result<()> {
         Err(Error::UnsupportedType)
-
     }
 }
 
@@ -1436,12 +1469,10 @@ impl<'a> ser::SerializeTupleVariant for &'a mut MyEnumSerializer<'a> {
         T: ?Sized + Serialize,
     {
         Err(Error::UnsupportedType)
-
     }
 
     fn end(self) -> Result<()> {
         Err(Error::UnsupportedType)
-
     }
 }
 
@@ -1470,7 +1501,6 @@ impl<'a> ser::SerializeMap for &'a mut MyEnumSerializer<'a> {
         T: ?Sized + Serialize,
     {
         Err(Error::UnsupportedType)
-
     }
 
     // It doesn't make a difference whether the colon is printed at the end of
@@ -1524,245 +1554,248 @@ impl<'a> ser::SerializeStructVariant for &'a mut MyEnumSerializer<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
-use crate::kmip_enums::*;
+    use crate::kmip_enums::*;
 
-use serde::de::{
-    self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess,
-    Visitor,
-};
-use serde::Deserialize;
-use serde::Serialize;
-
-use chrono::Utc;
-use chrono::DateTime;
-use crate::chrono::TimeZone;
-
-//use pretty_hex::hex_dump;
-use pretty_hex::PrettyHex;
-use crate::de::to_print;
-
-use crate::ser::to_bytes;
-use crate::my_date_format;
-
-#[test]
-fn test_struct() {
-    #[derive(Serialize, Debug)]
-    struct RequestHeader {
-        ProtocolVersionMajor: i32,
-        ProtocolVersionMinor: i32,
-
-        #[serde(skip_serializing_if = "Option::is_none")]
-        BatchOrderOption: Option<i32>,
-        // Option::None - serializes as serialize_none()
-        // TODO: Other fields are optional
-        BatchCount: i32,
-    }
-
-    let a = RequestHeader {
-        ProtocolVersionMajor: 1,
-        ProtocolVersionMinor: 2,
-        BatchOrderOption: None,
-        BatchCount: 3,
+    use serde::de::{
+        self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor,
     };
+    use serde::Deserialize;
+    use serde::Serialize;
 
-    let v = to_bytes(&a).unwrap();
+    use crate::chrono::TimeZone;
+    use chrono::DateTime;
+    use chrono::Utc;
 
-    print!("Dump of bytes {:?}", v.hex_dump());
+    //use pretty_hex::hex_dump;
+    use crate::de::to_print;
+    use pretty_hex::PrettyHex;
 
-    to_print(v.as_slice());
+    use crate::my_date_format;
+    use crate::ser::to_bytes;
 
-    let good = vec![
-        0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00,
-        0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00,
-        0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00,
-        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
-    ];
+    #[test]
+    fn test_struct() {
+        #[derive(Serialize, Debug)]
+        struct RequestHeader {
+            ProtocolVersionMajor: i32,
+            ProtocolVersionMinor: i32,
 
-    assert_eq!(v.len(), 56);
+            #[serde(skip_serializing_if = "Option::is_none")]
+            BatchOrderOption: Option<i32>,
+            // Option::None - serializes as serialize_none()
+            // TODO: Other fields are optional
+            BatchCount: i32,
+        }
 
-    assert_eq!(v, good);
-}
+        let a = RequestHeader {
+            ProtocolVersionMajor: 1,
+            ProtocolVersionMinor: 2,
+            BatchOrderOption: None,
+            BatchCount: 3,
+        };
 
-#[test]
-fn test_struct_nested() {
-    #[derive(Serialize, Debug)]
-    struct RequestHeader {
-        ProtocolVersionMajor: i32,
-        BatchCount: i32,
+        let v = to_bytes(&a).unwrap();
+
+        print!("Dump of bytes {:?}", v.hex_dump());
+
+        to_print(v.as_slice());
+
+        let good = vec![
+            0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,
+            0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02,
+            0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00,
+            0x0d, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+        ];
+
+        assert_eq!(v.len(), 56);
+
+        assert_eq!(v, good);
     }
 
-    #[derive(Serialize, Debug)]
-    struct RequestMessage {
-        RequestHeader: RequestHeader,
-        UniqueIdentifier: String,
-    }
+    #[test]
+    fn test_struct_nested() {
+        #[derive(Serialize, Debug)]
+        struct RequestHeader {
+            ProtocolVersionMajor: i32,
+            BatchCount: i32,
+        }
 
-    let a = RequestMessage {
-        RequestHeader: RequestHeader {
-            ProtocolVersionMajor: 3,
-            BatchCount: 4,
-        },
-        UniqueIdentifier: String::new(),
-    };
-
-    let v = to_bytes(&a).unwrap();
-
-    print!("Dump of bytes {:?}", v.hex_dump());
-
-    to_print(v.as_slice());
-
-    let good = vec![
-        66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0, 0, 0,
-        3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7, 0, 0, 0, 0,
-    ];
-
-    assert_eq!(v.len(), 56);
-
-    assert_eq!(v, good);
-}
-
-#[test]
-fn test_struct_nested2() {
-    #[derive(Serialize, Debug)]
-    struct ObjectType {
+        #[derive(Serialize, Debug)]
+        struct RequestMessage {
+            RequestHeader: RequestHeader,
             UniqueIdentifier: String,
+        }
+
+        let a = RequestMessage {
+            RequestHeader: RequestHeader {
+                ProtocolVersionMajor: 3,
+                BatchCount: 4,
+            },
+            UniqueIdentifier: String::new(),
+        };
+
+        let v = to_bytes(&a).unwrap();
+
+        print!("Dump of bytes {:?}", v.hex_dump());
+
+        to_print(v.as_slice());
+
+        let good = vec![
+            66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0,
+            0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7,
+            0, 0, 0, 0,
+        ];
+
+        assert_eq!(v.len(), 56);
+
+        assert_eq!(v, good);
     }
 
-    #[derive(Serialize, Debug)]
-    struct RequestHeader {
-        ProtocolVersionMinor : ObjectType,
-        BatchCount: i32,
+    #[test]
+    fn test_struct_nested2() {
+        #[derive(Serialize, Debug)]
+        struct ObjectType {
+            UniqueIdentifier: String,
+        }
+
+        #[derive(Serialize, Debug)]
+        struct RequestHeader {
+            ProtocolVersionMinor: ObjectType,
+            BatchCount: i32,
+        }
+
+        let a = RequestHeader {
+            ProtocolVersionMinor: ObjectType {
+                UniqueIdentifier: String::new(),
+            },
+            BatchCount: 3,
+        };
+
+        let v = to_bytes(&a).unwrap();
+
+        print!("Dump of bytes {:?}", v.hex_dump());
+
+        to_print(v.as_slice());
+
+        let good = vec![
+            66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 87, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66, 0,
+            13, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0,
+        ];
+
+        assert_eq!(v.len(), 40);
+
+        assert_eq!(v, good);
     }
 
-    let a =  RequestHeader {
-    ProtocolVersionMinor : ObjectType {
-        UniqueIdentifier : String::new(),
-    },
-    BatchCount : 3,
-    };
+    #[test]
+    fn test_struct_types() {
+        #[derive(Serialize, Debug)]
+        struct RequestHeader<'a> {
+            ProtocolVersionMajor: String,
+            #[serde(with = "serde_bytes")]
+            ProtocolVersionMinor: &'a [u8],
+            BatchCount: i64,
+        }
 
-    let v = to_bytes(&a).unwrap();
+        let v = vec![0x55, 0x66, 0x77];
+        let a = RequestHeader {
+            ProtocolVersionMajor: String::new(),
+            ProtocolVersionMinor: v.as_slice(),
+            BatchCount: 3,
+        };
 
-    print!("Dump of bytes {:?}", v.hex_dump());
+        let v = to_bytes(&a).unwrap();
 
-    to_print(v.as_slice());
+        print!("Dump of bytes {:?}", v.hex_dump());
 
-    let good = vec!{66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 87, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0};
-
-    assert_eq!(v.len(), 40);
-
-    assert_eq!(v, good);
-}
-
-#[test]
-fn test_struct_types() {
-    #[derive(Serialize, Debug)]
-    struct RequestHeader<'a> {
-        ProtocolVersionMajor: String,
-        #[serde(with = "serde_bytes")]
-        ProtocolVersionMinor: &'a [u8],
-        BatchCount: i64,
+        to_print(v.as_slice());
+        assert_eq!(v.len(), 48);
     }
 
-    let v = vec![0x55, 0x66, 0x77];
-    let a = RequestHeader {
-        ProtocolVersionMajor: String::new(),
-        ProtocolVersionMinor: v.as_slice(),
-        BatchCount: 3,
-    };
+    #[test]
+    fn test_struct2() {
+        #[derive(Serialize, Debug)]
+        #[serde(tag = "Operation", content = "BatchItem")]
+        enum CRTCoefficient {
+            Attribute(Vec<u8>),
+            CertificateRequest(String),
+        }
 
-    let v = to_bytes(&a).unwrap();
+        let a = CRTCoefficient::CertificateRequest(String::new());
 
-    print!("Dump of bytes {:?}", v.hex_dump());
+        let v = to_bytes(&a).unwrap();
 
-    to_print(v.as_slice());
-    assert_eq!(v.len(), 48);
-}
+        print!("Dump of bytes {:?}", v.hex_dump());
 
-#[test]
-fn test_struct2() {
-    #[derive(Serialize, Debug)]
-    #[serde(tag = "Operation", content = "BatchItem")]
-    enum CRTCoefficient {
-        Attribute(Vec<u8>),
-        CertificateRequest(String),
+        to_print(v.as_slice());
+
+        let good = vec![
+            66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105,
+            99, 97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0,
+            0, 0, 0,
+        ];
+
+        assert_eq!(v.len(), 48);
+
+        assert_eq!(v, good);
     }
 
-    let a = CRTCoefficient::CertificateRequest(String::new());
+    #[test]
+    fn test_struct3() {
+        #[derive(Serialize, Debug)]
+        struct CRTCoefficient {
+            BatchCount: Vec<i32>,
+        }
 
-    let v = to_bytes(&a).unwrap();
+        let a = CRTCoefficient {
+            BatchCount: vec![0x66, 0x77, 0x88],
+        };
 
-    print!("Dump of bytes {:?}", v.hex_dump());
+        let v = to_bytes(&a).unwrap();
 
-    to_print(v.as_slice());
+        print!("Dump of bytes {:?}", v.hex_dump());
 
-    let good = vec![
-        66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105, 99,
-        97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0, 0, 0, 0,
-    ];
+        to_print(v.as_slice());
 
-    assert_eq!(v.len(), 48);
+        let good = vec![
+            66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0,
+            13, 2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0,
+            0, 0, 0,
+        ];
 
-    assert_eq!(v, good);
-}
+        assert_eq!(v.len(), 56);
 
-#[test]
-fn test_struct3() {
-    #[derive(Serialize, Debug)]
-    struct CRTCoefficient {
-        BatchCount: Vec<i32>,
+        assert_eq!(v, good);
     }
 
-    let a = CRTCoefficient {
-        BatchCount: vec![0x66, 0x77, 0x88],
-    };
+    #[test]
+    fn test_Datetime() {
+        #[derive(Serialize, Debug)]
+        struct CRTCoefficient {
+            #[serde(with = "my_date_format")]
+            BatchCount: chrono::DateTime<Utc>,
+        }
 
-    let v = to_bytes(&a).unwrap();
+        let a = CRTCoefficient {
+            BatchCount: chrono::Utc.timestamp(1563373983625, 0),
+        };
 
-    print!("Dump of bytes {:?}", v.hex_dump());
+        let v = to_bytes(&a).unwrap();
 
-    to_print(v.as_slice());
+        print!("Dump of bytes {:?}", v.hex_dump());
 
-    let good = vec![
-        66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0, 13,
-        2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0, 0, 0,
-        0,
-    ];
+        to_print(v.as_slice());
 
-    assert_eq!(v.len(), 56);
+        let good = vec![
+            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40,
+        ];
 
-    assert_eq!(v, good);
-}
+        assert_eq!(v.len(), 24);
 
-#[test]
-fn test_Datetime() {
-    #[derive(Serialize, Debug)]
-    struct CRTCoefficient {
-        #[serde(with = "my_date_format")]
-        BatchCount: chrono::DateTime<Utc>,
+        assert_eq!(v, good);
     }
-
-    let a = CRTCoefficient {
-        BatchCount: chrono::Utc.timestamp(1563373983625, 0),
-    };
-
-    let v = to_bytes(&a).unwrap();
-
-    print!("Dump of bytes {:?}", v.hex_dump());
-
-    to_print(v.as_slice());
-
-    let good = vec![
-        66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40
-    ];
-
-    assert_eq!(v.len(), 24);
-
-    assert_eq!(v, good);
-}
 
 }

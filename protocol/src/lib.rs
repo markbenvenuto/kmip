@@ -15,17 +15,16 @@ use serde_enum::{Deserialize_enum, Serialize_enum};
 
 use chrono::DateTime;
 use chrono::Utc;
-use std::io::{Read, Write, stdout, Cursor};
 use std::fmt;
-
+use std::io::{stdout, Cursor, Read, Write};
 
 #[macro_use]
 extern crate log;
 
 use strum::AsStaticRef;
 
+use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
 
 use ttlv::TTLVError;
 
@@ -109,7 +108,9 @@ pub enum NameTypeEnum {
     URI = 0x00000002,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, ToPrimitive, AsStaticStr, Clone)]
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, FromPrimitive, ToPrimitive, AsStaticStr, Clone,
+)]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
     DES = 0x00000001,
@@ -312,7 +313,11 @@ pub struct NameStruct {
 // }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename = "Attribute", tag = "AttributeName", content = "AttributeValue")]
+#[serde(
+    rename = "Attribute",
+    tag = "AttributeName",
+    content = "AttributeValue"
+)]
 pub enum AttributesEnum {
     #[serde(rename = "Cryptographic Algorithm")]
     // TODO - use CryptographicAlgorithm as the type but serde calls deserialize_identifier
@@ -340,7 +345,7 @@ pub struct TemplateAttribute {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields, rename="RequestPayload")]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct CreateRequest {
     #[serde(rename = "ObjectType")]
     pub object_type: ObjectTypeEnum,
@@ -359,7 +364,7 @@ pub struct CreateResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields, rename="RequestPayload")]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct GetRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -389,9 +394,8 @@ pub struct GetResponse {
     pub symmetric_key: Option<SymmetricKey>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields, rename="RequestPayload")]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct ActivateRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -404,7 +408,6 @@ pub struct ActivateResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
@@ -569,7 +572,7 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Activate(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
-                                ResponseOperationEnum::Empty => unimplemented!(),
+                ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
 
@@ -582,7 +585,13 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
     where
         D: Deserializer<'de>,
     {
-        enum Field { Operation, ResultStatus, ResultReason, ResultMessage, ResponsePayload };
+        enum Field {
+            Operation,
+            ResultStatus,
+            ResultReason,
+            ResultMessage,
+            ResponsePayload,
+        };
 
         impl<'de> Deserialize<'de> for Field {
             fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
@@ -632,11 +641,11 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
             where
                 V: MapAccess<'de>,
             {
-                let mut operation : Option<Operation> = None;
-                let mut result_status : Option<ResultStatus> = None;
-                let mut result_reason : Option<ResultReason> = None;
-                let mut result_message  : Option<String> = None;
-                let mut response_payload : Option<ResponseOperationEnum> = None;
+                let mut operation: Option<Operation> = None;
+                let mut result_status: Option<ResultStatus> = None;
+                let mut result_reason: Option<ResultReason> = None;
+                let mut result_message: Option<String> = None;
+                let mut response_payload: Option<ResponseOperationEnum> = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -669,19 +678,21 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                                 return Err(de::Error::duplicate_field("response_payload"));
                             }
 
-                            let op = operation.as_ref().expect("Operation must come before ResponsePayload");
+                            let op = operation
+                                .as_ref()
+                                .expect("Operation must come before ResponsePayload");
 
                             response_payload = match op {
                                 Operation::Create => {
-                                    let c : CreateResponse = map.next_value()?;
+                                    let c: CreateResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Create(c))
                                 }
                                 Operation::Get => {
-                                    let c : GetResponse = map.next_value()?;
+                                    let c: GetResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Get(c))
                                 }
                                 Operation::Activate => {
-                                    let c : ActivateResponse = map.next_value()?;
+                                    let c: ActivateResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Activate(c))
                                 }
                                 _ => {
@@ -693,24 +704,30 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                 }
 
                 let _operation = operation.ok_or_else(|| de::Error::missing_field("Operation"))?;
-                let result_status = result_status.ok_or_else(|| de::Error::missing_field("ResultStatus"))?;
+                let result_status =
+                    result_status.ok_or_else(|| de::Error::missing_field("ResultStatus"))?;
 
                 // TODO check for reason and message per KMIP rules
 
-                Ok(ResponseBatchItem{
-                    result_status : result_status,
-                    result_reason : result_reason,
-                    result_message : result_message,
-                    response_payload : response_payload,
-                     })
+                Ok(ResponseBatchItem {
+                    result_status: result_status,
+                    result_reason: result_reason,
+                    result_message: result_message,
+                    response_payload: response_payload,
+                })
             }
         }
 
-        const FIELDS: &'static [&'static str] = &["Operation", "ResultStatus", "ResultReason", "ResultMessage", "ResponsePayload"];
+        const FIELDS: &'static [&'static str] = &[
+            "Operation",
+            "ResultStatus",
+            "ResultReason",
+            "ResultMessage",
+            "ResponsePayload",
+        ];
         deserializer.deserialize_struct("ResponseBatchItem", FIELDS, ResponseBatchItemVisitor)
     }
 }
-
 
 pub struct KmipEnumResolver;
 
@@ -737,21 +754,25 @@ impl ttlv::EnumResolver for KmipEnumResolver {
     }
 }
 
-
 pub fn read_msg(reader: &mut dyn Read) -> Result<Vec<u8>, TTLVError> {
-    let mut msg : Vec<u8> = Vec::new();
+    let mut msg: Vec<u8> = Vec::new();
     msg.resize(8, 0);
 
-    let ret = reader.read_exact(msg.as_mut()).map_err(|error| TTLVError::BadRead{count: 8, error})?;
+    let ret = reader
+        .read_exact(msg.as_mut())
+        .map_err(|error| TTLVError::BadRead { count: 8, error })?;
 
     // Check length
-    let len : usize;
+    let len: usize;
     {
         let mut cur = Cursor::new(msg);
         ttlv::read_tag(&mut cur);
         let t = ttlv::read_type(&mut cur)?;
         if t != ttlv::ItemType::Structure {
-            return Err(TTLVError::UnexpectedType{expected: ttlv::ItemType::Structure, actual: t} );
+            return Err(TTLVError::UnexpectedType {
+                expected: ttlv::ItemType::Structure,
+                actual: t,
+            });
         }
 
         len = ttlv::read_len(&mut cur)? as usize;
@@ -759,10 +780,12 @@ pub fn read_msg(reader: &mut dyn Read) -> Result<Vec<u8>, TTLVError> {
         msg = cur.into_inner();
     }
 
-    msg.resize(msg.len() + len , 0);
+    msg.resize(msg.len() + len, 0);
 
-    let mut slice : &mut [u8] = msg.as_mut();
-    let ret2 = reader.read_exact(&mut slice[8..]).map_err(|error| TTLVError::BadRead{count: len, error})?;
+    let mut slice: &mut [u8] = msg.as_mut();
+    let ret2 = reader
+        .read_exact(&mut slice[8..])
+        .map_err(|error| TTLVError::BadRead { count: len, error })?;
 
     return Ok(msg);
 }

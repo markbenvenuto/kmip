@@ -1,8 +1,8 @@
 use std;
 use std::fmt::{self, Display};
 
-use serde::{de, ser};
 use crate::failures::TTLVError;
+use serde::{de, ser};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -24,21 +24,20 @@ pub enum Error {
     // Deserializer without going through `ser::Error` and `de::Error`. These
     // are specific to the format, in this case JSON.
     Eof,
-    UnsupportedType
-    // Syntax,
-    // ExpectedBoolean,
-    // ExpectedInteger,
-    // ExpectedString,
-    // ExpectedNull,
-    // ExpectedArray,
-    // ExpectedArrayComma,
-    // ExpectedArrayEnd,
-    // ExpectedMap,
-    // ExpectedMapColon,
-    // ExpectedMapComma,
-    // ExpectedMapEnd,
-    // ExpectedEnum,
-    // TrailingCharacters,
+    UnsupportedType, // Syntax,
+                     // ExpectedBoolean,
+                     // ExpectedInteger,
+                     // ExpectedString,
+                     // ExpectedNull,
+                     // ExpectedArray,
+                     // ExpectedArrayComma,
+                     // ExpectedArrayEnd,
+                     // ExpectedMap,
+                     // ExpectedMapColon,
+                     // ExpectedMapComma,
+                     // ExpectedMapEnd,
+                     // ExpectedEnum,
+                     // TrailingCharacters
 }
 
 impl ser::Error for Error {

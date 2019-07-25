@@ -3,10 +3,7 @@ use std::io::Read;
 
 use std::string::ToString;
 
-use serde::de::{
-    self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess,
-    Visitor,
-};
+use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::Deserialize;
 
 use crate::error::{Error, Result};
@@ -27,7 +24,6 @@ use crate::failures::*;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
-
 fn compute_padding(len: usize) -> usize {
     if len % 8 == 0 {
         return len;
@@ -39,9 +35,13 @@ fn compute_padding(len: usize) -> usize {
 
 pub fn read_tag(reader: &mut dyn Read) -> TTLVResult<u32> {
     //println!("Read Tag");
-    let v = reader.read_u8().map_err(|error| TTLVError::BadRead{count: 1, error})?;
+    let v = reader
+        .read_u8()
+        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
     assert_eq!(v, 0x42);
-    let tag = reader.read_u16::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 2, error})?;
+    let tag = reader
+        .read_u16::<BigEndian>()
+        .map_err(|error| TTLVError::BadRead { count: 2, error })?;
 
     return Ok(0x420000 + tag as u32);
 }
@@ -53,32 +53,40 @@ fn read_tag_enum(reader: &mut dyn Read) -> TTLVResult<Tag> {
         return Ok(t);
     }
 
-    Err(TTLVError::InvalidTag{tag: tag_u32})
+    Err(TTLVError::InvalidTag { tag: tag_u32 })
 }
 
 pub fn read_len(reader: &mut dyn Read) -> TTLVResult<u32> {
-    reader.read_u32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 4, error})
+    reader
+        .read_u32::<BigEndian>()
+        .map_err(|error| TTLVError::BadRead { count: 4, error })
 }
 
 pub fn read_type(reader: &mut dyn Read) -> TTLVResult<ItemType> {
-    let i = reader.read_u8().map_err(|error| TTLVError::BadRead{count: 1, error})?;
+    let i = reader
+        .read_u8()
+        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
 
     if let Some(t) = num::FromPrimitive::from_u8(i) {
         //println!("Read Type {:?}", t);
         return Ok(t);
     }
 
-    Err(TTLVError::InvalidType{byte: i})
+    Err(TTLVError::InvalidType { byte: i })
 }
 
 fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
     assert_eq!(len, 4);
-    let v = reader.read_i32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 4, error})?;
+    let v = reader
+        .read_i32::<BigEndian>()
+        .map_err(|error| TTLVError::BadRead { count: 4, error })?;
 
     // swallow the padding
     // TODO - speed up
-    reader.read_i32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 4, error})?;
+    reader
+        .read_i32::<BigEndian>()
+        .map_err(|error| TTLVError::BadRead { count: 4, error })?;
 
     //println!("Read i32: {:?}", v);
     return Ok(v);
@@ -87,11 +95,15 @@ fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
 fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
     assert_eq!(len, 4);
-    let v = reader.read_i32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 1, error})?;
+    let v = reader
+        .read_i32::<BigEndian>()
+        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
 
     // swallow the padding
     // TODO - speed up
-    reader.read_i32::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 1, error})?;
+    reader
+        .read_i32::<BigEndian>()
+        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
 
     //println!("Read i32: {:?}", v);
     return Ok(v);
@@ -101,21 +113,23 @@ fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
     let len = read_len(reader)?;
     assert_eq!(len, 8);
 
-    let v = reader.read_i64::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 1, error})?;
+    let v = reader
+        .read_i64::<BigEndian>()
+        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
     //println!("Read i64: {:?}", v);
     return Ok(v);
 }
-
 
 fn read_datetime_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
     let len = read_len(reader)?;
     assert_eq!(len, 8);
 
-    let v = reader.read_i64::<BigEndian>().map_err(|error| TTLVError::BadRead{count: 1, error})?;
+    let v = reader
+        .read_i64::<BigEndian>()
+        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
     //println!("Read DateTime: {:?}", v);
     return Ok(v);
 }
-
 
 fn read_string(reader: &mut dyn Read) -> TTLVResult<String> {
     let len = read_len(reader)?;
@@ -128,7 +142,12 @@ fn read_string(reader: &mut dyn Read) -> TTLVResult<String> {
     let mut v: Vec<u8> = Vec::new();
     v.resize(padding as usize, 0);
 
-    reader.read(v.as_mut_slice()).map_err(|error| TTLVError::BadRead{count: v.len(), error})?;
+    reader
+        .read(v.as_mut_slice())
+        .map_err(|error| TTLVError::BadRead {
+            count: v.len(),
+            error,
+        })?;
 
     v.resize(len as usize, 0);
 
@@ -150,7 +169,12 @@ fn read_bytes(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
     let mut v: Vec<u8> = Vec::new();
     v.resize(padding as usize, 0);
 
-    reader.read(v.as_mut_slice()).map_err(|error| TTLVError::BadRead{count: v.len(), error})?;
+    reader
+        .read(v.as_mut_slice())
+        .map_err(|error| TTLVError::BadRead {
+            count: v.len(),
+            error,
+        })?;
 
     v.resize(len as usize, 0);
 
@@ -163,7 +187,12 @@ pub fn read_struct(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
     let mut v: Vec<u8> = Vec::new();
     v.resize(len as usize, 0);
 
-    reader.read(v.as_mut_slice()).map_err(|error| TTLVError::BadRead{count: v.len(), error})?;
+    reader
+        .read(v.as_mut_slice())
+        .map_err(|error| TTLVError::BadRead {
+            count: v.len(),
+            error,
+        })?;
 
     return Ok(v);
 }
@@ -175,7 +204,7 @@ struct IndentPrinter {
 
 impl IndentPrinter {
     fn new() -> IndentPrinter {
-        return IndentPrinter { indent : 0 }
+        return IndentPrinter { indent: 0 };
     }
 
     fn indent(&mut self) {
@@ -186,7 +215,7 @@ impl IndentPrinter {
         self.indent -= 1;
     }
 
-    fn print(&self, msg : String ) {
+    fn print(&self, msg: String) {
         // for _ in 0..self.indent {
         //     std::io::stdout().write(" ".as_bytes());
         // }
@@ -204,7 +233,7 @@ pub fn to_print(buf: &[u8]) {
     }
 }
 
-fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()>{
+fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
     let mut cur = Cursor::new(buf);
 
     while cur.position() < buf.len() as u64 {
@@ -215,24 +244,39 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()>{
         match item_type {
             ItemType::Integer => {
                 let v = read_i32(&mut cur)?;
-                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
+                printer.print(format!(
+                    "Tag {:?} - Type {:?} - Value {:?}",
+                    tag, item_type, v
+                ));
             }
             ItemType::LongInteger => {
                 let v = read_i64(&mut cur)?;
-                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
+                printer.print(format!(
+                    "Tag {:?} - Type {:?} - Value {:?}",
+                    tag, item_type, v
+                ));
             }
             ItemType::DateTime => {
                 // TODO:
                 let v = read_i64(&mut cur)?;
-                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
+                printer.print(format!(
+                    "Tag {:?} - Type {:?} - Value {:?}",
+                    tag, item_type, v
+                ));
             }
             ItemType::Enumeration => {
                 let v = read_i32(&mut cur)?;
-                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
+                printer.print(format!(
+                    "Tag {:?} - Type {:?} - Value {:?}",
+                    tag, item_type, v
+                ));
             }
             ItemType::TextString => {
                 let v = read_string(&mut cur)?;
-                printer.print(format!("Tag {:?} - Type {:?} - Value {:?}", tag, item_type, v));
+                printer.print(format!(
+                    "Tag {:?} - Type {:?} - Value {:?}",
+                    tag, item_type, v
+                ));
             }
             ItemType::ByteString => {
                 let v = read_bytes(&mut cur)?;
@@ -246,7 +290,10 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()>{
 
             ItemType::Structure => {
                 let v = read_struct(&mut cur)?;
-                printer.print(format!("Tag {:?} - Type {:?} - Structure {{", tag, item_type));
+                printer.print(format!(
+                    "Tag {:?} - Type {:?} - Structure {{",
+                    tag, item_type
+                ));
                 printer.indent();
                 to_print_int(printer, v.as_slice());
                 printer.unindent();
@@ -283,7 +330,7 @@ struct NestedReader<'a> {
     end_positions: Vec<u64>,
     cur: Cursor<&'a [u8]>,
     state: ReaderState,
-    tag : Option<Tag>,
+    tag: Option<Tag>,
 }
 
 impl<'a> NestedReader<'a> {
@@ -354,8 +401,8 @@ impl<'a> NestedReader<'a> {
 
     fn read_type(&mut self) -> TTLVResult<ItemType> {
         assert_eq!(self.state, ReaderState::Type);
-                self.state = ReaderState::LengthValue;
-       read_type(&mut self.cur)
+        self.state = ReaderState::LengthValue;
+        read_type(&mut self.cur)
     }
 
     fn is_tag(&self) -> bool {
@@ -453,7 +500,7 @@ pub struct Deserializer<'de> {
     // the beginning as data is parsed.
     //pub input: &'de [u8],
     input: NestedReader<'de>,
-    enum_resolver : &'de dyn EnumResolver,
+    enum_resolver: &'de dyn EnumResolver,
 }
 
 impl<'de> Deserializer<'de> {
@@ -465,7 +512,7 @@ impl<'de> Deserializer<'de> {
         //Deserializer { input }
         Deserializer {
             input: NestedReader::new(input),
-            enum_resolver : enum_resolver,
+            enum_resolver: enum_resolver,
         }
     }
 }
@@ -587,15 +634,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let t = self.input.read_type()?;
 
         match t {
-            ItemType::Enumeration => {
-                visitor.visit_i32(self.input.read_enumeration()?)
+            ItemType::Enumeration => visitor.visit_i32(self.input.read_enumeration()?),
+            ItemType::Integer => visitor.visit_i32(self.input.read_i32()?),
+            _ => {
+                unreachable! {}
             }
-            ItemType::Integer => {
-                visitor.visit_i32(self.input.read_i32()?)
-            }
-            _ => { unreachable!{} }
         }
-
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
@@ -605,13 +649,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let t = self.input.read_type()?;
 
         match t {
-            ItemType::DateTime => {
-                        visitor.visit_i64(self.input.read_datetime_i64()?)
+            ItemType::DateTime => visitor.visit_i64(self.input.read_datetime_i64()?),
+            ItemType::LongInteger => visitor.visit_i64(self.input.read_i64()?),
+            _ => {
+                unreachable! {}
             }
-            ItemType::LongInteger => {
-                visitor.visit_i64(self.input.read_i64()?)
-            }
-            _ => { unreachable!{} }
         }
     }
 
@@ -850,7 +892,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-         if self.input.is_tag() {
+        if self.input.is_tag() {
             let tag = self.input.read_tag()?;
 
             //return visitor.visit_i32(num::ToPrimitive::to_i32(&tag).unwrap());
@@ -862,16 +904,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         match t {
             ItemType::Enumeration => {
                 let e = self.input.read_enumeration()?;
-                visitor.visit_string ( self.enum_resolver.resolve_enum(self.input.get_tag().as_ref(), e)? )
+                visitor.visit_string(
+                    self.enum_resolver
+                        .resolve_enum(self.input.get_tag().as_ref(), e)?,
+                )
             }
-            ItemType::TextString => {
-                visitor.visit_string ( self.input.read_string()?)
-
-            }
+            ItemType::TextString => visitor.visit_string(self.input.read_string()?),
             _ => {
                 error!("Unknown Identifier Type: {:?}", t);
-                unreachable!{}
-                }
+                unreachable! {}
+            }
         }
 
         //self.deserialize_string(visitor)
@@ -979,14 +1021,13 @@ impl<'de, 'a> SeqAccess<'de> for SeqParser<'a, 'de> {
     }
 }
 
-
 struct EnumParser<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
 }
 
 impl<'a, 'de> EnumParser<'a, 'de> {
     fn new(de: &'a mut Deserializer<'de>) -> Self {
-        EnumParser { de}
+        EnumParser { de }
     }
 }
 
@@ -1010,7 +1051,6 @@ impl<'de, 'a> EnumAccess<'de> for EnumParser<'a, 'de> {
         Ok((val, self))
     }
 }
-
 
 // `VariantAccess` is provided to the `Visitor` to give it the ability to see
 // the content of the single variant that it decided to deserialize.
@@ -1045,11 +1085,7 @@ impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
 
     // Struct variants are represented in JSON as `{ NAME: { K: V, ... } }` so
     // deserialize the inner map here.
-    fn struct_variant<V>(
-        self,
-        _fields: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value>
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -1057,154 +1093,150 @@ impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
-use crate::kmip_enums::*;
+    use crate::kmip_enums::*;
 
-use serde::de::{
-    self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess,
-    Visitor,
-};
-use serde::Deserialize;
-use serde::Serialize;
+    use serde::de::{
+        self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor,
+    };
+    use serde::Deserialize;
+    use serde::Serialize;
 
-use chrono::Utc;
-use chrono::DateTime;
-use crate::chrono::TimeZone;
+    use crate::chrono::TimeZone;
+    use chrono::DateTime;
+    use chrono::Utc;
 
-//use pretty_hex::hex_dump;
-use pretty_hex::PrettyHex;
-use crate::de::to_print;
+    //use pretty_hex::hex_dump;
+    use crate::de::to_print;
+    use pretty_hex::PrettyHex;
 
-use crate::EnumResolver;
-use crate::de::from_bytes;
-use crate::my_date_format;
-use crate::TTLVError;
+    use crate::de::from_bytes;
+    use crate::my_date_format;
+    use crate::EnumResolver;
+    use crate::TTLVError;
 
-struct TestEnumResolver;
+    struct TestEnumResolver;
 
-impl EnumResolver for TestEnumResolver {
-    fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
-        unimplemented!{}
-    }
-}
-
-
-
-
-#[test]
-fn test_de_struct() {
-    #[derive(Deserialize, Debug)]
-    struct RequestHeader {
-        ProtocolVersionMajor: i32,
-        ProtocolVersionMinor: i32,
-
-        // #[serde(skip_serializing_if = "Option::is_none")]
-        // BatchOrderOption : Option<i32>,
-        // Option::None - serializes as serialize_none()
-        // TODO: Other fields are optional
-        BatchCount: i32,
+    impl EnumResolver for TestEnumResolver {
+        fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
+            unimplemented! {}
+        }
     }
 
-    let good = vec![
-        0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00,
-        0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00,
-        0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00,
-        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
-    ];
+    #[test]
+    fn test_de_struct() {
+        #[derive(Deserialize, Debug)]
+        struct RequestHeader {
+            ProtocolVersionMajor: i32,
+            ProtocolVersionMinor: i32,
 
-    //    to_print(good.as_ref());
+            // #[serde(skip_serializing_if = "Option::is_none")]
+            // BatchOrderOption : Option<i32>,
+            // Option::None - serializes as serialize_none()
+            // TODO: Other fields are optional
+            BatchCount: i32,
+        }
 
-    let r  : TestEnumResolver=  TestEnumResolver{};
-    let a = from_bytes::<RequestHeader>(&good, &r).unwrap();
+        let good = vec![
+            0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,
+            0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02,
+            0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00,
+            0x0d, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+        ];
 
-    assert_eq!(a.ProtocolVersionMajor, 1);
-    assert_eq!(a.ProtocolVersionMinor, 2);
-    assert_eq!(a.BatchCount, 3);
-}
+        //    to_print(good.as_ref());
 
-#[test]
-fn test_struct2() {
-    #[derive(Deserialize, Debug)]
-    #[serde(tag = "Operation", content = "BatchItem")]
-    enum CRTCoefficient {
-        Attribute(Vec<u8>),
-        CertificateRequest(String),
+        let r: TestEnumResolver = TestEnumResolver {};
+        let a = from_bytes::<RequestHeader>(&good, &r).unwrap();
+
+        assert_eq!(a.ProtocolVersionMajor, 1);
+        assert_eq!(a.ProtocolVersionMinor, 2);
+        assert_eq!(a.BatchCount, 3);
     }
 
-    let good = vec![
-        66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105, 99,
-        97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0, 0, 0, 0,
-    ];
-    to_print(good.as_ref());
+    #[test]
+    fn test_struct2() {
+        #[derive(Deserialize, Debug)]
+        #[serde(tag = "Operation", content = "BatchItem")]
+        enum CRTCoefficient {
+            Attribute(Vec<u8>),
+            CertificateRequest(String),
+        }
 
-    let r  : TestEnumResolver=  TestEnumResolver{};
-    let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
-}
+        let good = vec![
+            66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105,
+            99, 97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0,
+            0, 0, 0,
+        ];
+        to_print(good.as_ref());
 
-#[test]
-fn test_struct3() {
-    #[derive(Deserialize, Debug)]
-    struct CRTCoefficient {
-        BatchCount: Vec<i32>,
+        let r: TestEnumResolver = TestEnumResolver {};
+        let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
     }
 
-    let good = vec![
-        66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0, 13,
-        2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0, 0, 0,
-        0,
-    ];
+    #[test]
+    fn test_struct3() {
+        #[derive(Deserialize, Debug)]
+        struct CRTCoefficient {
+            BatchCount: Vec<i32>,
+        }
 
-    to_print(good.as_ref());
+        let good = vec![
+            66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0,
+            13, 2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0,
+            0, 0, 0,
+        ];
 
-    let r  : TestEnumResolver=  TestEnumResolver{};
-    let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
-}
+        to_print(good.as_ref());
 
-#[test]
-fn test_Datetime() {
-    #[derive(Deserialize, Debug)]
-    struct CRTCoefficient {
-        #[serde(with = "my_date_format")]
-        BatchCount: chrono::DateTime<Utc>,
+        let r: TestEnumResolver = TestEnumResolver {};
+        let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
     }
 
-    let good = vec![
-66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40
-    ];
+    #[test]
+    fn test_Datetime() {
+        #[derive(Deserialize, Debug)]
+        struct CRTCoefficient {
+            #[serde(with = "my_date_format")]
+            BatchCount: chrono::DateTime<Utc>,
+        }
 
-    to_print(good.as_slice());
+        let good = vec![
+            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40,
+        ];
 
-    let r  : TestEnumResolver=  TestEnumResolver{};
-    let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
-}
+        to_print(good.as_slice());
 
-
-#[test]
-fn test_struct_nested() {
-    #[derive(Deserialize, Debug)]
-    struct RequestHeader {
-        ProtocolVersionMajor: i32,
-        BatchCount: i32,
+        let r: TestEnumResolver = TestEnumResolver {};
+        let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
     }
 
-    #[derive(Deserialize, Debug)]
-    struct RequestMessage {
-        RequestHeader: RequestHeader,
-        UniqueIdentifier: String,
+    #[test]
+    fn test_struct_nested() {
+        #[derive(Deserialize, Debug)]
+        struct RequestHeader {
+            ProtocolVersionMajor: i32,
+            BatchCount: i32,
+        }
+
+        #[derive(Deserialize, Debug)]
+        struct RequestMessage {
+            RequestHeader: RequestHeader,
+            UniqueIdentifier: String,
+        }
+
+        let good = vec![
+            66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0,
+            0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7,
+            0, 0, 0, 0,
+        ];
+
+        to_print(good.as_slice());
+
+        let r: TestEnumResolver = TestEnumResolver {};
+        let a = from_bytes::<RequestMessage>(&good, &r).unwrap();
     }
-
-    let good = vec![
-        66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0, 0, 0,
-        3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7, 0, 0, 0, 0,
-    ];
-
-    to_print(good.as_slice());
-
-    let r  : TestEnumResolver=  TestEnumResolver{};
-    let a = from_bytes::<RequestMessage>(&good, &r).unwrap();
-}
 
 }

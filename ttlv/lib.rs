@@ -1,9 +1,9 @@
 mod de;
 mod error;
-mod ser;
-mod kmip_enums;
 mod failures;
+mod kmip_enums;
 pub mod my_date_format;
+mod ser;
 
 extern crate strum;
 #[macro_use]
@@ -15,7 +15,6 @@ extern crate num_derive;
 #[macro_use]
 extern crate failure_derive;
 extern crate failure;
-
 
 #[macro_use]
 extern crate log;
@@ -31,10 +30,9 @@ pub use failures::TTLVError;
 
 pub use de::EnumResolver;
 
-
+pub use de::read_len;
 pub use de::read_tag;
 pub use de::read_type;
-pub use de::read_len;
 
 pub use kmip_enums::ItemType;
 pub use kmip_enums::Tag;

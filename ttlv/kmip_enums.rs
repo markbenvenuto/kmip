@@ -19,7 +19,6 @@ pub enum ItemType {
     Interval = 0x0A,
 }
 
-
 #[derive(FromPrimitive, ToPrimitive, EnumString, AsRefStr, Debug, Copy, Clone, PartialEq)]
 pub enum Tag {
     ActivationDate = 0x420001,
@@ -315,4 +314,3 @@ pub enum Tag {
     NeverExtractable = 0x420123,
     ReplaceExisting = 0x420124,
 }
-

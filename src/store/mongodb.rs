@@ -76,7 +76,6 @@ impl KmipStore for KmipMongoDBStore {
     fn update(&self, id: &String, doc: bson::Document) {
         let collection = self.make_connection();
 
-
         let filter = doc! {
             "_id" : id
         };

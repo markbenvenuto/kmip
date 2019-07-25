@@ -52,19 +52,18 @@ use rustls::{
     RootCertStore, Session,
 };
 
-use mio;
-use mio::tcp::{Shutdown, TcpListener, TcpStream};
-
 use std::io;
 use std::io::Cursor;
 use vecio::Rawv;
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
 use std::io::{BufReader, Read, Write};
 use std::net;
+use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
 use std::string::ToString;
+use std::thread;
 
 #[macro_use(bson, doc)]
 extern crate bson;
@@ -121,11 +120,11 @@ struct CmdLine {
     ca_cert_file: PathBuf,
 
     /// Port to listen on
-    #[structopt(name = "port", long = "port", default_value="7000")]
+    #[structopt(name = "port", long = "port", default_value = "7000")]
     port: u16,
 
     /// Store to use
-    #[structopt(name = "store", long = "store", default_value="Memory")]
+    #[structopt(name = "store", long = "store", default_value = "Memory")]
     store: StoreType,
 }
 
@@ -145,300 +144,20 @@ impl ::std::default::Default for MyConfig {
     }
 }
 
-/// This glues our `rustls::WriteV` trait to `vecio::Rawv`.
-pub struct WriteVAdapter<'a> {
-    rawv: &'a mut dyn Rawv,
-}
+/// Process some amount of received plaintext.
+fn handle_client<T>(stream: &mut T, server_context: &ServerContext)
+where
+    T: Read + Write,
+{
+    let buf = read_msg(stream).unwrap();
 
-impl<'a> WriteVAdapter<'a> {
-    pub fn new(rawv: &'a mut dyn Rawv) -> WriteVAdapter<'a> {
-        WriteVAdapter { rawv }
-    }
-}
+    let mut rc = RequestContext::new(server_context);
 
-impl<'a> rustls::WriteV for WriteVAdapter<'a> {
-    fn writev(&mut self, bytes: &[&[u8]]) -> io::Result<usize> {
-        self.rawv.writev(bytes)
-    }
-}
+    //rc.set_peer_addr(self.socket.peer_addr().unwrap());
 
-// Token for our listening socket.
-const LISTENER: mio::Token = mio::Token(0);
+    let response = process_kmip_request(&mut rc, buf.as_slice());
 
-/// This binds together a TCP listening socket, some outstanding
-/// connections, and a TLS server configuration.
-struct TlsServer {
-    server: TcpListener,
-    connections: HashMap<mio::Token, Connection>,
-    next_id: usize,
-    tls_config: Arc<rustls::ServerConfig>,
-    server_context: ServerContext,
-}
-
-impl TlsServer {
-    fn new(
-        server: TcpListener,
-        server_context: ServerContext,
-        cfg: Arc<rustls::ServerConfig>,
-    ) -> TlsServer {
-        TlsServer {
-            server,
-            connections: HashMap::new(),
-            next_id: 2,
-            tls_config: cfg,
-            server_context: server_context,
-        }
-    }
-
-    fn accept(&mut self, poll: &mut mio::Poll) -> bool {
-        match self.server.accept() {
-            Ok((socket, addr)) => {
-                info!("Accepting new connection from {:?}", addr);
-
-                let tls_session = rustls::ServerSession::new(&self.tls_config);
-
-                let token = mio::Token(self.next_id);
-                self.next_id += 1;
-
-                self.connections.insert(
-                    token,
-                    Connection::new(socket, token, self.server_context.clone(), tls_session),
-                );
-                self.connections[&token].register(poll);
-                true
-            }
-            Err(e) => {
-                error!("encountered error while accepting connection; err={:?}", e);
-                false
-            }
-        }
-    }
-
-    fn conn_event(&mut self, poll: &mut mio::Poll, event: &mio::Event) {
-        let token = event.token();
-
-        if self.connections.contains_key(&token) {
-            self.connections.get_mut(&token).unwrap().ready(poll, event);
-
-            if self.connections[&token].is_closed() {
-                self.connections.remove(&token);
-            }
-        }
-    }
-}
-
-/// This is a connection which has been accepted by the server,
-/// and is currently being served.
-///
-/// It has a TCP-level stream, a TLS-level session, and some
-/// other state/metadata.
-struct Connection {
-    socket: TcpStream,
-    token: mio::Token,
-    closing: bool,
-    closed: bool,
-    tls_session: rustls::ServerSession,
-    server_context: ServerContext,
-}
-
-/// This used to be conveniently exposed by mio: map EWOULDBLOCK
-/// errors to something less-errory.
-fn try_read(r: io::Result<usize>) -> io::Result<Option<usize>> {
-    match r {
-        Ok(len) => Ok(Some(len)),
-        Err(e) => {
-            if e.kind() == io::ErrorKind::WouldBlock {
-                Ok(None)
-            } else {
-                Err(e)
-            }
-        }
-    }
-}
-
-impl Connection {
-    fn new(
-        socket: TcpStream,
-        token: mio::Token,
-        server_context: ServerContext,
-        tls_session: rustls::ServerSession,
-    ) -> Connection {
-        Connection {
-            socket,
-            token,
-            closing: false,
-            closed: false,
-            tls_session,
-            server_context: server_context,
-        }
-    }
-
-    /// We're a connection, and we have something to do.
-    fn ready(&mut self, poll: &mut mio::Poll, ev: &mio::Event) {
-        // If we're readable: read some TLS.  Then
-        // see if that yielded new plaintext.  Then
-        // see if the backend is readable too.
-        if ev.readiness().is_readable() {
-            self.do_tls_read();
-            self.try_plain_read();
-        }
-
-        if ev.readiness().is_writable() {
-            self.do_tls_write_and_handle_error();
-        }
-
-        if self.closing && !self.tls_session.wants_write() {
-            let _ = self.socket.shutdown(Shutdown::Both);
-            self.closed = true;
-        } else {
-            self.reregister(poll);
-        }
-    }
-
-    fn do_tls_read(&mut self) {
-        // Read some TLS data.
-        let rc = self.tls_session.read_tls(&mut self.socket);
-        if rc.is_err() {
-            let err = rc.unwrap_err();
-
-            if let io::ErrorKind::WouldBlock = err.kind() {
-                return;
-            }
-
-            error!("read error {:?}", err);
-            self.closing = true;
-            return;
-        }
-
-        if rc.unwrap() == 0 {
-            debug!("eof");
-            self.closing = true;
-            return;
-        }
-
-        // Process newly-received TLS messages.
-        let processed = self.tls_session.process_new_packets();
-        if processed.is_err() {
-            error!("cannot process packet: {:?}", processed);
-            self.closing = true;
-            return;
-        }
-    }
-
-    fn try_plain_read(&mut self) {
-        // Read and process all available plaintext.
-        let mut buf = Vec::new();
-
-        let rc = self.tls_session.read_to_end(&mut buf);
-        if rc.is_err() {
-            error!("plaintext read failed: {:?}", rc);
-            self.closing = true;
-            return;
-        }
-
-        if !buf.is_empty() {
-            debug!("plaintext read {:?}", buf.len());
-            self.incoming_plaintext(&buf);
-        }
-    }
-
-    /// Process some amount of received plaintext.
-    fn incoming_plaintext(&mut self, buf: &[u8]) {
-        // TODO - handle buffering of message
-        if buf.len() < 8 {
-            error!("Invalid KMIP Request, less then 8 bytes");
-            return;
-        }
-
-        // Check length
-        let mut cur = Cursor::new(buf);
-        read_tag(&mut cur);
-        let t = read_type(&mut cur).unwrap_or(ttlv::ItemType::Interval);
-        if t != ttlv::ItemType::Structure {
-            error!("Expected struct, received {:?}", t);
-            return;
-        }
-
-        let len = read_len(&mut cur).unwrap_or(0) as usize;
-        if buf.len() < len {
-            error!(
-                "Unexpected leng, received {:?}, expected {:?}",
-                buf.len(),
-                len
-            );
-            return;
-        }
-
-        let mut rc = RequestContext::new(&self.server_context);
-
-        rc.set_peer_addr(self.socket.peer_addr().unwrap());
-
-        let response = process_kmip_request(&mut rc, buf);
-
-        self.tls_session.write_all(response.as_slice()).unwrap();
-
-        // TODO
-        //self.tls_session.send_close_notify();
-    }
-
-    #[cfg(target_os = "windows")]
-    fn tls_write(&mut self) -> io::Result<usize> {
-        self.tls_session.write_tls(&mut self.socket)
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    fn tls_write(&mut self) -> io::Result<usize> {
-        self.tls_session
-            .writev_tls(&mut WriteVAdapter::new(&mut self.socket))
-    }
-
-    fn do_tls_write_and_handle_error(&mut self) {
-        let rc = self.tls_write();
-        if rc.is_err() {
-            error!("write failed {:?}", rc);
-            self.closing = true;
-            return;
-        }
-    }
-
-    fn register(&self, poll: &mut mio::Poll) {
-        poll.register(
-            &self.socket,
-            self.token,
-            self.event_set(),
-            mio::PollOpt::level() | mio::PollOpt::oneshot(),
-        )
-        .unwrap();
-    }
-
-    fn reregister(&self, poll: &mut mio::Poll) {
-        poll.reregister(
-            &self.socket,
-            self.token,
-            self.event_set(),
-            mio::PollOpt::level() | mio::PollOpt::oneshot(),
-        )
-        .unwrap();
-    }
-
-    /// What IO events we're currently waiting for,
-    /// based on wants_read/wants_write.
-    fn event_set(&self) -> mio::Ready {
-        let rd = self.tls_session.wants_read();
-        let wr = self.tls_session.wants_write();
-
-        if rd && wr {
-            mio::Ready::readable() | mio::Ready::writable()
-        } else if wr {
-            mio::Ready::writable()
-        } else {
-            mio::Ready::readable()
-        }
-    }
-
-    fn is_closed(&self) -> bool {
-        self.closed
-    }
+    stream.write_all(response.as_slice()).unwrap();
 }
 
 fn load_certs(filename: &PathBuf) -> Vec<rustls::Certificate> {
@@ -478,11 +197,11 @@ struct ServerContextInner {
 #[derive(Clone)]
 struct ServerContext {
     inner: Arc<Mutex<ServerContextInner>>,
-    store: Arc<dyn KmipStore>,
+    store: Arc<dyn KmipStore + Send + Sync>,
 }
 
 impl ServerContext {
-    fn new(store: Arc<dyn KmipStore>) -> ServerContext {
+    fn new(store: Arc<dyn KmipStore + Send + Sync>) -> ServerContext {
         ServerContext {
             inner: Arc::new(Mutex::new(ServerContextInner { count: 0 })),
             store: store,
@@ -617,8 +336,7 @@ impl Error for KmipResponseError {
 //     return None;
 // }
 
-fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAttribute>)
-{
+fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAttribute>) {
     for ta in tas {
         for attr in &ta.attribute {
             match attr {
@@ -644,23 +362,21 @@ fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAtt
     }
 }
 
-
 fn process_create_request(
     rc: &RequestContext,
     req: &CreateRequest,
 ) -> std::result::Result<CreateResponse, KmipResponseError> {
-
     let mut ma = ManagedAttributes {
-        state : ObjectStateEnum::PreActive,
-        initial_date : Utc::now(),
+        state: ObjectStateEnum::PreActive,
+        initial_date: Utc::now(),
 
         activation_date: None,
 
-        cryptographic_algorithm : None,
+        cryptographic_algorithm: None,
 
-        cryptographic_length : None,
+        cryptographic_length: None,
 
-        cryptographic_usage_mask : None,
+        cryptographic_usage_mask: None,
     };
 
     match req.object_type {
@@ -670,7 +386,7 @@ fn process_create_request(
 
             let crypt_len = ma.cryptographic_length.unwrap();
             let algo = num::FromPrimitive::from_i32(ma.cryptographic_algorithm.unwrap()).unwrap();
-//                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
+            //                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
 
             // TODO - process activation date if set
 
@@ -689,7 +405,7 @@ fn process_create_request(
                         cryptographic_length: crypt_len,
                     },
                 }),
-                attributes: ma
+                attributes: ma,
             };
 
             let d = bson::to_bson(&mo).unwrap();
@@ -758,15 +474,15 @@ fn process_activate_request(
     if mo.attributes.state == ObjectStateEnum::PreActive {
         mo.attributes.state = ObjectStateEnum::Active;
 
-            let d = bson::to_bson(&mo).unwrap();
+        let d = bson::to_bson(&mo).unwrap();
 
-            if let bson::Bson::Document(d1) = d {
-         rc
-        .get_server_context()
-        .get_store().update(&req.unique_identifier, d1);
-                        } else {
-                return Err(KmipResponseError::new("Barff"));
-            }
+        if let bson::Bson::Document(d1) = d {
+            rc.get_server_context()
+                .get_store()
+                .update(&req.unique_identifier, d1);
+        } else {
+            return Err(KmipResponseError::new("Barff"));
+        }
     }
 
     let resp = ActivateResponse {
@@ -775,7 +491,6 @@ fn process_activate_request(
 
     Ok(resp)
 }
-
 
 fn create_ok_response(op: protocol::ResponseOperationEnum) -> Vec<u8> {
     let r = protocol::ResponseMessage {
@@ -877,15 +592,6 @@ fn main() {
     //TODO addr.set_port(args.flag_port.unwrap_or(7000));
 
     let listener = TcpListener::bind(&addr).expect("cannot listen on port");
-    let mut poll = mio::Poll::new().unwrap();
-    poll.register(
-        &listener,
-        LISTENER,
-        mio::Ready::readable(),
-        mio::PollOpt::level(),
-    )
-    .unwrap();
-
     let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
 
     let mut server_certs = load_certs(&args.server_cert_file);
@@ -897,8 +603,7 @@ fn main() {
 
     server_config.set_single_cert(server_certs, privkey);
 
-
-    let store: Arc<dyn KmipStore> = match args.store {
+    let store: Arc<dyn KmipStore + Send + Sync> = match args.store {
         StoreType::Memory => {
             info!("Using Memory Store");
             Arc::new(KmipMemoryStore::new())
@@ -910,23 +615,26 @@ fn main() {
         }
     };
 
-    let server_context = ServerContext::new(store);
+    let server_context = Arc::new(ServerContext::new(store));
+    let sc = Arc::new(server_config);
 
-    let mut tlsserv = TlsServer::new(listener, server_context, Arc::new(server_config));
+    for stream in listener.incoming() {
+        match stream {
+            Ok(mut stream) => {
+                println!("new client!");
+                let sc2 = sc.clone();
+                let server_context2 = server_context.clone();
 
-    let mut events = mio::Events::with_capacity(256);
-    loop {
-        poll.poll(&mut events, None).unwrap();
+                thread::spawn(move || {
+                    let mut tls_session = rustls::ServerSession::new(&sc2);
+                    let mut tls = rustls::Stream::new(&mut tls_session, &mut stream);
 
-        for event in events.iter() {
-            match event.token() {
-                LISTENER => {
-                    if !tlsserv.accept(&mut poll) {
-                        break;
+                    while true {
+                        handle_client(&mut tls, &server_context2);
                     }
-                }
-                _ => tlsserv.conn_event(&mut poll, &event),
+                });
             }
+            Err(e) => warn!("Connection failed: {}", e),
         }
     }
 }
@@ -998,7 +706,6 @@ fn test_create_request2() {
     //unimplemented!();
 }
 
-
 #[test]
 fn test_create_request3() {
     let bytes = vec![
@@ -1032,17 +739,17 @@ fn test_create_request3() {
     process_kmip_request(&mut rc, bytes.as_slice());
 
     let get_bytes = vec![
-0x42, 0x00, 0x78, 0x01, 0x00, 0x00, 0x00, 0x70, 0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x38,
-0x42, 0x00, 0x69, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02, 0x00, 0x00, 0x00, 0x04,
-0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0f, 0x01, 0x00, 0x00, 0x00, 0x28,
-0x42, 0x00, 0x5c, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00,
-0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0x10, 0x42, 0x00, 0x94, 0x07, 0x00, 0x00, 0x00, 0x01,
-0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        0x42, 0x00, 0x78, 0x01, 0x00, 0x00, 0x00, 0x70, 0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00,
+        0x38, 0x42, 0x00, 0x69, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,
+        0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02, 0x00,
+        0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0d, 0x02,
+        0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x0f,
+        0x01, 0x00, 0x00, 0x00, 0x28, 0x42, 0x00, 0x5c, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
+        0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0x10, 0x42,
+        0x00, 0x94, 0x07, 0x00, 0x00, 0x00, 0x01, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ];
 
     process_kmip_request(&mut rc, get_bytes.as_slice());
-
 
     //unimplemented!();
 }
