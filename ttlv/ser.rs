@@ -1556,17 +1556,9 @@ impl<'a> ser::SerializeStructVariant for &'a mut MyEnumSerializer<'a> {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::kmip_enums::*;
-
-    use serde::de::{
-        self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor,
-    };
-    use serde::Deserialize;
     use serde::Serialize;
 
     use crate::chrono::TimeZone;
-    use chrono::DateTime;
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
@@ -1580,21 +1572,25 @@ mod tests {
     fn test_struct() {
         #[derive(Serialize, Debug)]
         struct RequestHeader {
-            ProtocolVersionMajor: i32,
-            ProtocolVersionMinor: i32,
+            #[serde(rename = "ProtocolVersionMajor")]
+            pub protocol_version_major: i32,
 
-            #[serde(skip_serializing_if = "Option::is_none")]
-            BatchOrderOption: Option<i32>,
+            #[serde(rename = "ProtocolVersionMinor")]
+            pub protocol_version_minor: i32,
+
+            #[serde(skip_serializing_if = "Option::is_none", rename="BatchOrderOption")]
+            batch_order_option: Option<i32>,
             // Option::None - serializes as serialize_none()
             // TODO: Other fields are optional
-            BatchCount: i32,
+            #[serde(rename = "BatchCount")]
+            batch_count: i32,
         }
 
         let a = RequestHeader {
-            ProtocolVersionMajor: 1,
-            ProtocolVersionMinor: 2,
-            BatchOrderOption: None,
-            BatchCount: 3,
+            protocol_version_major: 1,
+            protocol_version_minor: 2,
+            batch_order_option: None,
+            batch_count: 3,
         };
 
         let v = to_bytes(&a).unwrap();
@@ -1619,22 +1615,29 @@ mod tests {
     fn test_struct_nested() {
         #[derive(Serialize, Debug)]
         struct RequestHeader {
-            ProtocolVersionMajor: i32,
-            BatchCount: i32,
+                        #[serde(rename = "ProtocolVersionMajor")]
+
+            protocol_version_major: i32,
+                        #[serde(rename = "BatchCount")]
+
+            batch_count: i32,
         }
 
         #[derive(Serialize, Debug)]
         struct RequestMessage {
-            RequestHeader: RequestHeader,
-            UniqueIdentifier: String,
+            #[serde(rename = "RequestHeader")]
+            request_header: RequestHeader,
+
+            #[serde(rename = "UniqueIdentifier")]
+            unique_identifier: String,
         }
 
         let a = RequestMessage {
-            RequestHeader: RequestHeader {
-                ProtocolVersionMajor: 3,
-                BatchCount: 4,
+            request_header: RequestHeader {
+                protocol_version_major: 3,
+                batch_count: 4,
             },
-            UniqueIdentifier: String::new(),
+            unique_identifier: String::new(),
         };
 
         let v = to_bytes(&a).unwrap();
@@ -1658,20 +1661,24 @@ mod tests {
     fn test_struct_nested2() {
         #[derive(Serialize, Debug)]
         struct ObjectType {
-            UniqueIdentifier: String,
+            #[serde(rename = "UniqueIdentifier")]
+            unique_identifier: String,
         }
 
         #[derive(Serialize, Debug)]
         struct RequestHeader {
-            ProtocolVersionMinor: ObjectType,
-            BatchCount: i32,
+            #[serde(rename = "ProtocolVersionMinor")]
+            protocol_version_minor: ObjectType,
+
+            #[serde(rename = "BatchCount")]
+            batch_count: i32,
         }
 
         let a = RequestHeader {
-            ProtocolVersionMinor: ObjectType {
-                UniqueIdentifier: String::new(),
+            protocol_version_minor: ObjectType {
+                unique_identifier: String::new(),
             },
-            BatchCount: 3,
+            batch_count: 3,
         };
 
         let v = to_bytes(&a).unwrap();
@@ -1694,17 +1701,21 @@ mod tests {
     fn test_struct_types() {
         #[derive(Serialize, Debug)]
         struct RequestHeader<'a> {
-            ProtocolVersionMajor: String,
-            #[serde(with = "serde_bytes")]
-            ProtocolVersionMinor: &'a [u8],
-            BatchCount: i64,
+            #[serde(rename = "ProtocolVersionMajor")]
+            protocol_version_major: String,
+
+            #[serde(with = "serde_bytes", rename="ProtocolVersionMinor")]
+            protocol_version_minor: &'a [u8],
+
+            #[serde(rename = "BatchCount")]
+            batch_count: i64,
         }
 
         let v = vec![0x55, 0x66, 0x77];
         let a = RequestHeader {
-            ProtocolVersionMajor: String::new(),
-            ProtocolVersionMinor: v.as_slice(),
-            BatchCount: 3,
+            protocol_version_major: String::new(),
+            protocol_version_minor: v.as_slice(),
+            batch_count: 3,
         };
 
         let v = to_bytes(&a).unwrap();
@@ -1725,6 +1736,7 @@ mod tests {
         }
 
         let a = CRTCoefficient::CertificateRequest(String::new());
+        let _b = CRTCoefficient::Attribute(vec!{0x1});
 
         let v = to_bytes(&a).unwrap();
 
@@ -1747,11 +1759,12 @@ mod tests {
     fn test_struct3() {
         #[derive(Serialize, Debug)]
         struct CRTCoefficient {
-            BatchCount: Vec<i32>,
+            #[serde(rename = "BatchCount")]
+            batch_count: Vec<i32>,
         }
 
         let a = CRTCoefficient {
-            BatchCount: vec![0x66, 0x77, 0x88],
+            batch_count: vec![0x66, 0x77, 0x88],
         };
 
         let v = to_bytes(&a).unwrap();
@@ -1772,15 +1785,15 @@ mod tests {
     }
 
     #[test]
-    fn test_Datetime() {
+    fn test_datetime() {
         #[derive(Serialize, Debug)]
         struct CRTCoefficient {
-            #[serde(with = "my_date_format")]
-            BatchCount: chrono::DateTime<Utc>,
+            #[serde(with = "my_date_format", rename = "BatchCount")]
+            batch_count: chrono::DateTime<Utc>,
         }
 
         let a = CRTCoefficient {
-            BatchCount: chrono::Utc.timestamp(1563373983625, 0),
+            batch_count: chrono::Utc.timestamp(1563373983625, 0),
         };
 
         let v = to_bytes(&a).unwrap();

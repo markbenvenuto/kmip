@@ -16,14 +16,14 @@ use serde_enum::{Deserialize_enum, Serialize_enum};
 use chrono::DateTime;
 use chrono::Utc;
 use std::fmt;
-use std::io::{stdout, Cursor, Read, Write};
+use std::io::{Cursor, Read};
 
 #[macro_use]
 extern crate log;
 
 use strum::AsStaticRef;
 
-use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::de::{self, Deserialize, Deserializer, MapAccess, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 use ttlv::TTLVError;
@@ -758,7 +758,8 @@ pub fn read_msg(reader: &mut dyn Read) -> Result<Vec<u8>, TTLVError> {
     let mut msg: Vec<u8> = Vec::new();
     msg.resize(8, 0);
 
-    let ret = reader
+    // TODO -assert item type in buffer
+    reader
         .read_exact(msg.as_mut())
         .map_err(|error| TTLVError::BadRead { count: 8, error })?;
 
@@ -766,7 +767,7 @@ pub fn read_msg(reader: &mut dyn Read) -> Result<Vec<u8>, TTLVError> {
     let len: usize;
     {
         let mut cur = Cursor::new(msg);
-        ttlv::read_tag(&mut cur);
+        ttlv::read_tag(&mut cur)?;
         let t = ttlv::read_type(&mut cur)?;
         if t != ttlv::ItemType::Structure {
             return Err(TTLVError::UnexpectedType {
@@ -782,8 +783,8 @@ pub fn read_msg(reader: &mut dyn Read) -> Result<Vec<u8>, TTLVError> {
 
     msg.resize(msg.len() + len, 0);
 
-    let mut slice: &mut [u8] = msg.as_mut();
-    let ret2 = reader
+    let slice: &mut [u8] = msg.as_mut();
+    reader
         .read_exact(&mut slice[8..])
         .map_err(|error| TTLVError::BadRead { count: len, error })?;
 

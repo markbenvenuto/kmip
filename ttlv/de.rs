@@ -1139,15 +1139,20 @@ mod tests {
     #[test]
     fn test_de_struct() {
         #[derive(Deserialize, Debug)]
+        #[allow(non_snake_case)]
         struct RequestHeader {
-            ProtocolVersionMajor: i32,
-            ProtocolVersionMinor: i32,
+            #[serde(rename = "ProtocolVersionMajor")]
+            pub protocol_version_major: i32,
+
+            #[serde(rename = "ProtocolVersionMinor")]
+            pub protocol_version_minor: i32,
 
             // #[serde(skip_serializing_if = "Option::is_none")]
             // BatchOrderOption : Option<i32>,
             // Option::None - serializes as serialize_none()
             // TODO: Other fields are optional
-            BatchCount: i32,
+     #[serde(rename = "BatchCount")]
+    pub batch_count: i32,
         }
 
         let good = vec![
@@ -1162,9 +1167,9 @@ mod tests {
         let r: TestEnumResolver = TestEnumResolver {};
         let a = from_bytes::<RequestHeader>(&good, &r).unwrap();
 
-        assert_eq!(a.ProtocolVersionMajor, 1);
-        assert_eq!(a.ProtocolVersionMinor, 2);
-        assert_eq!(a.BatchCount, 3);
+        assert_eq!(a.protocol_version_major, 1);
+        assert_eq!(a.protocol_version_minor, 2);
+        assert_eq!(a.batch_count, 3);
     }
 
     #[test]
@@ -1184,14 +1189,15 @@ mod tests {
         to_print(good.as_ref());
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+        let _a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
     }
 
     #[test]
     fn test_struct3() {
         #[derive(Deserialize, Debug)]
         struct CRTCoefficient {
-            BatchCount: Vec<i32>,
+     #[serde(rename = "BatchCount")]
+    pub batch_count: Vec<i32>,
         }
 
         let good = vec![
@@ -1203,15 +1209,15 @@ mod tests {
         to_print(good.as_ref());
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+        let _a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
     }
 
     #[test]
-    fn test_Datetime() {
+    fn test_datetime() {
         #[derive(Deserialize, Debug)]
         struct CRTCoefficient {
-            #[serde(with = "my_date_format")]
-            BatchCount: chrono::DateTime<Utc>,
+            #[serde(with = "my_date_format", rename="BatchCount")]
+            batch_count: chrono::DateTime<Utc>,
         }
 
         let good = vec![
@@ -1221,21 +1227,25 @@ mod tests {
         to_print(good.as_slice());
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+        let _a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
     }
 
     #[test]
     fn test_struct_nested() {
         #[derive(Deserialize, Debug)]
         struct RequestHeader {
-            ProtocolVersionMajor: i32,
-            BatchCount: i32,
+            #[serde(rename = "ProtocolVersionMajor")]
+            pub protocol_version_major: i32,
+            #[serde(rename = "BatchCount")]
+            pub batch_count: i32,
         }
 
         #[derive(Deserialize, Debug)]
         struct RequestMessage {
-            RequestHeader: RequestHeader,
-            UniqueIdentifier: String,
+    #[serde(rename = "RequestHeader")]
+            request_header: RequestHeader,
+    #[serde(rename = "UniqueIdentifier")]
+            unique_identifier: String,
         }
 
         let good = vec![
@@ -1247,7 +1257,7 @@ mod tests {
         to_print(good.as_slice());
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let a = from_bytes::<RequestMessage>(&good, &r).unwrap();
+        let _a = from_bytes::<RequestMessage>(&good, &r).unwrap();
     }
 
 }
