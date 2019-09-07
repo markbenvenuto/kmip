@@ -1116,20 +1116,12 @@ impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
 
 #[cfg(test)]
 mod tests {
-
-    use serde::de::{
-        self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor,
-    };
     use serde::Deserialize;
-    use serde::Serialize;
 
-    use crate::chrono::TimeZone;
-    use chrono::DateTime;
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
     use crate::de::to_print;
-    use pretty_hex::PrettyHex;
 
     use crate::de::from_bytes;
     use crate::my_date_format;
