@@ -38,7 +38,11 @@ pub fn read_tag(reader: &mut dyn Read) -> TTLVResult<u32> {
     let v = reader
         .read_u8()
         .map_err(|error| TTLVError::BadRead { count: 1, error })?;
-    assert_eq!(v, 0x42);
+    
+    if v != 0x42 {
+        return Err(TTLVError::InvalidTagPrefix { byte : v});
+    }
+
     let tag = reader
         .read_u16::<BigEndian>()
         .map_err(|error| TTLVError::BadRead { count: 2, error })?;
@@ -75,9 +79,18 @@ pub fn read_type(reader: &mut dyn Read) -> TTLVResult<ItemType> {
     Err(TTLVError::InvalidType { byte: i })
 }
 
+fn check_type_len(actual: u32, expected: u32) ->  TTLVResult<()> {
+    if actual != expected {
+        return Err(TTLVError::InvalidTypeLength{ actual: actual, expected: expected});
+    }
+
+    return Ok(());
+}
+
 fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
-    assert_eq!(len, 4);
+    check_type_len(len,4)?;
+
     let v = reader
         .read_i32::<BigEndian>()
         .map_err(|error| TTLVError::BadRead { count: 4, error })?;
@@ -94,7 +107,8 @@ fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
 
 fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
-    assert_eq!(len, 4);
+    check_type_len(len,4)?;
+
     let v = reader
         .read_i32::<BigEndian>()
         .map_err(|error| TTLVError::BadRead { count: 1, error })?;
@@ -111,7 +125,7 @@ fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
 
 fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
     let len = read_len(reader)?;
-    assert_eq!(len, 8);
+    check_type_len(len,8)?;
 
     let v = reader
         .read_i64::<BigEndian>()
@@ -122,7 +136,7 @@ fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
 
 fn read_datetime_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
     let len = read_len(reader)?;
-    assert_eq!(len, 8);
+    check_type_len(len,8)?;
 
     let v = reader
         .read_i64::<BigEndian>()
@@ -151,7 +165,7 @@ fn read_string(reader: &mut dyn Read) -> TTLVResult<String> {
 
     v.resize(len as usize, 0);
 
-    let s = String::from_utf8(v).map_err(|error| TTLVError::BadString)?;
+    let s = String::from_utf8(v).map_err(|_| TTLVError::BadString)?;
 ;
     //println!("Read string: {:?}", s);
 
@@ -295,7 +309,7 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
                     tag, item_type
                 ));
                 printer.indent();
-                to_print_int(printer, v.as_slice());
+                to_print_int(printer, v.as_slice())?;
                 printer.unindent();
                 printer.print(format!("}}"));
             }
@@ -364,8 +378,7 @@ impl<'a> NestedReader<'a> {
         }
 
         if self.state == ReaderState::Type {
-            let t = read_type(&mut self.cur)?;
-            assert_eq!(t, ItemType::Structure);
+            self.read_type_and_check(ItemType::Structure)?;
             self.state = ReaderState::LengthValue;
         }
 
@@ -403,6 +416,17 @@ impl<'a> NestedReader<'a> {
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::LengthValue;
         read_type(&mut self.cur)
+    }
+
+    fn read_type_and_check(&mut self, expected: ItemType) -> TTLVResult<()> {
+        assert_eq!(self.state, ReaderState::Type);
+        self.state = ReaderState::LengthValue;
+        let t = read_type(&mut self.cur)?;
+        if t!=expected {
+            return Err(TTLVError::UnexpectedType{actual: t, expected : expected})
+        }
+
+        Ok(())
     }
 
     fn is_tag(&self) -> bool {
@@ -612,7 +636,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        self.input.read_type_and_check(ItemType::Integer)?;
         visitor.visit_i8(self.input.read_i32()? as i8)
     }
 
@@ -620,7 +644,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        self.input.read_type_and_check(ItemType::Integer)?;
         visitor.visit_i16(self.input.read_i32()? as i16)
     }
 
@@ -628,9 +652,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        // assert_eq!(self.input.read_type(), ItemType::Integer);
-        // visitor.visit_i32(self.input.read_i32())
-
         let t = self.input.read_type()?;
 
         match t {
@@ -661,15 +682,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type()?, ItemType::Integer);
-        visitor.visit_u8(self.input.read_i32()? as u8)
+        self.input.read_type_and_check(ItemType::Integer)?;
+       visitor.visit_u8(self.input.read_i32()? as u8)
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        self.input.read_type_and_check(ItemType::Integer)?;
         visitor.visit_u16(self.input.read_i32()? as u16)
     }
 
@@ -677,7 +698,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type()?, ItemType::Integer);
+        self.input.read_type_and_check(ItemType::Integer)?;
         visitor.visit_u32(self.input.read_i32()? as u32)
     }
 
@@ -685,7 +706,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type()?, ItemType::LongInteger);
+        self.input.read_type_and_check(ItemType::LongInteger)?;
         visitor.visit_u64(self.input.read_i64()? as u64)
     }
 
@@ -735,7 +756,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_string(tag.as_ref().to_string());
         }
 
-        assert_eq!(self.input.read_type()?, ItemType::TextString);
+        self.input.read_type_and_check(ItemType::TextString)?;
         visitor.visit_string(self.input.read_string()?)
         //self.deserialize_str(visitor)
     }
@@ -753,7 +774,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        assert_eq!(self.input.read_type()?, ItemType::ByteString);
+        self.input.read_type_and_check(ItemType::ByteString)?;
         let bytes = self.input.read_bytes()?;
         visitor.visit_bytes(&bytes)
     }
@@ -846,7 +867,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         //println!("Deserialize Map");
-        self.input.begin_inner_or_more();
+        self.input.begin_inner_or_more()?;
 
         visitor.visit_map(MapParser::new(&mut self))
     }
@@ -1095,8 +1116,6 @@ impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::kmip_enums::*;
 
     use serde::de::{
         self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor,
