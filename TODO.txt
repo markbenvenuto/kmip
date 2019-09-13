@@ -1,0 +1,51 @@
+TODO
+
+- rename serde_enum to kmip_macros
+
+- How many crates?
+* client
+* server?
+* protocol
+* kmip_macros
+-- Merge ttlv into protocol
+
+
+Code Quality
+- Error Handling
+-- Remove unimplemented 
+-- Remove asserts
+
+
+Macros
+- Write more macros for enum transformation
+
+
+Testing
+- have unit test level end to end between client and server but in-process
+
+KMIP Goals
+- Phase 1
+-- symmetric key for encrypted storage engine
+
+- Phase 2
+-- symmetric key for Field level encryption
+
+
+- Testing
+- run conformance test suite
+
+
+Rust stuff
+
+Testing - Crossbeam
+https://docs.rs/crossbeam/0.7.1/crossbeam/channel/index.html
+
+
+Checkout - faster in memory hash table
+https://gitlab.nebulanet.cc/xacrimon/ccl/tree/master
+https://docs.rs/contrie/0.1.4/contrie/
+
+https://docs.rs/parking_lot/0.9.0/parking_lot/
+
+Future Async
+https://tokio.rs/
