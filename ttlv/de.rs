@@ -1139,7 +1139,6 @@ mod tests {
     #[test]
     fn test_de_struct() {
         #[derive(Deserialize, Debug)]
-        #[allow(non_snake_case)]
         struct RequestHeader {
             #[serde(rename = "ProtocolVersionMajor")]
             pub protocol_version_major: i32,

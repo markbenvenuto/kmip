@@ -101,7 +101,7 @@ where
     }
 
     fn make_request(&mut self, bytes: &mut [u8]) -> ResponseOperationEnum {
-        self.stream.write_all(bytes);
+        self.stream.write_all(bytes).unwrap();
 
         debug!("Waiting for data....");
 
