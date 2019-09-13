@@ -78,7 +78,6 @@ use ring::rand::*;
 mod store;
 
 use protocol::*;
-use ttlv::*;
 
 use store::KmipMemoryStore;
 use store::KmipMongoDBStore;
@@ -279,7 +278,7 @@ fn create_error_response(msg: Option<String>) -> Vec<u8> {
         },
     };
 
-    return ttlv::to_bytes(&r).unwrap();
+    return protocol::to_bytes(&r).unwrap();
 }
 
 use std::error::Error;
@@ -511,7 +510,7 @@ fn create_ok_response(op: protocol::ResponseOperationEnum) -> Vec<u8> {
         },
     };
 
-    return ttlv::to_bytes(&r).unwrap();
+    return protocol::to_bytes(&r).unwrap();
 }
 
 // fn process_request(batchitem: &RequestBatchItem) -> {ResponseOperationEnum
@@ -522,9 +521,9 @@ fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     let k: KmipEnumResolver = protocol::KmipEnumResolver {};
 
     info!("Request Message: {:?}", buf.hex_dump());
-    ttlv::to_print(buf);
+    protocol::to_print(buf);
 
-    let request = ttlv::from_bytes::<RequestMessage>(&buf, &k).unwrap();
+    let request = protocol::from_bytes::<RequestMessage>(&buf, &k).unwrap();
 
     // TODO - check protocol version
     info!(
@@ -564,7 +563,7 @@ fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
 
     info!("Response Message: {:?}", vr.hex_dump());
 
-    ttlv::to_print(vr.as_slice());
+    protocol::to_print(vr.as_slice());
 
     return vr;
 }
@@ -664,11 +663,11 @@ fn test_create_request() {
         0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    ttlv::to_print(bytes.as_slice());
+    protocol::to_print(bytes.as_slice());
 
     let k: KmipEnumResolver = KmipEnumResolver {};
 
-    let a = ttlv::from_bytes::<RequestMessage>(&bytes, &k).unwrap();
+    let a = protocol::from_bytes::<RequestMessage>(&bytes, &k).unwrap();
 }
 
 #[test]

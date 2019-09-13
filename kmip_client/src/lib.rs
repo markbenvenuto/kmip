@@ -26,7 +26,7 @@ fn create_ok_request(op: RequestBatchItem) -> Vec<u8> {
         batch_item: op,
     };
 
-    return ttlv::to_bytes(&r).unwrap();
+    return protocol::to_bytes(&r).unwrap();
 }
 
 impl<'a, T> Client<'a, T>
@@ -109,12 +109,12 @@ where
 
         info!("Response Message: {:?}", msg.hex_dump());
 
-        ttlv::to_print(&msg);
+        protocol::to_print(&msg);
 
         let k: KmipEnumResolver = KmipEnumResolver {};
 
         // TODO validate request
-        let response = ttlv::from_bytes::<ResponseMessage>(&msg, &k).unwrap();
+        let response = protocol::from_bytes::<ResponseMessage>(&msg, &k).unwrap();
 
         //println!("Response: {:?} ", response);
 

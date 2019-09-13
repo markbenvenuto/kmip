@@ -10,7 +10,6 @@ edition = "2018"
 members = ["client", "kmip_client"]
 
 [dependencies]
-ttlv = {path="ttlv"}
 serde_enum = {path="serde_enum"}
 protocol = {path="protocol"}
 

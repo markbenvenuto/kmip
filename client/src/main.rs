@@ -23,8 +23,6 @@ use pretty_hex::*;
 
 use protocol::*;
 
-use ttlv::*;
-
 use kmip_client::Client;
 
 /// Search for a pattern in a file and display the lines that contain it.

@@ -18,15 +18,44 @@ use chrono::Utc;
 use std::fmt;
 use std::io::{Cursor, Read};
 
+
+mod de;
+mod error;
+mod failures;
+mod kmip_enums;
+mod my_date_format;
+mod ser;
+
+#[macro_use]
+extern crate failure_derive;
+extern crate failure;
+
 #[macro_use]
 extern crate log;
 
+extern crate chrono;
+
 use strum::AsStaticRef;
 
-use serde::de::{self, Deserialize, Deserializer, MapAccess, Visitor};
+use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
-use ttlv::TTLVError;
+pub use de::{from_bytes};
+pub use error::{Error, Result};
+pub use ser::{to_bytes};
+
+pub use de::to_print;
+pub use failures::TTLVError;
+
+pub use de::EnumResolver;
+
+pub use de::read_len;
+pub use de::read_tag;
+pub use de::read_type;
+
+pub use kmip_enums::ItemType;
+pub use kmip_enums::Tag;
+
 
 #[derive(FromPrimitive, Serialize_enum, Deserialize_enum, Debug, AsStaticStr)]
 #[repr(i32)]
@@ -451,7 +480,7 @@ pub struct ResponseHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
 
-    #[serde(with = "ttlv::my_date_format", rename = "TimeStamp")]
+    #[serde(with = "my_date_format", rename = "TimeStamp")]
     pub time_stamp: chrono::DateTime<Utc>,
     // TODO: Other fields are optional
     #[serde(rename = "BatchCount")]
@@ -581,7 +610,7 @@ impl Serialize for ResponseBatchItem {
 }
 
 impl<'de> Deserialize<'de> for ResponseBatchItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -594,7 +623,7 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
         };
 
         impl<'de> Deserialize<'de> for Field {
-            fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
+            fn deserialize<D>(deserializer: D) -> std::result::Result<Field, D::Error>
             where
                 D: Deserializer<'de>,
             {
@@ -607,9 +636,9 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                         formatter.write_str("response batch item`")
                     }
 
-                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<Field, E>
                     where
-                        E: de::Error,
+                        E: serde::de::Error,
                     {
                         info!("VISITING: {:?}", value);
                         // TODO - include
@@ -619,7 +648,7 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                             "ResultReason" => Ok(Field::ResultReason),
                             "ResultMessage" => Ok(Field::ResultMessage),
                             "ResponsePayload" => Ok(Field::ResponsePayload),
-                            _ => Err(de::Error::unknown_field(value, FIELDS)),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
                         }
                     }
                 }
@@ -637,7 +666,7 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                 formatter.write_str("struct ResponseBatchItem")
             }
 
-            fn visit_map<V>(self, mut map: V) -> Result<ResponseBatchItem, V::Error>
+            fn visit_map<V>(self, mut map: V) -> std::result::Result<ResponseBatchItem, V::Error>
             where
                 V: MapAccess<'de>,
             {
@@ -651,31 +680,31 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                     match key {
                         Field::Operation => {
                             if operation.is_some() {
-                                return Err(de::Error::duplicate_field("operation"));
+                                return Err(serde::de::Error::duplicate_field("operation"));
                             }
                             operation = Some(map.next_value()?);
                         }
                         Field::ResultStatus => {
                             if result_status.is_some() {
-                                return Err(de::Error::duplicate_field("result_status"));
+                                return Err(serde::de::Error::duplicate_field("result_status"));
                             }
                             result_status = Some(map.next_value()?);
                         }
                         Field::ResultReason => {
                             if result_reason.is_some() {
-                                return Err(de::Error::duplicate_field("result_reason"));
+                                return Err(serde::de::Error::duplicate_field("result_reason"));
                             }
                             result_reason = Some(map.next_value()?);
                         }
                         Field::ResultMessage => {
                             if result_message.is_some() {
-                                return Err(de::Error::duplicate_field("result_message"));
+                                return Err(serde::de::Error::duplicate_field("result_message"));
                             }
                             result_message = Some(map.next_value()?);
                         }
                         Field::ResponsePayload => {
                             if response_payload.is_some() {
-                                return Err(de::Error::duplicate_field("response_payload"));
+                                return Err(serde::de::Error::duplicate_field("response_payload"));
                             }
 
                             let op = operation
@@ -703,9 +732,9 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                     }
                 }
 
-                let _operation = operation.ok_or_else(|| de::Error::missing_field("Operation"))?;
+                let _operation = operation.ok_or_else(|| serde::de::Error::missing_field("Operation"))?;
                 let result_status =
-                    result_status.ok_or_else(|| de::Error::missing_field("ResultStatus"))?;
+                    result_status.ok_or_else(|| serde::de::Error::missing_field("ResultStatus"))?;
 
                 // TODO check for reason and message per KMIP rules
 
@@ -731,8 +760,8 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
 
 pub struct KmipEnumResolver;
 
-impl ttlv::EnumResolver for KmipEnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> Result<String, TTLVError> {
+impl EnumResolver for KmipEnumResolver {
+    fn resolve_enum(&self, name: &str, value: i32) -> std::result::Result<String, TTLVError> {
         match name {
             "Operation" => {
                 let o: Operation = num::FromPrimitive::from_i32(value).unwrap();
@@ -754,7 +783,7 @@ impl ttlv::EnumResolver for KmipEnumResolver {
     }
 }
 
-pub fn read_msg(reader: &mut dyn Read) -> Result<Vec<u8>, TTLVError> {
+pub fn read_msg(reader: &mut dyn Read) -> std::result::Result<Vec<u8>, TTLVError> {
     let mut msg: Vec<u8> = Vec::new();
     msg.resize(8, 0);
 
@@ -767,16 +796,16 @@ pub fn read_msg(reader: &mut dyn Read) -> Result<Vec<u8>, TTLVError> {
     let len: usize;
     {
         let mut cur = Cursor::new(msg);
-        ttlv::read_tag(&mut cur)?;
-        let t = ttlv::read_type(&mut cur)?;
-        if t != ttlv::ItemType::Structure {
+        read_tag(&mut cur)?;
+        let t = read_type(&mut cur)?;
+        if t != ItemType::Structure {
             return Err(TTLVError::UnexpectedType {
-                expected: ttlv::ItemType::Structure,
+                expected: ItemType::Structure,
                 actual: t,
             });
         }
 
-        len = ttlv::read_len(&mut cur)? as usize;
+        len = read_len(&mut cur)? as usize;
 
         msg = cur.into_inner();
     }
