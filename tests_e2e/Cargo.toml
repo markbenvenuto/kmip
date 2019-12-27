@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 kmip_client = {path="../kmip_client"}
+server = {path="../server"}
 log= "0.4.8"
 
 # pretty-hex = "0.1.1"
