@@ -33,6 +33,14 @@ KMIP Goals
 
 - Testing
 - run conformance test suite
+- write in and out of process test suites
+
+Test Harness
+- MongoDB automatic setup
+
+Cli
+- switch to https://github.com/rust-cli/clap-verbosity-flag
+https://github.com/rust-cli/confy
 
 
 Rust stuff

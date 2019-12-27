@@ -10,8 +10,8 @@ edition = "2018"
 protocol = {path="../protocol"}
 log= "0.4.8"
 
-pretty-hex = "0.1.0"
+pretty-hex = "0.1.1"
 
 num = "0.2.0"
 num-traits = "0.2"
-num-derive = "0.2.5"
+num-derive = "0.3.0"

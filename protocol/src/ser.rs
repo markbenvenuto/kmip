@@ -81,7 +81,7 @@ pub fn write_bytes(writer: &mut dyn Write, value: &[u8]) -> TTLVResult<()> {
     // println!("write_bytes");
     writer
         .write_u8(ItemType::ByteString as u8)
-        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;;
+        .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
 
     writer
         .write_u32::<BigEndian>(value.len() as u32)
@@ -96,7 +96,7 @@ pub fn write_bytes(writer: &mut dyn Write, value: &[u8]) -> TTLVResult<()> {
     for _ in 0..(padded_length - value.len()) {
         writer
             .write_u8(0)
-            .map_err(|error| TTLVError::BadWrite { count: 1, error })?;;
+            .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
     }
 
     return Ok(());
@@ -293,7 +293,7 @@ impl NestedWriter {
 
         let mut v1: Vec<u8> = Vec::new();
         v1.write_u32::<BigEndian>(len as u32)
-            .map_err(|error| TTLVError::BadWrite { count: 4, error })?;;
+            .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
         for i in 0..4 {
             self.vec[start_pos + i] = v1[i];

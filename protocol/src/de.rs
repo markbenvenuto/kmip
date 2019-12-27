@@ -166,7 +166,7 @@ fn read_string(reader: &mut dyn Read) -> TTLVResult<String> {
     v.resize(len as usize, 0);
 
     let s = String::from_utf8(v).map_err(|_| TTLVError::BadString)?;
-;
+
     //println!("Read string: {:?}", s);
 
     return Ok(s);

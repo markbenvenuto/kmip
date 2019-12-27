@@ -94,13 +94,13 @@ enum StoreType {
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
-#[structopt(raw(setting = "structopt::clap::AppSettings::ColoredHelp"))]
+#[structopt(global_settings(&[structopt::clap::AppSettings::ColoredHelp]))]
 struct CmdLine {
     #[structopt(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
 
-    #[structopt(flatten)]
-    log: clap_log_flag::Log,
+    // #[structopt(flatten)]
+    // log: clap_log_flag::Log,
 
     #[structopt(name = "debug", short = "d", long = "debug")]
     /// Debug output
@@ -576,7 +576,7 @@ fn main() {
     let args = CmdLine::from_args();
     println!("{:?}", args);
 
-    args.log.log_all(Option::Some(args.verbose.log_level()));
+    //args.log.log_all(args.verbose.log_level());
 
     info!("starting up");
     warn!("oops, nothing implemented!");
