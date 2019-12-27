@@ -1,0 +1,17 @@
+[package]
+name = "tests_e2e"
+version = "0.1.0"
+authors = ["Mark Benvenuto <mark.benvenuto@mongodb.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kmip_client = {path="../kmip_client"}
+log= "0.4.8"
+
+# pretty-hex = "0.1.1"
+
+# num = "0.2.0"
+# num-traits = "0.2"
+# num-derive = "0.3.0"
