@@ -1,5 +1,5 @@
 extern crate kmip_client;
-extern crate server;
+extern crate kmip_server;
 
 
 #[test]

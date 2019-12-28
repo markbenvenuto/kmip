@@ -557,7 +557,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "kmip"
+name = "kmip_client"
+version = "0.1.0"
+dependencies = [
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num-derive 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num-traits 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pretty-hex 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "protocol 0.1.0",
+]
+
+[[package]]
+name = "kmip_server"
 version = "0.1.0"
 dependencies = [
  "bson 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -586,18 +598,6 @@ dependencies = [
  "strum 0.17.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "strum_macros 0.17.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "vecio 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "kmip_client"
-version = "0.1.0"
-dependencies = [
- "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "num 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "num-derive 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "num-traits 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "pretty-hex 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "protocol 0.1.0",
 ]
 
 [[package]]
@@ -1425,6 +1425,7 @@ name = "tests_e2e"
 version = "0.1.0"
 dependencies = [
  "kmip_client 0.1.0",
+ "kmip_server 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
