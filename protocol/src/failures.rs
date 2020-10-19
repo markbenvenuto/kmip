@@ -1,5 +1,3 @@
-use failure::Error;
-
 use crate::kmip_enums::ItemType;
 
 #[derive(Debug, Fail)]

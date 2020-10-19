@@ -54,7 +54,7 @@ impl de::Error for Error {
 
 impl Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str(std::error::Error::description(self))
+        formatter.write_str(&self.to_string())
     }
 }
 
@@ -65,6 +65,7 @@ impl std::error::Error for Error {
             Error::Eof => "unexpected end of input",
             Error::UnsupportedType => "unsupported type",
             Error::TTLVError(ref err) => "ttlv error",
+            //format!("ttlv error: {}", err.to_string()),
             /* and so forth */
         }
     }

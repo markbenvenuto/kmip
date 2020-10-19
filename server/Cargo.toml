@@ -10,45 +10,47 @@ edition = "2018"
 serde_enum = {path="../serde_enum"}
 protocol = {path="../protocol"}
 
-byteorder = "1.3.2"
+byteorder = "1.3.4"
 
-serde = "1.0.104"
-serde_derive = "1.0.104"
-pretty-hex = "0.1.1"
+serde = "1.0.117"
+serde_derive = "1.0.117"
+pretty-hex = "0.2.1"
 #serde-transcode = "1.1.0"
 #serde_json = "1.0.40"
-serde_bytes = "0.11.3"
+serde_bytes = "0.11.5"
 
-structopt = "0.3.5"
-clap-verbosity-flag = "0.3.0"
+structopt = "0.3.20"
+clap-verbosity-flag = "0.3.1"
 clap-log-flag = "0.2.1"
-log= "0.4.8"
-env_logger= "0.7.1"
+log= "0.4.11"
+env_logger= "0.8.1"
 
-confy = "0.3.1"
+confy = "0.4.0"
 
-num = "0.2.0"
-num-traits = "0.2"
-num-derive = "0.3.0"
+num = "0.3.0"
+num-traits = "0.2.12"
+num-derive = "0.3.2"
 
 
-rustls = "0.16.0"
-mio = "0.6.21"
+rustls = "0.18.1"
+mio = "0.7.3"
 
-ring = "0.16.9"
+ring = "0.16.15"
 
 vecio = "0.1.0"
 
-strum = "0.17.1"
-strum_macros = "0.17.1"
+strum = "0.19.5"
+strum_macros = "0.19.4"
 
-chrono = { version = "0.4.10", features = ["serde"] }
+chrono = { version = "0.4.19", features = ["serde"] }
 
 lazy_static = "1.4.0"
 
-bson = "0.14.0"
+bson = "1.1.0"
 
-mongodb = "0.9.0"
+mongodb = "1.1.1"
+futures = "0.3.6"
+tokio = "0.3.0"
 
 # TODO - consider https://github.com/rust-cli/human-panic
 
