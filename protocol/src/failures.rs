@@ -26,6 +26,10 @@ pub enum TTLVError {
     #[fail(display = "invalid ttlv string")]
     BadString,
 
+    
+    #[fail(display = "invalid xml write")]
+    XmlError,
+
     #[fail(
         display = "unexpected type, expected {:?}, actual {:?}",
         expected, actual

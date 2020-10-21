@@ -25,6 +25,7 @@ mod failures;
 mod kmip_enums;
 mod my_date_format;
 mod ser;
+mod ser_xml;
 
 #[macro_use]
 extern crate failure_derive;
@@ -43,6 +44,7 @@ use serde::ser::{Serialize, SerializeStruct, Serializer};
 pub use de::{from_bytes};
 pub use error::{Error, Result};
 pub use ser::{to_bytes};
+pub use ser_xml::{to_xml_bytes};
 
 pub use de::to_print;
 pub use failures::TTLVError;

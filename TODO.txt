@@ -43,6 +43,21 @@ Cli
 https://github.com/rust-cli/confy
 
 
+Rust Testing
+https://doc.rust-lang.org/test/index.html
+https://lib.rs/crates/fail
+https://lib.rs/crates/rstest
+https://lib.rs/crates/datatest
+https://lib.rs/crates/galvanic-test
+https://lib.rs/crates/laboratory
+https://lib.rs/crates/test-case
+
+
+Cargo goodies
+https://lib.rs/crates/cargo-outdated
+https://github.com/sagiegurari/cargo-make
+
+
 Rust stuff
 
 Testing - Crossbeam
