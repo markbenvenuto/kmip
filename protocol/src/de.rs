@@ -341,6 +341,45 @@ enum ReaderState {
     LengthValue,
 }
 
+
+trait EncodingReader<'a> {
+    fn new(buf: &'a [u8]) -> Self ;
+
+    fn begin_inner_or_more(&mut self) -> TTLVResult<()>;
+
+    fn begin_inner_skip(&mut self) -> TTLVResult<()>;
+
+    fn close_inner(&mut self);
+
+    fn is_empty(&self) -> bool;
+
+    fn read_type(&mut self) -> TTLVResult<ItemType>;
+
+    fn read_type_and_check(&mut self, expected: ItemType) -> TTLVResult<()>;
+
+    fn is_tag(&self) -> bool;
+
+    fn get_tag(&self) -> Tag;
+
+    fn read_tag(&mut self) -> TTLVResult<Tag>;
+
+    fn peek_tag(&mut self) -> TTLVResult<Tag>;
+
+    fn reverse_tag(&mut self);
+
+    fn read_i32(&mut self) -> TTLVResult<i32>;
+
+    fn read_enumeration(&mut self) -> TTLVResult<i32>;
+
+    fn read_i64(&mut self) -> TTLVResult<i64>;
+
+    fn read_datetime_i64(&mut self) -> TTLVResult<i64>;
+
+    fn read_string(&mut self) -> TTLVResult<String>;
+
+    fn read_bytes(&mut self) -> TTLVResult<Vec<u8>>;
+}
+
 struct NestedReader<'a> {
     end_positions: Vec<u64>,
     cur: Cursor<&'a [u8]>,
@@ -348,7 +387,18 @@ struct NestedReader<'a> {
     tag: Option<Tag>,
 }
 
-impl<'a> NestedReader<'a> {
+// impl<'a> NestedReader<'a> {
+//     fn new(buf: &'a [u8]) -> NestedReader {
+//         return NestedReader {
+//             end_positions: Vec::new(),
+//             cur: Cursor::new(buf),
+//             state: ReaderState::Tag,
+//             tag: None,
+//         };
+//     }
+// }
+
+impl<'a> EncodingReader<'a> for NestedReader<'a> {
     fn new(buf: &'a [u8]) -> NestedReader {
         return NestedReader {
             end_positions: Vec::new(),
@@ -357,18 +407,6 @@ impl<'a> NestedReader<'a> {
             tag: None,
         };
     }
-
-    // fn begin_inner(&mut self) {
-    //     let t = read_tag_enum(&mut self.cur);
-
-    //     //println!("read_inner: {:?} - {:?}", t, self.cur.position());
-    //     let t = read_type(&mut self.cur);
-    //     assert_eq!(t, ItemType::Structure);
-
-    //     self.state = ReaderState::LengthValue;
-
-    //     self.begin_inner_skip();
-    // }
 
     fn begin_inner_or_more(&mut self) -> TTLVResult<()> {
         if self.state == ReaderState::Tag {
@@ -520,15 +558,16 @@ pub trait EnumResolver {
     fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
 }
 
-pub struct Deserializer<'de> {
+struct Deserializer<'de, R>
+    where R : EncodingReader<'de> {
     // This string starts with the input data and characters are truncated off
     // the beginning as data is parsed.
     //pub input: &'de [u8],
-    input: NestedReader<'de>,
+    input: R,
     enum_resolver: &'de dyn EnumResolver,
 }
 
-impl<'de> Deserializer<'de> {
+impl<'de, R : EncodingReader<'de>> Deserializer<'de, R> {
     // By convention, `Deserializer` constructors are named like `from_xyz`.
     // That way basic use cases are satisfied by something like
     // `serde_json::from_str(...)` while advanced use cases that require a
@@ -536,7 +575,7 @@ impl<'de> Deserializer<'de> {
     pub fn from_bytes(input: &'de [u8], enum_resolver: &'de dyn EnumResolver) -> Self {
         //Deserializer { input }
         Deserializer {
-            input: NestedReader::new(input),
+            input: R::new(input),
             enum_resolver: enum_resolver,
         }
     }
@@ -551,7 +590,7 @@ pub fn from_bytes<'a, T>(s: &'a [u8], enum_resolver: &'a dyn EnumResolver) -> Re
 where
     T: Deserialize<'a>,
 {
-    let mut deserializer = Deserializer::from_bytes(s, enum_resolver);
+    let mut deserializer = Deserializer::<NestedReader>::from_bytes(s, enum_resolver);
     let t = T::deserialize(&mut deserializer)?;
     if deserializer.input.is_empty() {
         Ok(t)
@@ -560,7 +599,7 @@ where
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deserializer<'de, R> {
     type Error = Error;
 
     // Look at the input data to decide what Serde data model type to
@@ -962,19 +1001,20 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
-struct MapParser<'a, 'de: 'a> {
-    de: &'a mut Deserializer<'de>,
+struct MapParser<'a, 'de: 'a, R>
+where R : EncodingReader<'de>  {
+    de: &'a mut Deserializer<'de, R>,
 }
 
-impl<'a, 'de> MapParser<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>) -> Self {
+impl<'a, 'de, R : EncodingReader<'de>> MapParser<'a, 'de, R> {
+    fn new(de: &'a mut Deserializer<'de, R>) -> Self {
         MapParser { de }
     }
 }
 
 // `MapAccess` is provided to the `Visitor` to give it the ability to iterate
 // through entries of the map.
-impl<'de, 'a> MapAccess<'de> for MapParser<'a, 'de> {
+impl<'de, 'a, R : EncodingReader<'de>> MapAccess<'de> for MapParser<'a, 'de, R> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -1004,20 +1044,23 @@ impl<'de, 'a> MapAccess<'de> for MapParser<'a, 'de> {
     }
 }
 
-struct SeqParser<'a, 'de: 'a> {
-    de: &'a mut Deserializer<'de>,
+struct SeqParser<'a, 'de: 'a, R> 
+    where R : EncodingReader<'de> 
+{
+    de: &'a mut Deserializer<'de, R>,
     tag: Option<Tag>,
 }
 
-impl<'a, 'de> SeqParser<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>) -> Self {
+impl<'a, 'de, R : EncodingReader<'de>> SeqParser<'a, 'de, R> {
+    
+    fn new(de: &'a mut Deserializer<'de, R>) -> Self {
         SeqParser { de, tag: None }
     }
 }
 
 // `SeqAccess` is provided to the `Visitor` to give it the ability to iterate
 // through elements of the sequence.
-impl<'de, 'a> SeqAccess<'de> for SeqParser<'a, 'de> {
+impl<'de, 'a, R : EncodingReader<'de>> SeqAccess<'de> for SeqParser<'a, 'de, R> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
@@ -1043,12 +1086,12 @@ impl<'de, 'a> SeqAccess<'de> for SeqParser<'a, 'de> {
     }
 }
 
-struct EnumParser<'a, 'de: 'a> {
-    de: &'a mut Deserializer<'de>,
+struct EnumParser<'a, 'de: 'a, R> where R : EncodingReader<'de>{
+    de: &'a mut Deserializer<'de ,R>,
 }
 
-impl<'a, 'de> EnumParser<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>) -> Self {
+impl<'a, 'de, R : EncodingReader<'de>> EnumParser<'a, 'de, R> {
+    fn new(de: &'a mut Deserializer<'de, R>) -> Self {
         EnumParser { de }
     }
 }
@@ -1058,7 +1101,7 @@ impl<'a, 'de> EnumParser<'a, 'de> {
 //
 // Note that all enum deserialization methods in Serde refer exclusively to the
 // "externally tagged" enum representation.
-impl<'de, 'a> EnumAccess<'de> for EnumParser<'a, 'de> {
+impl<'de, 'a, R : EncodingReader<'de>> EnumAccess<'de> for EnumParser<'a, 'de, R> {
     type Error = Error;
     type Variant = Self;
 
@@ -1076,7 +1119,7 @@ impl<'de, 'a> EnumAccess<'de> for EnumParser<'a, 'de> {
 
 // `VariantAccess` is provided to the `Visitor` to give it the ability to see
 // the content of the single variant that it decided to deserialize.
-impl<'de, 'a> VariantAccess<'de> for EnumParser<'a, 'de> {
+impl<'de, 'a, R : EncodingReader<'de>> VariantAccess<'de> for EnumParser<'a, 'de, R> {
     type Error = Error;
 
     // If the `Visitor` expected this variant to be a unit variant, the input
