@@ -334,15 +334,9 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
 //     }
 // }
 
-#[derive(PartialEq, Debug)]
-enum ReaderState {
-    Tag,
-    Type,
-    LengthValue,
-}
 
 
-trait EncodingReader<'a> {
+pub trait EncodingReader<'a> {
     fn new(buf: &'a [u8]) -> Self ;
 
     fn begin_inner_or_more(&mut self) -> TTLVResult<()>;
@@ -351,7 +345,7 @@ trait EncodingReader<'a> {
 
     fn close_inner(&mut self);
 
-    fn is_empty(&self) -> bool;
+    fn is_empty(&mut self) -> TTLVResult<bool>;
 
     fn read_type(&mut self) -> TTLVResult<ItemType>;
 
@@ -378,6 +372,13 @@ trait EncodingReader<'a> {
     fn read_string(&mut self) -> TTLVResult<String>;
 
     fn read_bytes(&mut self) -> TTLVResult<Vec<u8>>;
+}
+
+#[derive(PartialEq, Debug)]
+enum ReaderState {
+    Tag,
+    Type,
+    LengthValue,
 }
 
 struct NestedReader<'a> {
@@ -439,16 +440,16 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         self.end_positions.pop().unwrap();
     }
 
-    fn is_empty(&self) -> bool {
+    fn is_empty(&mut self) -> TTLVResult<bool>{
         if self.end_positions.is_empty() {
-            return true;
+            return Ok(true);
         }
         // println!(
         //     "cmp1 {:?} == {:?}",
         //     *(self.end_positions.last().unwrap()),
         //     self.cur.position()
         // );
-        return *(self.end_positions.last().unwrap()) == self.cur.position();
+        Ok(*(self.end_positions.last().unwrap()) == self.cur.position())
     }
 
     fn read_type(&mut self) -> TTLVResult<ItemType> {
@@ -558,12 +559,13 @@ pub trait EnumResolver {
     fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
 }
 
-struct Deserializer<'de, R>
+pub struct Deserializer<'de, R>
     where R : EncodingReader<'de> {
     // This string starts with the input data and characters are truncated off
     // the beginning as data is parsed.
     //pub input: &'de [u8],
-    input: R,
+    // TODO - stop making this public
+    pub input: R,
     enum_resolver: &'de dyn EnumResolver,
 }
 
@@ -592,7 +594,7 @@ where
 {
     let mut deserializer = Deserializer::<NestedReader>::from_bytes(s, enum_resolver);
     let t = T::deserialize(&mut deserializer)?;
-    if deserializer.input.is_empty() {
+    if deserializer.input.is_empty()? {
         Ok(t)
     } else {
         Err(Error::Eof)
@@ -1021,7 +1023,7 @@ impl<'de, 'a, R : EncodingReader<'de>> MapAccess<'de> for MapParser<'a, 'de, R> 
     where
         K: DeserializeSeed<'de>,
     {
-        if self.de.input.is_empty() {
+        if self.de.input.is_empty()? {
             self.de.input.close_inner();
             return Ok(None);
         }
@@ -1067,7 +1069,7 @@ impl<'de, 'a, R : EncodingReader<'de>> SeqAccess<'de> for SeqParser<'a, 'de, R> 
     where
         T: DeserializeSeed<'de>,
     {
-        if self.de.input.is_empty() {
+        if self.de.input.is_empty()? {
             return Ok(None);
         }
 
