@@ -5,7 +5,6 @@ use std::string::ToString;
 
 use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::Deserialize;
-use std::iter::*;
 
 use crate::error::{Error, Result};
 
@@ -22,317 +21,11 @@ use pretty_hex::*;
 use crate::kmip_enums::*;
 
 use crate::failures::*;
+extern crate hex;
+use std::str::FromStr;
+use crate::de::EnumResolver;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
-
-fn compute_padding(len: usize) -> usize {
-    if len % 8 == 0 {
-        return len;
-    }
-
-    let padding = 8 - (len % 8);
-    return len + padding;
-}
-
-pub fn read_tag(reader: &mut dyn Read) -> TTLVResult<u32> {
-    //println!("Read Tag");
-    let v = reader
-        .read_u8()
-        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
-    
-    if v != 0x42 {
-        return Err(TTLVError::InvalidTagPrefix { byte : v});
-    }
-
-    let tag = reader
-        .read_u16::<BigEndian>()
-        .map_err(|error| TTLVError::BadRead { count: 2, error })?;
-
-    return Ok(0x420000 + tag as u32);
-}
-
-fn read_tag_enum(reader: &mut dyn Read) -> TTLVResult<Tag> {
-    let tag_u32 = read_tag(reader)?;
-
-    if let Some(t) = num::FromPrimitive::from_u32(tag_u32) {
-        return Ok(t);
-    }
-
-    Err(TTLVError::InvalidTag { tag: tag_u32 })
-}
-
-pub fn read_len(reader: &mut dyn Read) -> TTLVResult<u32> {
-    reader
-        .read_u32::<BigEndian>()
-        .map_err(|error| TTLVError::BadRead { count: 4, error })
-}
-
-pub fn read_type(reader: &mut dyn Read) -> TTLVResult<ItemType> {
-    let i = reader
-        .read_u8()
-        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
-
-    if let Some(t) = num::FromPrimitive::from_u8(i) {
-        //println!("Read Type {:?}", t);
-        return Ok(t);
-    }
-
-    Err(TTLVError::InvalidType { byte: i })
-}
-
-fn check_type_len(actual: u32, expected: u32) ->  TTLVResult<()> {
-    if actual != expected {
-        return Err(TTLVError::InvalidTypeLength{ actual: actual, expected: expected});
-    }
-
-    return Ok(());
-}
-
-fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
-    let len = read_len(reader)?;
-    check_type_len(len,4)?;
-
-    let v = reader
-        .read_i32::<BigEndian>()
-        .map_err(|error| TTLVError::BadRead { count: 4, error })?;
-
-    // swallow the padding
-    // TODO - speed up
-    reader
-        .read_i32::<BigEndian>()
-        .map_err(|error| TTLVError::BadRead { count: 4, error })?;
-
-    //println!("Read i32: {:?}", v);
-    return Ok(v);
-}
-
-fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
-    let len = read_len(reader)?;
-    check_type_len(len,4)?;
-
-    let v = reader
-        .read_i32::<BigEndian>()
-        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
-
-    // swallow the padding
-    // TODO - speed up
-    reader
-        .read_i32::<BigEndian>()
-        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
-
-    //println!("Read i32: {:?}", v);
-    return Ok(v);
-}
-
-fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
-    let len = read_len(reader)?;
-    check_type_len(len,8)?;
-
-    let v = reader
-        .read_i64::<BigEndian>()
-        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
-    //println!("Read i64: {:?}", v);
-    return Ok(v);
-}
-
-fn read_datetime_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
-    let len = read_len(reader)?;
-    check_type_len(len,8)?;
-
-    let v = reader
-        .read_i64::<BigEndian>()
-        .map_err(|error| TTLVError::BadRead { count: 1, error })?;
-    //println!("Read DateTime: {:?}", v);
-    return Ok(v);
-}
-
-fn read_string(reader: &mut dyn Read) -> TTLVResult<String> {
-    let len = read_len(reader)?;
-
-    let padding = compute_padding(len as usize);
-
-    // TODO - better protection against bogus sizes
-    assert!(padding < 32 * 1024);
-
-    let mut v: Vec<u8> = Vec::new();
-    v.resize(padding as usize, 0);
-
-    reader
-        .read(v.as_mut_slice())
-        .map_err(|error| TTLVError::BadRead {
-            count: v.len(),
-            error,
-        })?;
-
-    v.resize(len as usize, 0);
-
-    let s = String::from_utf8(v).map_err(|_| TTLVError::BadString)?;
-
-    //println!("Read string: {:?}", s);
-
-    return Ok(s);
-}
-
-fn read_bytes(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
-    let len = read_len(reader)?;
-
-    let padding = compute_padding(len as usize);
-
-    // TODO - better protection against bogus sizes
-    assert!(padding < 32 * 1024);
-
-    let mut v: Vec<u8> = Vec::new();
-    v.resize(padding as usize, 0);
-
-    reader
-        .read(v.as_mut_slice())
-        .map_err(|error| TTLVError::BadRead {
-            count: v.len(),
-            error,
-        })?;
-
-    v.resize(len as usize, 0);
-
-    return Ok(v);
-}
-
-pub fn read_struct(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
-    let len = read_len(reader)?;
-
-    let mut v: Vec<u8> = Vec::new();
-    v.resize(len as usize, 0);
-
-    reader
-        .read(v.as_mut_slice())
-        .map_err(|error| TTLVError::BadRead {
-            count: v.len(),
-            error,
-        })?;
-
-    return Ok(v);
-}
-
-/////////////////////////////
-struct IndentPrinter {
-    indent: usize,
-}
-
-impl IndentPrinter {
-    fn new() -> IndentPrinter {
-        return IndentPrinter { indent: 0 };
-    }
-
-    fn indent(&mut self) {
-        self.indent += 1;
-    }
-
-    fn unindent(&mut self) {
-        self.indent -= 1;
-    }
-
-    fn print(&self, msg: String) {
-        // for _ in 0..self.indent {
-        //     std::io::stdout().write(" ".as_bytes());
-        // }
-        // std::io::stdout().write(msg.as_bytes());
-        let space = " ".repeat(self.indent * 4);
-        // Use println! to play nicely with unit tests
-        println!("{}{}", space, msg);
-    }
-}
-
-pub fn to_print(buf: &[u8]) {
-    let mut printer: IndentPrinter = IndentPrinter::new();
-    if let Err(r) = to_print_int(&mut printer, buf) {
-        println!("Erroring in to_print: {:?}", r);
-    }
-}
-
-fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
-    let mut cur = Cursor::new(buf);
-
-    while cur.position() < buf.len() as u64 {
-        let tag = read_tag_enum(&mut cur)?;
-
-        let item_type = read_type(&mut cur)?;
-
-        match item_type {
-            ItemType::Integer => {
-                let v = read_i32(&mut cur)?;
-                printer.print(format!(
-                    "Tag {:?} - Type {:?} - Value {:?}",
-                    tag, item_type, v
-                ));
-            }
-            ItemType::LongInteger => {
-                let v = read_i64(&mut cur)?;
-                printer.print(format!(
-                    "Tag {:?} - Type {:?} - Value {:?}",
-                    tag, item_type, v
-                ));
-            }
-            ItemType::DateTime => {
-                // TODO:
-                let v = read_i64(&mut cur)?;
-                printer.print(format!(
-                    "Tag {:?} - Type {:?} - Value {:?}",
-                    tag, item_type, v
-                ));
-            }
-            ItemType::Enumeration => {
-                let v = read_i32(&mut cur)?;
-                printer.print(format!(
-                    "Tag {:?} - Type {:?} - Value {:?}",
-                    tag, item_type, v
-                ));
-            }
-            ItemType::TextString => {
-                let v = read_string(&mut cur)?;
-                printer.print(format!(
-                    "Tag {:?} - Type {:?} - Value {:?}",
-                    tag, item_type, v
-                ));
-            }
-            ItemType::ByteString => {
-                let v = read_bytes(&mut cur)?;
-                printer.print(format!(
-                    "Tag {:?} - Type {:?} - Value {:?}",
-                    tag,
-                    item_type,
-                    v.hex_dump()
-                ));
-            }
-
-            ItemType::Structure => {
-                let v = read_struct(&mut cur)?;
-                printer.print(format!(
-                    "Tag {:?} - Type {:?} - Structure {{",
-                    tag, item_type
-                ));
-                printer.indent();
-                to_print_int(printer, v.as_slice())?;
-                printer.unindent();
-                printer.print(format!("}}"));
-            }
-            _ => {
-                panic! {};
-            }
-        }
-    }
-
-    Ok(())
-}
-
-//////////////////
-
-// impl<'de> Deserialize<'de> for i32 {
-//     fn deserialize<D>(deserializer: D) -> Result<i32, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         deserializer.deserialize_i32(I32Visitor)
-//     }
-// }
 
 #[derive(PartialEq, Debug)]
 enum ReaderState {
@@ -341,38 +34,46 @@ enum ReaderState {
     LengthValue,
 }
 
+
+use xml::reader::EventReader;
+use xml::reader::XmlEvent;
+
+struct XmlItem {
+    name : String,
+    itemType : ItemType,
+    value : Option<String>,
+}
+
 struct NestedReader<'a> {
-    end_positions: Vec<u64>,
-    cur: Cursor<&'a [u8]>,
+    reader: EventReader<std::io::Cursor<&'a [u8]>>,
     state: ReaderState,
+    cur_depths: Vec<u64>,
+    depth : u64,
+    end_document: bool,
     tag: Option<Tag>,
+    element: Option<XmlItem>,
 }
 
 impl<'a> NestedReader<'a> {
     fn new(buf: &'a [u8]) -> NestedReader {
+        let cur = Cursor::new(buf);
         return NestedReader {
-            end_positions: Vec::new(),
-            cur: Cursor::new(buf),
+            reader : EventReader::new(cur),
             state: ReaderState::Tag,
+            cur_depths: Vec::new(),
+            depth : 0,
+            end_document: false,
             tag: None,
+            element : None,
+            
         };
     }
 
-    // fn begin_inner(&mut self) {
-    //     let t = read_tag_enum(&mut self.cur);
-
-    //     //println!("read_inner: {:?} - {:?}", t, self.cur.position());
-    //     let t = read_type(&mut self.cur);
-    //     assert_eq!(t, ItemType::Structure);
-
-    //     self.state = ReaderState::LengthValue;
-
-    //     self.begin_inner_skip();
-    // }
-
     fn begin_inner_or_more(&mut self) -> TTLVResult<()> {
+        eprintln!("begin_inner_or_more");
         if self.state == ReaderState::Tag {
-            let _t = read_tag_enum(&mut self.cur)?;
+            self.element = None;
+            self.read_one_element()?;
 
             //println!("read_inner: {:?} - {:?}", t, self.cur.position());
             self.state = ReaderState::Type;
@@ -387,22 +88,24 @@ impl<'a> NestedReader<'a> {
     }
 
     fn begin_inner_skip(&mut self) -> TTLVResult<()> {
+        eprintln!("begin_inner_skip");
         assert_eq!(self.state, ReaderState::LengthValue);
 
-        let len = read_len(&mut self.cur)? as u64;
         //println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
-        self.end_positions.push(self.cur.position() + len);
+        self.cur_depths.push(self.depth);
         self.state = ReaderState::Tag;
+        self.element = None;
         Ok(())
     }
 
     fn close_inner(&mut self) {
-        //println!(" close_inner");
-        self.end_positions.pop().unwrap();
+        eprintln!(" close_inner");
+        self.cur_depths.pop().unwrap();
     }
 
     fn is_empty(&self) -> bool {
-        if self.end_positions.is_empty() {
+        
+        if self.end_document {
             return true;
         }
         // println!(
@@ -410,19 +113,69 @@ impl<'a> NestedReader<'a> {
         //     *(self.end_positions.last().unwrap()),
         //     self.cur.position()
         // );
-        return *(self.end_positions.last().unwrap()) == self.cur.position();
+        return *(self.cur_depths.last().unwrap()) > self.depth;
+    }
+
+
+    fn read_one_event(&mut self)  -> TTLVResult<Option<XmlItem>>  {
+        let x = self.reader.next().map_err(|_| TTLVError::XmlError)?;
+        match x {
+            // Ignore StartDocument
+            XmlEvent::StartElement{name, attributes, ..} => {
+                eprintln!("Read Element: {} - {:?}", name, attributes);
+
+                let name = name.local_name;
+                let itemType = attributes.iter().find(|i| i.name.local_name == "type" ).unwrap();
+                let value = attributes.iter().find(|i| i.name.local_name == "value" ).map(|x| x.value.to_string());
+
+                
+                let itemTypeEnum = ItemType::from_str(&itemType.value).map_err(|_| TTLVError::XmlError)?;
+
+                self.depth += 1;
+                Ok(Some(XmlItem {
+                    name: name,
+                    itemType : itemTypeEnum,
+                    value : value,
+                }))
+            },
+            XmlEvent::EndElement{..} => {
+                eprintln!("Read End Element");
+                self.depth -=1;
+                Ok(None)
+            },
+            XmlEvent::EndDocument => {
+                eprintln!("Read End Document");
+                self.end_document = true;
+                Ok(None)
+            }
+            _ => Ok(None)
+        }
+    }
+
+    fn read_one_element(&mut self)  -> TTLVResult<()>  {
+        
+        while !self.end_document && self.element.is_none() {
+            self.element =  self.read_one_event()?
+        }
+
+        Ok(())
     }
 
     fn read_type(&mut self) -> TTLVResult<ItemType> {
+        eprintln!("read_type");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::LengthValue;
-        read_type(&mut self.cur)
+        
+        
+       Ok( self.element.as_ref().unwrap().itemType)
+
     }
 
     fn read_type_and_check(&mut self, expected: ItemType) -> TTLVResult<()> {
+        eprintln!("read_type_and_check");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::LengthValue;
-        let t = read_type(&mut self.cur)?;
+        let t = self.element.as_ref().unwrap().itemType;
         if t!=expected {
             return Err(TTLVError::UnexpectedType{actual: t, expected : expected})
         }
@@ -435,90 +188,101 @@ impl<'a> NestedReader<'a> {
     }
 
     fn get_tag(&self) -> Tag {
+        eprintln!("get_tag");
         return self.tag.unwrap();
     }
 
     fn read_tag(&mut self) -> TTLVResult<Tag> {
+        eprintln!("read_tag");
         assert_eq!(self.state, ReaderState::Tag);
         self.state = ReaderState::Type;
-        let t = read_tag_enum(&mut self.cur)?;
+        self.read_one_element()?;
+
+        let t = Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
         self.tag = Some(t);
         return Ok(t);
     }
 
     fn peek_tag(&mut self) -> TTLVResult<Tag> {
+        eprintln!("peek_tag");
         assert_eq!(self.state, ReaderState::Tag);
-        let pos = self.cur.position();
-        let tag = read_tag_enum(&mut self.cur)?;
-        self.cur.set_position(pos);
+        // let pos = self.cur.position();
+        // let tag = read_tag_enum(&mut self.cur)?;
+        // self.cur.set_position(pos);
+
+        
+        let tag = Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
+
         return Ok(tag);
     }
 
     fn reverse_tag(&mut self) {
+        eprintln!("reverse_tag");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
-        let pos = self.cur.position();
-        self.cur.set_position(pos - 3);
+        // let pos = self.cur.position();
+        // self.cur.set_position(pos - 3);
     }
 
     fn read_i32(&mut self) -> TTLVResult<i32> {
+        eprintln!("read_i32");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        read_i32(&mut self.cur)
+        let value = self.element.as_ref().unwrap().value.as_ref().unwrap().parse::<i32>().map_err(|_| TTLVError::XmlError)?;
+        self.element = None;
+        Ok(value)
     }
 
     fn read_enumeration(&mut self) -> TTLVResult<i32> {
+        eprintln!("read_enumeration");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        read_enumeration(&mut self.cur)
+        //read_enumeration(&mut self.cur)
+        // TODO
+        let value = 1;
+        self.element = None;
+        Ok(value)
     }
 
     fn read_i64(&mut self) -> TTLVResult<i64> {
+        eprintln!("read_i64");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        read_i64(&mut self.cur)
+        let value = self.element.as_ref().unwrap().value.as_ref().unwrap().parse::<i64>().map_err(|_| TTLVError::XmlError)?;
+        self.element = None;
+        Ok(value)
     }
 
     fn read_datetime_i64(&mut self) -> TTLVResult<i64> {
+        eprintln!("read_datetime_i64");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        read_datetime_i64(&mut self.cur)
+           // TODO
+        let value = 1;
+        self.element = None;
+        Ok(value)
     }
 
-    // fn read_string_and_more(&mut self) -> TTLVResult<String> {
-    //     if self.state == ReaderState::Tag {
-    //         self.read_tag();
-    //     }
-    //     assert_eq!(self.read_type(), ItemType::TextString);
-    //     assert_eq!(self.state, ReaderState::LengthValue);
-    //     self.state = ReaderState::Tag;
-    //     read_string(&mut self.cur)
-    // }
-
     fn read_string(&mut self) -> TTLVResult<String> {
+        eprintln!("read_string");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        read_string(&mut self.cur)
+        let value = self.element.as_ref().unwrap().value.as_ref().unwrap().to_string();
+        self.element = None;
+        Ok(value)
     }
 
     fn read_bytes(&mut self) -> TTLVResult<Vec<u8>> {
+        eprintln!("read_bytes");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        read_bytes(&mut self.cur)
+        let value = hex::decode(&self.element.as_ref().unwrap().value.as_ref().unwrap()).map_err(|_| TTLVError::XmlError)?;
+        self.element = None;
+        Ok(value)
     }
 }
-
-// impl<'a> Read for NestedReader<'a> {
-//     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-//         self.cur.read(buf)
-//     }
-// }
-
 ////////////////////
 
-pub trait EnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
-}
 
 pub struct Deserializer<'de> {
     // This string starts with the input data and characters are truncated off
@@ -547,7 +311,7 @@ impl<'de> Deserializer<'de> {
 // depending on what Rust types the deserializer is able to consume as input.
 //
 // This basic deserializer supports only `from_str`.
-pub fn from_bytes<'a, T>(s: &'a [u8], enum_resolver: &'a dyn EnumResolver) -> Result<T>
+pub fn from_xml_bytes<'a, T>(s: &'a [u8], enum_resolver: &'a dyn EnumResolver) -> Result<T>
 where
     T: Deserialize<'a>,
 {
@@ -1125,6 +889,7 @@ mod tests {
     use crate::de::to_print;
 
     use crate::de::from_bytes;
+    use crate::de_xml::from_xml_bytes;
     use crate::my_date_format;
     use crate::EnumResolver;
     use crate::TTLVError;
@@ -1155,17 +920,13 @@ mod tests {
     pub batch_count: i32,
         }
 
-        let good = vec![
-            0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,
-            0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x6b, 0x02,
-            0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00,
-            0x0d, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
-        ];
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
+
 
         //    to_print(good.as_ref());
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let a = from_bytes::<RequestHeader>(&good, &r).unwrap();
+        let a = from_xml_bytes::<RequestHeader>(&good.as_bytes(), &r).unwrap();
 
         assert_eq!(a.protocol_version_major, 1);
         assert_eq!(a.protocol_version_minor, 2);

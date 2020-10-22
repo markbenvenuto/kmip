@@ -5,6 +5,8 @@ use std::str::FromStr;
 
 use crate::error::{Error, Result};
 use std::str;
+use crate::chrono::TimeZone;
+use chrono::Utc;
 
 extern crate num;
 //#[macro_use]
@@ -76,8 +78,9 @@ impl NestedWriter {
         self.write_element(self.tag.unwrap().as_ref(), "LongInteger", &v.to_string())
     }
     fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()> {
-        // TODO - write timezone string
-        self.write_element(self.tag.unwrap().as_ref(), "Integer", &v.to_string())
+        // TODO - to_rfc3339 can panic if the datetime is bad
+        let dt = chrono::Utc.timestamp(v, 0);
+        self.write_element(self.tag.unwrap().as_ref(), "Integer", &dt.to_rfc3339())
     }
 
     fn write_string(&mut self, v: &str) -> TTLVResult<()> {
@@ -1419,7 +1422,7 @@ mod tests {
 
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "abc";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
@@ -1451,21 +1454,12 @@ mod tests {
             unique_identifier: String::new(),
         };
 
-        let v = to_bytes(&a).unwrap();
+        let v = to_xml_bytes(&a).unwrap();
+        print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        print!("Dump of bytes {:?}", v.hex_dump());
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestMessage type=\"Structure\"><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"3\" /><BatchCount type=\"Integer\" value=\"4\" /></RequestHeader><UniqueIdentifier type=\"TextString\" value=\"\" /></RequestMessage>";
 
-        to_print(v.as_slice());
-
-        let good = vec![
-            66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0,
-            0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7,
-            0, 0, 0, 0,
-        ];
-
-        assert_eq!(v.len(), 56);
-
-        assert_eq!(v, good);
+        assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
 
     #[test]
@@ -1493,10 +1487,9 @@ mod tests {
         };
 
         let v = to_xml_bytes(&a).unwrap();
-        print!("Dump of bytes {:?}", v.hex_dump());
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "abc";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ObjectType type=\"Structure\"><UniqueIdentifier type=\"TextString\" value=\"\" /></ObjectType><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
@@ -1542,21 +1535,12 @@ mod tests {
         let a = CRTCoefficient::CertificateRequest(String::new());
         let _b = CRTCoefficient::Attribute(vec![0x1]);
 
-        let v = to_bytes(&a).unwrap();
+        let v = to_xml_bytes(&a).unwrap();
+        print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        print!("Dump of bytes {:?}", v.hex_dump());
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><Operation type=\"TextString\" value=\"CertificateRequest\" /><BatchItem type=\"TextString\" value=\"\" /></CRTCoefficient>";
 
-        to_print(v.as_slice());
-
-        let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105,
-            99, 97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0,
-            0, 0, 0,
-        ];
-
-        assert_eq!(v.len(), 48);
-
-        assert_eq!(v, good);
+        assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
 
     #[test]
@@ -1571,21 +1555,12 @@ mod tests {
             batch_count: vec![0x66, 0x77, 0x88],
         };
 
-        let v = to_bytes(&a).unwrap();
+        let v = to_xml_bytes(&a).unwrap();
+        print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        print!("Dump of bytes {:?}", v.hex_dump());
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"Integer\" value=\"102\" /><BatchCount type=\"Integer\" value=\"119\" /><BatchCount type=\"Integer\" value=\"136\" /></CRTCoefficient>";
 
-        to_print(v.as_slice());
-
-        let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0,
-            13, 2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0,
-            0, 0, 0,
-        ];
-
-        assert_eq!(v.len(), 56);
-
-        assert_eq!(v, good);
+        assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
 
     #[test]
@@ -1597,21 +1572,14 @@ mod tests {
         }
 
         let a = CRTCoefficient {
-            batch_count: chrono::Utc.timestamp(1563373983625, 0),
+            batch_count: chrono::Utc.timestamp(123456, 0),
         };
 
-        let v = to_bytes(&a).unwrap();
+        let v = to_xml_bytes(&a).unwrap();
+        print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        print!("Dump of bytes {:?}", v.hex_dump());
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"Integer\" value=\"1973-11-29T21:20:00+00:00\" /></CRTCoefficient>";
 
-        to_print(v.as_slice());
-
-        let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40,
-        ];
-
-        assert_eq!(v.len(), 24);
-
-        assert_eq!(v, good);
+        assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
 }

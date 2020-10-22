@@ -20,6 +20,7 @@ use std::io::{Cursor, Read};
 
 
 mod de;
+mod de_xml;
 mod error;
 mod failures;
 mod kmip_enums;
@@ -45,6 +46,7 @@ pub use de::{from_bytes};
 pub use error::{Error, Result};
 pub use ser::{to_bytes};
 pub use ser_xml::{to_xml_bytes};
+pub use de_xml::{from_xml_bytes};
 
 pub use de::to_print;
 pub use failures::TTLVError;

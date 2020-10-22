@@ -5,7 +5,7 @@ extern crate num;
 extern crate num_derive;
 extern crate num_traits;
 
-#[derive(FromPrimitive, Debug, PartialEq, Copy, Clone)]
+#[derive(FromPrimitive, Debug, EnumString, PartialEq, Copy, Clone)]
 pub enum ItemType {
     Structure = 0x01,
     Integer = 0x02,
