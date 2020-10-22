@@ -103,17 +103,31 @@ impl<'a> NestedReader<'a> {
         self.cur_depths.pop().unwrap();
     }
 
-    fn is_empty(&self) -> bool {
-        
+    fn is_empty(&mut self) -> TTLVResult<bool> {
+        let e = self.is_empty2();
+//        eprintln!("is_empty {:?} {:?} == {:?}",e , self.depth, (self.cur_depths.last().unwrap()));
+       eprintln!("is_empty {:?} {:?}",e , self.depth);
+        e
+    }
+
+    fn is_empty2(&mut self) -> TTLVResult<bool> {
+        eprintln!("is_empty: ");
         if self.end_document {
-            return true;
+            return Ok(true);
         }
+
+
+        self.read_one_element()?;
+        if self.end_document {
+            return Ok(true);
+        }
+        
         // println!(
         //     "cmp1 {:?} == {:?}",
         //     *(self.end_positions.last().unwrap()),
         //     self.cur.position()
         // );
-        return *(self.cur_depths.last().unwrap()) > self.depth;
+        Ok(*(self.cur_depths.last().unwrap()) == self.depth)
     }
 
 
@@ -317,7 +331,7 @@ where
 {
     let mut deserializer = Deserializer::from_bytes(s, enum_resolver);
     let t = T::deserialize(&mut deserializer)?;
-    if deserializer.input.is_empty() {
+    if deserializer.input.is_empty()? {
         Ok(t)
     } else {
         Err(Error::Eof)
@@ -745,7 +759,7 @@ impl<'de, 'a> MapAccess<'de> for MapParser<'a, 'de> {
     where
         K: DeserializeSeed<'de>,
     {
-        if self.de.input.is_empty() {
+        if self.de.input.is_empty()? {
             self.de.input.close_inner();
             return Ok(None);
         }
@@ -788,7 +802,7 @@ impl<'de, 'a> SeqAccess<'de> for SeqParser<'a, 'de> {
     where
         T: DeserializeSeed<'de>,
     {
-        if self.de.input.is_empty() {
+        if self.de.input.is_empty()? {
             return Ok(None);
         }
 
@@ -922,9 +936,6 @@ mod tests {
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
 
-
-        //    to_print(good.as_ref());
-
         let r: TestEnumResolver = TestEnumResolver {};
         let a = from_xml_bytes::<RequestHeader>(&good.as_bytes(), &r).unwrap();
 
@@ -942,15 +953,10 @@ mod tests {
             CertificateRequest(String),
         }
 
-        let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 40, 66, 0, 92, 7, 0, 0, 0, 18, 67, 101, 114, 116, 105, 102, 105,
-            99, 97, 116, 101, 82, 101, 113, 117, 101, 115, 116, 0, 0, 0, 0, 0, 0, 66, 0, 15, 7, 0,
-            0, 0, 0,
-        ];
-        to_print(good.as_ref());
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><Operation type=\"TextString\" value=\"CertificateRequest\" /><BatchItem type=\"TextString\" value=\"\" /></CRTCoefficient>";
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let _a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+        let _a = from_xml_bytes::<CRTCoefficient>(&good.as_bytes(), &r).unwrap();
     }
 
     #[test]
@@ -961,16 +967,11 @@ mod tests {
     pub batch_count: Vec<i32>,
         }
 
-        let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 48, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 102, 0, 0, 0, 0, 66, 0,
-            13, 2, 0, 0, 0, 4, 0, 0, 0, 119, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 136, 0,
-            0, 0, 0,
-        ];
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"Integer\" value=\"102\" /><BatchCount type=\"Integer\" value=\"119\" /><BatchCount type=\"Integer\" value=\"136\" /></CRTCoefficient>";
 
-        to_print(good.as_ref());
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let _a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+        let _a = from_xml_bytes::<CRTCoefficient>(&good.as_bytes(), &r).unwrap();
     }
 
     #[test]
@@ -981,14 +982,12 @@ mod tests {
             batch_count: chrono::DateTime<Utc>,
         }
 
-        let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40,
-        ];
 
-        to_print(good.as_slice());
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"DateTime\" value=\"1973-11-29T21:20:00+00:00\" /></CRTCoefficient>";
+
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let _a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+        let _a = from_xml_bytes::<CRTCoefficient>(&good.as_bytes(), &r).unwrap();
     }
 
     #[test]
@@ -1009,16 +1008,12 @@ mod tests {
             unique_identifier: String,
         }
 
-        let good = vec![
-            66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0,
-            0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7,
-            0, 0, 0, 0,
-        ];
 
-        to_print(good.as_slice());
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestMessage type=\"Structure\"><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"3\" /><BatchCount type=\"Integer\" value=\"4\" /></RequestHeader><UniqueIdentifier type=\"TextString\" value=\"\" /></RequestMessage>";
+
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let _a = from_bytes::<RequestMessage>(&good, &r).unwrap();
+        let _a = from_xml_bytes::<RequestMessage>(&good.as_bytes(), &r).unwrap();
     }
 
 }

@@ -80,7 +80,7 @@ impl NestedWriter {
     fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()> {
         // TODO - to_rfc3339 can panic if the datetime is bad
         let dt = chrono::Utc.timestamp(v, 0);
-        self.write_element(self.tag.unwrap().as_ref(), "Integer", &dt.to_rfc3339())
+        self.write_element(self.tag.unwrap().as_ref(), "DateTime", &dt.to_rfc3339())
     }
 
     fn write_string(&mut self, v: &str) -> TTLVResult<()> {
@@ -1578,7 +1578,7 @@ mod tests {
         let v = to_xml_bytes(&a).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"Integer\" value=\"1973-11-29T21:20:00+00:00\" /></CRTCoefficient>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"DateTime\" value=\"1973-11-29T21:20:00+00:00\" /></CRTCoefficient>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
