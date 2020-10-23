@@ -257,9 +257,8 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
         eprintln!("read_enumeration");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        //read_enumeration(&mut self.cur)
-        // TODO
-        let value = 1;
+        // TODO - this can either be a hex string or camel case enum text per 5.4.1.6.7
+        let value = self.element.as_ref().unwrap().value.as_ref().unwrap().parse::<i32>().map_err(|_| TTLVError::XmlError)?;
         self.element = None;
         Ok(value)
     }

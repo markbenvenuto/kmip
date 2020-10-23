@@ -72,6 +72,7 @@ impl NestedWriter {
     }
 
     fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> {
+        // TODO - write as hex string or camelCase per 5.4.1.6.7
         self.write_element(self.tag.unwrap().as_ref(), "Enumeration", &v.to_string())
     }
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
