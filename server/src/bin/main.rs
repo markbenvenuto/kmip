@@ -115,7 +115,7 @@ struct CmdLine {
     ca_cert_file: PathBuf,
 
     /// Port to listen on
-    #[structopt(name = "port", long = "port", default_value = "7000")]
+    #[structopt(name = "port", long = "port", default_value = "5696")]
     port: u16,
 
     /// Store to use
@@ -188,8 +188,8 @@ fn main() {
 
     // confy::store("qrb", cfg).expect("foooooo3124123");
 
-    let addr: net::SocketAddr = "0.0.0.0:7000".parse().unwrap();
-    //TODO addr.set_port(args.flag_port.unwrap_or(7000));
+    let addr: net::SocketAddr = "0.0.0.0:5696".parse().unwrap();
+    //TODO addr.set_port(args.flag_port.unwrap_or(5696));
 
     let listener = TcpListener::bind(&addr).expect("cannot listen on port");
     let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());

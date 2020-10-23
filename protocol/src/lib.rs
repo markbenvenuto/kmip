@@ -17,7 +17,7 @@ use chrono::DateTime;
 use chrono::Utc;
 use std::fmt;
 use std::io::{Cursor, Read};
-
+use std::str::FromStr;
 
 mod de;
 mod de_xml;
@@ -61,7 +61,7 @@ pub use kmip_enums::ItemType;
 pub use kmip_enums::Tag;
 
 
-#[derive(FromPrimitive, Serialize_enum, Deserialize_enum, Debug, AsStaticStr)]
+#[derive(FromPrimitive, ToPrimitive, Serialize_enum, Deserialize_enum, Debug,  EnumString,AsStaticStr)]
 #[repr(i32)]
 pub enum Operation {
     Create = 0x00000001,
@@ -109,7 +109,7 @@ pub enum Operation {
     Export = 0x0000002B,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive,AsStaticStr)]
 #[repr(i32)]
 pub enum ObjectTypeEnum {
     Certificate = 0x00000001,
@@ -123,7 +123,7 @@ pub enum ObjectTypeEnum {
     PGPKey = 0x00000009,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
+#[derive(Debug, Serialize_enum, Deserialize_enum,  EnumString,FromPrimitive,ToPrimitive, AsStaticStr, PartialEq)]
 #[repr(i32)]
 pub enum ObjectStateEnum {
     PreActive = 0x00000001,
@@ -134,7 +134,7 @@ pub enum ObjectStateEnum {
     DestroyedCompromised = 0x00000006,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum,  EnumString,FromPrimitive,ToPrimitive, AsStaticStr)]
 #[repr(i32)]
 pub enum NameTypeEnum {
     UninterpretedTextString = 0x00000001,
@@ -142,7 +142,7 @@ pub enum NameTypeEnum {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, FromPrimitive, ToPrimitive, AsStaticStr, Clone,
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone,
 )]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
@@ -458,12 +458,16 @@ pub struct ProtocolVersion {
 
     #[serde(rename = "ProtocolVersionMinor")]
     pub protocol_version_minor: i32,
+
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RequestHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
+    
+    #[serde(rename = "ClientCorrelationValue")]
+    pub client_correlation_value: Option<String>,
 
     // TODO: Other fields are optional
     #[serde(rename = "BatchCount")]
@@ -781,6 +785,31 @@ impl EnumResolver for KmipEnumResolver {
             }
             _ => {
                 println!("Not implemented: {:?}", name);
+                unimplemented! {}
+            }
+        }
+    }
+
+    fn resolve_enum_str(&self, tag: Tag, value: &str) -> std::result::Result<i32, TTLVError> {
+        match tag {
+            Tag::CryptographicAlgorithm => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32( &CryptographicAlgorithm::from_str(value).unwrap() ).unwrap())
+            }
+            Tag::Operation => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32( &Operation::from_str(value).unwrap() ).unwrap())
+            }
+            Tag::ObjectType => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32( &ObjectTypeEnum::from_str(value).unwrap() ).unwrap())
+            }
+            Tag::NameType => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32( &NameTypeEnum::from_str(value).unwrap() ).unwrap())
+            }
+            _ => {
+                println!("Not implemented: {:?}", tag);
                 unimplemented! {}
             }
         }

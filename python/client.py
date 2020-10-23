@@ -5,10 +5,10 @@ from  kmip.core import enums
 
 client = ProxyKmipClient(
     hostname='127.0.0.1',
-    port=7000,
-    cert='../test/client.pem',
-    key='../test/client.key',
-    ca='../test/ca.pem',
+    port=5696,
+    cert='../test_data/client.pem',
+    key='../test_data/client.key',
+    ca='../test_data/ca.pem',
     #ssl_version=ssl.PROTOCOL_TLSv1,
     # username='example_username',
     # password='example_password'

@@ -336,6 +336,12 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
 
 
 
+
+pub trait EnumResolver {
+    fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
+    fn resolve_enum_str(&self, tag: Tag, value: &str) -> std::result::Result<i32, TTLVError>;
+}
+
 pub trait EncodingReader<'a> {
     fn new(buf: &'a [u8]) -> Self ;
 
@@ -363,7 +369,7 @@ pub trait EncodingReader<'a> {
 
     fn read_i32(&mut self) -> TTLVResult<i32>;
 
-    fn read_enumeration(&mut self) -> TTLVResult<i32>;
+    fn read_enumeration(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32>;
 
     fn read_i64(&mut self) -> TTLVResult<i64>;
 
@@ -398,6 +404,7 @@ struct NestedReader<'a> {
 //         };
 //     }
 // }
+
 
 impl<'a> EncodingReader<'a> for NestedReader<'a> {
     fn new(buf: &'a [u8]) -> NestedReader {
@@ -506,7 +513,7 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         read_i32(&mut self.cur)
     }
 
-    fn read_enumeration(&mut self) -> TTLVResult<i32> {
+    fn read_enumeration(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         read_enumeration(&mut self.cur)
@@ -554,10 +561,6 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
 // }
 
 ////////////////////
-
-pub trait EnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
-}
 
 pub struct Deserializer<'de, R>
     where R : EncodingReader<'de> {
@@ -697,7 +700,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         let t = self.input.read_type()?;
 
         match t {
-            ItemType::Enumeration => visitor.visit_i32(self.input.read_enumeration()?),
+            ItemType::Enumeration => visitor.visit_i32(self.input.read_enumeration(self.enum_resolver)?),
             ItemType::Integer => visitor.visit_i32(self.input.read_i32()?),
             _ => {
                 unreachable! {}
@@ -966,7 +969,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
 
         match t {
             ItemType::Enumeration => {
-                let e = self.input.read_enumeration()?;
+                let e = self.input.read_enumeration(self.enum_resolver)?;
                 visitor.visit_string(
                     self.enum_resolver
                         .resolve_enum(self.input.get_tag().as_ref(), e)?,
@@ -1178,6 +1181,9 @@ mod tests {
 
     impl EnumResolver for TestEnumResolver {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
+            unimplemented! {}
+        }
+        fn resolve_enum_str(&self, tag : crate::kmip_enums::Tag, value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
     }

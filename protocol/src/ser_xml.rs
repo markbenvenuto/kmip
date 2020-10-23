@@ -14,7 +14,6 @@ extern crate num_derive;
 extern crate num_traits;
 
 extern crate byteorder;
-use byteorder::{BigEndian, WriteBytesExt};
 
 //use self::enums;
 use crate::kmip_enums::*;
@@ -25,10 +24,6 @@ use xml::writer::{EmitterConfig, EventWriter, XmlEvent};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
-// fn foo() {
-//     let a : xml::writer::EventWriter::<std::vec::Vec> = EmitterConfig::new().create_writer(vec);
-// }
-
 struct NestedWriter {
     writer: xml::writer::EventWriter<std::vec::Vec<u8>>,
     tag: Option<Tag>,
@@ -36,7 +31,7 @@ struct NestedWriter {
 
 impl NestedWriter {
     fn new() -> NestedWriter {
-        let mut vec = Vec::new();
+        let vec = Vec::new();
         return NestedWriter {
             tag: None,
             writer: EmitterConfig::new().create_writer(vec),
@@ -51,12 +46,12 @@ impl NestedWriter {
         self.tag = Some(tag)
     }
 
-    fn write_element(&mut self, name: &str, typeName: &str, value: &str) -> TTLVResult<()> {
+    fn write_element(&mut self, name: &str, type_name: &str, value: &str) -> TTLVResult<()> {
         // TODO - normalize names per 5.4.1.1 Normalizing Names
         self.writer
             .write(
                 XmlEvent::start_element(name)
-                    .attr("type", typeName)
+                    .attr("type", type_name)
                     .attr("value", value),
             )
             .map_err(|_| TTLVError::XmlError)?;
@@ -73,7 +68,7 @@ impl NestedWriter {
 
     fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> {
         // TODO - write as hex string or camelCase per 5.4.1.6.7
-        self.write_element(self.tag.unwrap().as_ref(), "Enumeration", &v.to_string())
+        self.write_element(self.tag.unwrap().as_ref(), "Enumeration", &format!("{:#x}",v))
     }
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
         self.write_element(self.tag.unwrap().as_ref(), "LongInteger", &v.to_string())
@@ -94,6 +89,7 @@ impl NestedWriter {
 
     fn write_tag_enum(&mut self, t: Tag) -> TTLVResult<()> {
         // This starts a struct
+        // TODO - omit type as it is the default
         self.writer.write( XmlEvent::start_element(t.as_ref()).attr("type", "Structure")).map_err(|_| TTLVError::XmlError)
     }
 

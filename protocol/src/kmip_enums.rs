@@ -113,7 +113,7 @@ pub enum Tag {
     OpaqueDataValue = 0x42005A,
     OpaqueObject = 0x42005B,
     Operation = 0x42005C,
-    OperationPolicyName = 0x42005D, //(dep=recated),
+    OperationPolicyName = 0x42005D, //(deprecated),
     P = 0x42005E,
     PaddingMethod = 0x42005F,
     PrimeExponentP = 0x420060,

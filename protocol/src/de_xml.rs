@@ -1,9 +1,7 @@
 use std::io::Cursor;
-use std::io::Read;
 
 use std::string::ToString;
 
-use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::Deserialize;
 
 use crate::error::{Error, Result};
@@ -14,9 +12,6 @@ extern crate num_derive;
 extern crate num_traits;
 
 extern crate byteorder;
-use byteorder::{BigEndian, ReadBytesExt};
-use pretty_hex::*;
-//use self::enums;
 
 use crate::kmip_enums::*;
 
@@ -40,7 +35,7 @@ use xml::reader::XmlEvent;
 
 struct XmlItem {
     name : String,
-    itemType : ItemType,
+    item_type : ItemType,
     value : Option<String>,
 }
 
@@ -68,11 +63,6 @@ fn is_empty2(&mut self) -> TTLVResult<bool> {
         return Ok(true);
     }
 
-    // println!(
-    //     "cmp1 {:?} == {:?}",
-    //     *(self.end_positions.last().unwrap()),
-    //     self.cur.position()
-    // );
     Ok(*(self.cur_depths.last().unwrap()) == self.depth)
 }
 
@@ -85,16 +75,19 @@ fn read_one_event(&mut self)  -> TTLVResult<Option<XmlItem>>  {
             eprintln!("Read Element: {} - {:?}", name, attributes);
 
             let name = name.local_name;
-            let itemType = attributes.iter().find(|i| i.name.local_name == "type" ).unwrap();
+            let item_type = attributes.iter().find(|i| i.name.local_name == "type" );
             let value = attributes.iter().find(|i| i.name.local_name == "value" ).map(|x| x.value.to_string());
-
             
-            let itemTypeEnum = ItemType::from_str(&itemType.value).map_err(|_| TTLVError::XmlError)?;
+            // If type is missing, the default is Structure
+            let item_type_enum = match item_type {
+                Some(x) => ItemType::from_str(&x.value).map_err(|_| TTLVError::XmlError)?,
+                None => ItemType::Structure
+            };
 
             self.depth += 1;
             Ok(Some(XmlItem {
                 name: name,
-                itemType : itemTypeEnum,
+                item_type : item_type_enum,
                 value : value,
             }))
         },
@@ -187,7 +180,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
         self.state = ReaderState::LengthValue;
         
         
-       Ok( self.element.as_ref().unwrap().itemType)
+       Ok( self.element.as_ref().unwrap().item_type)
 
     }
 
@@ -195,7 +188,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
         eprintln!("read_type_and_check");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::LengthValue;
-        let t = self.element.as_ref().unwrap().itemType;
+        let t = self.element.as_ref().unwrap().item_type;
         if t!=expected {
             return Err(TTLVError::UnexpectedType{actual: t, expected : expected})
         }
@@ -226,10 +219,6 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     fn peek_tag(&mut self) -> TTLVResult<Tag> {
         eprintln!("peek_tag");
         assert_eq!(self.state, ReaderState::Tag);
-        // let pos = self.cur.position();
-        // let tag = read_tag_enum(&mut self.cur)?;
-        // self.cur.set_position(pos);
-
         
         let tag = Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
 
@@ -240,8 +229,6 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
         eprintln!("reverse_tag");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
-        // let pos = self.cur.position();
-        // self.cur.set_position(pos - 3);
     }
 
     fn read_i32(&mut self) -> TTLVResult<i32> {
@@ -253,12 +240,27 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
         Ok(value)
     }
 
-    fn read_enumeration(&mut self) -> TTLVResult<i32> {
+    fn read_enumeration(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
         eprintln!("read_enumeration");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         // TODO - this can either be a hex string or camel case enum text per 5.4.1.6.7
-        let value = self.element.as_ref().unwrap().value.as_ref().unwrap().parse::<i32>().map_err(|_| TTLVError::XmlError)?;
+        let input_str = self.element.as_ref().unwrap().value.as_ref().unwrap();
+
+        let mut value:i32;
+        if input_str.starts_with("0x") {
+            let without_prefix = input_str.trim_start_matches("0x");
+            value = i32::from_str_radix(without_prefix, 16).map_err(|_| TTLVError::XmlError)?;
+        } else {
+            value = 0;
+            // Resolve as string for enum
+            for ev in input_str.split(" ") {
+                value |= enum_resolver.resolve_enum_str(self.tag.unwrap(), ev).unwrap();
+            }
+            
+        }
+
+  
         self.element = None;
         Ok(value)
     }
@@ -342,6 +344,9 @@ mod tests {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
+        fn resolve_enum_str(&self, tag : crate::kmip_enums::Tag, value: &str) -> std::result::Result<i32, TTLVError> {
+            unimplemented! {}
+        }
     }
 
     #[test]
@@ -363,6 +368,16 @@ mod tests {
         }
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
+
+        let r: TestEnumResolver = TestEnumResolver {};
+        let a = from_xml_bytes::<RequestHeader>(&good.as_bytes(), &r).unwrap();
+
+        assert_eq!(a.protocol_version_major, 1);
+        assert_eq!(a.protocol_version_minor, 2);
+        assert_eq!(a.batch_count, 3);
+
+        // Structure is defaulted
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
 
         let r: TestEnumResolver = TestEnumResolver {};
         let a = from_xml_bytes::<RequestHeader>(&good.as_bytes(), &r).unwrap();

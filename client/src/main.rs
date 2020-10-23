@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, fs::File};
 
 use std::fs;
 use std::io::BufReader;
@@ -56,7 +56,7 @@ struct CmdLine {
     host: String,
 
     /// Port to connect to
-    #[structopt(name = "port", long = "port", default_value = "7000")]
+    #[structopt(name = "port", long = "port", default_value = "5696")]
     port: u16,
 
     #[structopt(subcommand)] // Note that we mark a field as a subcommand
@@ -78,6 +78,13 @@ enum Command {
         /// ID of thing to get
         //#[structopt(short = "p")]
         id: String,
+    },
+    #[structopt(name = "xml")]
+    /// Do a remote build of a project
+    RunXml {
+        /// Path to XML file to run
+        #[structopt(parse(from_os_str), name = "file", long = "file")]
+        file: PathBuf,
     },
 }
 
@@ -126,6 +133,42 @@ enum Command {
 // impl<'a> kmip_client::Stream  for StreamAdapter<'a>  {
 
 // }
+extern crate minidom;
+//extern crate quick_xml;
+use minidom::Element;
+
+fn run_xml<'a, T>(filename: &PathBuf, client: &mut Client<'a, T>)
+where
+    T: 'a + Read + Write {
+
+
+    let mut file = minidom::quick_xml::Reader::from_file(filename).unwrap();
+    let root: Element = Element::from_reader(&mut file).unwrap();
+
+
+    let mut reqs : Vec<String>  = Vec::new();
+    let resps : Vec<String>  = Vec::new();
+    for child in root.children() {
+
+        let mut buf : Vec<u8>  = Vec::new();
+        child.write_to(&mut buf).unwrap();
+        let xml_str = std::str::from_utf8(&buf).unwrap().to_string();
+        // println!("{:?}", child);
+        println!("xml_str{:?}", xml_str);
+        if child.name() == "RequestMessage" {
+            reqs.push(xml_str);
+        } else  if child.name() == "ResponseMessage" {
+            reqs.push(xml_str);
+        } else {
+            panic!(format!("Unknown XML child {:?}", child.name()));
+        }
+    }
+
+
+        client.make_xml_request(&reqs[0]);
+    
+}
+
 
 fn main() {
     println!("Hello, world!");
@@ -181,9 +224,12 @@ fn main() {
 
             println!("Response: {:#?} ", response);
         }
-        _ => {
-            unimplemented!();
+        Command::RunXml { file } => {
+            run_xml(&file, &mut client);
         }
+        // _ => {
+        //     unimplemented!();
+        // }
     };
 
     let ciphersuite = tls.sess.get_negotiated_ciphersuite().unwrap();

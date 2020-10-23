@@ -21,6 +21,7 @@ fn create_ok_request(op: RequestBatchItem) -> Vec<u8> {
                 protocol_version_major: 1,
                 protocol_version_minor: 0,
             },
+            client_correlation_value: None,
             batch_count: 1,
         },
         batch_item: op,
@@ -121,6 +122,34 @@ where
         // TODO check response
 
         return response.batch_item.response_payload.unwrap();
+    }
+
+
+    pub fn make_xml_request(&mut self, xml_str: &str) -> String {
+        let k: KmipEnumResolver = KmipEnumResolver {};
+
+        let request = protocol::from_xml_bytes::<RequestMessage>(xml_str.as_bytes(), &k).unwrap();
+
+        let bytes= protocol::to_bytes(&request).unwrap();
+
+        self.stream.write_all(bytes.as_slice()).unwrap();
+
+        debug!("Waiting for data....");
+
+        let msg = read_msg(&mut self.stream).unwrap();
+
+        info!("Response Message: {:?}", msg.hex_dump());
+
+        protocol::to_print(&msg);
+
+        // TODO validate request
+        let response = protocol::from_bytes::<ResponseMessage>(&msg, &k).unwrap();
+
+        //println!("Response: {:?} ", response);
+
+        // TODO check response
+
+        return std::str::from_utf8( &protocol::to_xml_bytes(&response).unwrap() ).unwrap().to_string()
     }
 
     //     fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {

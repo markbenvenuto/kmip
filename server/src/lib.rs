@@ -173,7 +173,7 @@ impl<'a> RequestContext<'a> {
     // }
 }
 
-fn create_error_response(msg: Option<String>) -> Vec<u8> {
+fn create_error_response(msg: Option<String>) -> protocol::ResponseMessage {
     let r = protocol::ResponseMessage {
         response_header: protocol::ResponseHeader {
             protocol_version: protocol::ProtocolVersion {
@@ -193,7 +193,7 @@ fn create_error_response(msg: Option<String>) -> Vec<u8> {
         },
     };
 
-    return protocol::to_bytes(&r).unwrap();
+    return r;
 }
 
 use std::error::Error;
@@ -406,7 +406,7 @@ fn process_activate_request(
     Ok(resp)
 }
 
-fn create_ok_response(op: protocol::ResponseOperationEnum) -> Vec<u8> {
+fn create_ok_response(op: protocol::ResponseOperationEnum) -> protocol::ResponseMessage {
     let r = protocol::ResponseMessage {
         response_header: protocol::ResponseHeader {
             protocol_version: protocol::ProtocolVersion {
@@ -425,7 +425,7 @@ fn create_ok_response(op: protocol::ResponseOperationEnum) -> Vec<u8> {
         },
     };
 
-    return protocol::to_bytes(&r).unwrap();
+    return r;
 }
 
 // fn process_request(batchitem: &RequestBatchItem) -> {ResponseOperationEnum
@@ -468,7 +468,7 @@ fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         }
     };
 
-    let vr = match result {
+    let rm = match result {
         std::result::Result::Ok(t) => create_ok_response(t),
         std::result::Result::Err(e) => {
             let msg = format!("error: {}", e);
@@ -476,6 +476,7 @@ fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         }
     };
 
+    let vr = protocol::to_bytes(&rm).unwrap();
     info!("Response Message: {:?}", vr.hex_dump());
 
     protocol::to_print(vr.as_slice());
