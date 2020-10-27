@@ -3,10 +3,9 @@ use std::io::Write;
 
 use std::str::FromStr;
 
-use crate::error::{Error, Result};
+use crate::{ser::EncodedWriter, error::{Error, Result}};
 use std::str;
 use crate::chrono::TimeZone;
-use chrono::Utc;
 
 extern crate num;
 //#[macro_use]
@@ -20,16 +19,19 @@ use crate::kmip_enums::*;
 
 use crate::failures::*;
 
-use xml::writer::{EmitterConfig, EventWriter, XmlEvent};
+use xml::writer::{EmitterConfig, XmlEvent};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
+
+
+
 
 struct NestedWriter {
     writer: xml::writer::EventWriter<std::vec::Vec<u8>>,
     tag: Option<Tag>,
 }
 
-impl NestedWriter {
+impl EncodedWriter for NestedWriter {
     fn new() -> NestedWriter {
         let vec = Vec::new();
         return NestedWriter {

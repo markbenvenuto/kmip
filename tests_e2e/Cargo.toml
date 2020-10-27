@@ -9,10 +9,19 @@ edition = "2018"
 [dependencies]
 kmip_client = {path="../kmip_client"}
 kmip_server = {path="../server"}
+protocol = {path="../protocol"}
+
 log= "0.4.11"
 
+hex = "0.4.2"
 # pretty-hex = "0.1.1"
 
 # num = "0.2.0"
 # num-traits = "0.2"
 # num-derive = "0.3.0"
+
+rustls = "0.18.1"
+
+webpki = "0.21.3"
+
+minidom = "0.12.0"

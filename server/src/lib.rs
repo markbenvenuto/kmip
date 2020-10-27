@@ -38,7 +38,7 @@ extern crate confy;
 
 extern crate chrono;
 
-use chrono::DateTime;
+use chrono::{DateTime, NaiveDateTime};
 use chrono::Utc;
 
 use std::net::SocketAddr;
@@ -104,26 +104,54 @@ where
 }
 
 
+pub trait ClockSource {
+    fn now(&self) -> chrono::DateTime<Utc>;
+}
+
+pub struct TestClockSource {
+
+}
+
+impl TestClockSource {
+    pub fn new() -> TestClockSource {
+        TestClockSource{}
+    }
+}
+
+impl ClockSource for TestClockSource {
+    fn now(&self) -> chrono::DateTime<Utc> {
+        chrono::DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(123, 0), Utc) 
+    }
+}
+
 struct ServerContextInner {
     count: i32,
 }
+
+
 
 #[derive(Clone)]
 pub struct ServerContext {
     inner: Arc<Mutex<ServerContextInner>>,
     store: Arc<dyn KmipStore + Send + Sync>,
+    clock_source: Arc<dyn ClockSource  + Send + Sync>,
 }
 
 impl ServerContext {
-    pub fn new(store: Arc<dyn KmipStore + Send + Sync>) -> ServerContext {
+    pub fn new(store: Arc<dyn KmipStore + Send + Sync>, clock_source: Arc<dyn ClockSource  + Send + Sync>) -> ServerContext {
         ServerContext {
             inner: Arc::new(Mutex::new(ServerContextInner { count: 0 })),
             store: store,
+            clock_source : clock_source,
         }
     }
 
     fn get_store(&self) -> &dyn KmipStore {
         return self.store.as_ref();
+    }
+
+    fn get_clock_source(&self) -> &dyn ClockSource {
+        self.clock_source.as_ref()
     }
 }
 
@@ -146,14 +174,14 @@ impl KmipCrypto {
     }
 }
 
-struct RequestContext<'a> {
+pub struct RequestContext<'a> {
     //store: &'a mut KmipStore,
     peer_addr: Option<SocketAddr>,
     server_context: &'a ServerContext,
 }
 
 impl<'a> RequestContext<'a> {
-    fn new(server_context: &'a ServerContext) -> RequestContext<'a> {
+    pub fn new(server_context: &'a ServerContext) -> RequestContext<'a> {
         RequestContext {
             peer_addr: None,
             server_context: server_context,
@@ -173,14 +201,14 @@ impl<'a> RequestContext<'a> {
     // }
 }
 
-fn create_error_response(msg: Option<String>) -> protocol::ResponseMessage {
+fn create_error_response(msg: Option<String>, clock_source:&dyn ClockSource) -> protocol::ResponseMessage {
     let r = protocol::ResponseMessage {
         response_header: protocol::ResponseHeader {
             protocol_version: protocol::ProtocolVersion {
                 protocol_version_major: 1,
                 protocol_version_minor: 0,
             },
-            time_stamp: Utc::now(),
+            time_stamp: clock_source.now(),
             batch_count: 1,
         },
         batch_item: protocol::ResponseBatchItem {
@@ -282,9 +310,10 @@ fn process_create_request(
 ) -> std::result::Result<CreateResponse, KmipResponseError> {
     let mut ma = ManagedAttributes {
         state: ObjectStateEnum::PreActive,
-        initial_date: Utc::now(),
+        initial_date: rc.get_server_context().get_clock_source().now(),
 
         activation_date: None,
+        destroy_date : None,
 
         cryptographic_algorithm: None,
 
@@ -406,14 +435,56 @@ fn process_activate_request(
     Ok(resp)
 }
 
-fn create_ok_response(op: protocol::ResponseOperationEnum) -> protocol::ResponseMessage {
+
+fn process_destroy_request(
+    rc: &RequestContext,
+    req: DestroyRequest,
+) -> std::result::Result<DestroyResponse, KmipResponseError> {
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(&req.unique_identifier);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+
+    let mut mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    // TODO - throw an error on illegal state transition??
+    if mo.attributes.state == ObjectStateEnum::PreActive || 
+        mo.attributes.state == ObjectStateEnum::Deactivated {
+            mo.attributes.state = ObjectStateEnum::Destroyed;
+
+            mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());
+
+        let d = bson::to_bson(&mo).unwrap();
+
+        if let bson::Bson::Document(d1) = d {
+            rc.get_server_context()
+                .get_store()
+                .update(&req.unique_identifier, d1);
+        } else {
+            return Err(KmipResponseError::new("Barff"));
+        }
+    }
+
+    let resp = DestroyResponse {
+        unique_identifier: req.unique_identifier,
+    };
+
+    Ok(resp)
+}
+
+
+fn create_ok_response(op: protocol::ResponseOperationEnum, clock_source:&dyn ClockSource) -> protocol::ResponseMessage {
     let r = protocol::ResponseMessage {
         response_header: protocol::ResponseHeader {
             protocol_version: protocol::ProtocolVersion {
                 protocol_version_major: 1,
                 protocol_version_minor: 0,
             },
-            time_stamp: Utc::now(),
+            time_stamp: clock_source.now(),
             batch_count: 1,
         },
         batch_item: protocol::ResponseBatchItem {
@@ -432,7 +503,7 @@ fn create_ok_response(op: protocol::ResponseOperationEnum) -> protocol::Response
 
 // }
 
-fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
+pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     let k: KmipEnumResolver = protocol::KmipEnumResolver {};
 
     info!("Request Message: {:?}", buf.hex_dump());
@@ -466,13 +537,17 @@ fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
             info!("Got Activate Request");
             process_activate_request(&rc, x).map(|r| ResponseOperationEnum::Activate(r))
         }
+        RequestBatchItem::Destroy(x) => {
+            info!("Got Destroy Request");
+            process_destroy_request(&rc, x).map(|r| ResponseOperationEnum::Destroy(r))
+        }
     };
 
     let rm = match result {
-        std::result::Result::Ok(t) => create_ok_response(t),
+        std::result::Result::Ok(t) => create_ok_response(t, rc.get_server_context().get_clock_source()),
         std::result::Result::Err(e) => {
             let msg = format!("error: {}", e);
-            create_error_response(Some(msg))
+            create_error_response(Some(msg), rc.get_server_context().get_clock_source())
         }
     };
 
@@ -542,8 +617,8 @@ fn test_create_request2() {
     ];
 
     let store = Arc::new(KmipMemoryStore::new());
-
-    let server_context = ServerContext::new(store);
+    let clock_source = Arc::new(TestClockSource::new());
+    let server_context = ServerContext::new(store, clock_source);
 
     let mut rc = RequestContext::new(&server_context);
     process_kmip_request(&mut rc, bytes.as_slice());
@@ -578,7 +653,8 @@ fn test_create_request3() {
 
     let store = Arc::new(KmipMemoryStore::new());
 
-    let server_context = ServerContext::new(store);
+    let clock_source = Arc::new(TestClockSource::new());
+    let server_context = ServerContext::new(store, clock_source);
 
     let mut rc = RequestContext::new(&server_context);
     process_kmip_request(&mut rc, bytes.as_slice());

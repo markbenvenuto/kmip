@@ -25,5 +25,5 @@ mio = "0.7.3"
 
 webpki = "0.21.3"
 
-quick-xml = "0.20.0"
+#quick-xml = "0.20.0"
 minidom = "0.12.0"

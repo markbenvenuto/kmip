@@ -367,7 +367,7 @@ pub trait EncodingReader<'a> {
 
     fn reverse_tag(&mut self);
 
-    fn read_i32(&mut self) -> TTLVResult<i32>;
+    fn read_i32(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32>;
 
     fn read_enumeration(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32>;
 
@@ -507,7 +507,7 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         self.cur.set_position(pos - 3);
     }
 
-    fn read_i32(&mut self) -> TTLVResult<i32> {
+    fn read_i32(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         read_i32(&mut self.cur)
@@ -627,7 +627,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         let t = self.input.read_type()?;
         match t {
             ItemType::Integer => {
-                let v = self.input.read_i32()?;
+                let v = self.input.read_i32(self.enum_resolver)?;
                 visitor.visit_i32(v)
             }
             ItemType::LongInteger => {
@@ -682,7 +682,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         V: Visitor<'de>,
     {
         self.input.read_type_and_check(ItemType::Integer)?;
-        visitor.visit_i8(self.input.read_i32()? as i8)
+        visitor.visit_i8(self.input.read_i32(self.enum_resolver)? as i8)
     }
 
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
@@ -690,7 +690,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         V: Visitor<'de>,
     {
         self.input.read_type_and_check(ItemType::Integer)?;
-        visitor.visit_i16(self.input.read_i32()? as i16)
+        visitor.visit_i16(self.input.read_i32(self.enum_resolver)? as i16)
     }
 
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
@@ -701,7 +701,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
 
         match t {
             ItemType::Enumeration => visitor.visit_i32(self.input.read_enumeration(self.enum_resolver)?),
-            ItemType::Integer => visitor.visit_i32(self.input.read_i32()?),
+            ItemType::Integer => visitor.visit_i32(self.input.read_i32(self.enum_resolver)?),
             _ => {
                 unreachable! {}
             }
@@ -728,7 +728,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         V: Visitor<'de>,
     {
         self.input.read_type_and_check(ItemType::Integer)?;
-       visitor.visit_u8(self.input.read_i32()? as u8)
+       visitor.visit_u8(self.input.read_i32(self.enum_resolver)? as u8)
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
@@ -736,7 +736,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         V: Visitor<'de>,
     {
         self.input.read_type_and_check(ItemType::Integer)?;
-        visitor.visit_u16(self.input.read_i32()? as u16)
+        visitor.visit_u16(self.input.read_i32(self.enum_resolver)? as u16)
     }
 
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
@@ -744,7 +744,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         V: Visitor<'de>,
     {
         self.input.read_type_and_check(ItemType::Integer)?;
-        visitor.visit_u32(self.input.read_i32()? as u32)
+        visitor.visit_u32(self.input.read_i32(self.enum_resolver)? as u32)
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>

@@ -188,7 +188,7 @@ pub enum CryptographicAlgorithm {
     SHAKE256 = 0x00000028,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, EnumString, FromPrimitive, ToPrimitive, AsStaticStr)]
 #[repr(i32)]
 pub enum CryptographicUsageMask {
     Sign = 0x00000001,
@@ -442,12 +442,29 @@ pub struct ActivateResponse {
     pub unique_identifier: String,
 }
 
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
+pub struct DestroyRequest {
+    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "ResponsePayload")]
+pub struct DestroyResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
 pub enum RequestBatchItem {
     Create(CreateRequest),
     Get(GetRequest),
     Activate(ActivateRequest),
+    Destroy(DestroyRequest),
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
 
@@ -466,7 +483,7 @@ pub struct RequestHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
     
-    #[serde(rename = "ClientCorrelationValue")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "ClientCorrelationValue")]
     pub client_correlation_value: Option<String>,
 
     // TODO: Other fields are optional
@@ -501,6 +518,7 @@ pub enum ResponseOperationEnum {
     Create(CreateResponse),
     Get(GetResponse),
     Activate(ActivateResponse),
+    Destroy(DestroyResponse),
     Empty,
     // TODO - add support for: Unique Batch Item ID
 }
@@ -582,6 +600,9 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Activate(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Activate)?;
                 }
+                ResponseOperationEnum::Destroy(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::Activate)?;
+                }
                 ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
@@ -607,6 +628,9 @@ impl Serialize for ResponseBatchItem {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Activate(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::Destroy(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Empty => unimplemented!(),
@@ -769,7 +793,9 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
 pub struct KmipEnumResolver;
 
 impl EnumResolver for KmipEnumResolver {
-    fn resolve_enum(&self, name: &str, value: i32) -> std::result::Result<String, TTLVError> {
+    fn resolve_enum(&self, orig: &str, value: i32) -> std::result::Result<String, TTLVError> {
+        let trimmed = orig.replace(" ", "");
+        let name = trimmed.as_ref();
         match name {
             "Operation" => {
                 let o: Operation = num::FromPrimitive::from_i32(value).unwrap();
@@ -784,7 +810,7 @@ impl EnumResolver for KmipEnumResolver {
                 return Ok(o.as_static().to_owned());
             }
             _ => {
-                println!("Not implemented: {:?}", name);
+                println!("Not implemented resolve_enum: {:?}", name);
                 unimplemented! {}
             }
         }
@@ -795,6 +821,10 @@ impl EnumResolver for KmipEnumResolver {
             Tag::CryptographicAlgorithm => {
                 // TODO - go from string to i32 in one pass instead of two
                 Ok(num::ToPrimitive::to_i32( &CryptographicAlgorithm::from_str(value).unwrap() ).unwrap())
+            }
+            Tag::CryptographicUsageMask => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32( &CryptographicUsageMask::from_str(value).unwrap() ).unwrap())
             }
             Tag::Operation => {
                 // TODO - go from string to i32 in one pass instead of two
@@ -809,7 +839,7 @@ impl EnumResolver for KmipEnumResolver {
                 Ok(num::ToPrimitive::to_i32( &NameTypeEnum::from_str(value).unwrap() ).unwrap())
             }
             _ => {
-                println!("Not implemented: {:?}", tag);
+                println!("Not implemented resolve_enum_str: {:?}", tag);
                 unimplemented! {}
             }
         }

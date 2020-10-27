@@ -237,13 +237,43 @@ pub fn write_struct(writer: &mut dyn Write) -> TTLVResult<()> {
         .map_err(|error| TTLVError::BadWrite { count: 1, error })
 }
 
+pub trait EncodedWriter {
+    fn new() -> Self ;
+
+    fn get_vector(self) -> Vec<u8> ;
+
+    fn set_tag(&mut self, tag: Tag) ;
+
+    fn write_element(&mut self, name: &str, type_name: &str, value: &str) -> TTLVResult<()> ;
+
+    fn write_i32(&mut self, v: i32) -> TTLVResult<()> ;
+
+    fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> ;
+    fn write_i64(&mut self, v: i64) -> TTLVResult<()> ;
+    fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()> ;
+
+    fn write_string(&mut self, v: &str) -> TTLVResult<()> ;
+
+    fn write_bytes(&mut self, v: &[u8]) -> TTLVResult<()> ;
+
+    fn write_tag_enum(&mut self, t: Tag) -> TTLVResult<()> ;
+
+    fn write_struct_start(&mut self) -> TTLVResult<()> ;
+
+
+    fn begin_inner(&mut self) -> TTLVResult<()> ;
+
+    fn close_inner(&mut self) -> TTLVResult<()> ;
+}
+
+
 struct NestedWriter {
     start_positions: Vec<usize>,
     vec: Vec<u8>,
     tag: Option<Tag>,
 }
 
-impl NestedWriter {
+impl EncodedWriter for NestedWriter {
     fn new() -> NestedWriter {
         return NestedWriter {
             start_positions: Vec::new(),
@@ -313,9 +343,10 @@ impl Write for NestedWriter {
     }
 }
 
-pub struct Serializer {
+pub struct Serializer<W>
+where W : EncodedWriter {
     // This string starts empty and JSON is appended as values are serialized.
-    output: NestedWriter,
+    output: W,
 }
 
 // By convention, the public API of a Serde serializer is one or more `to_abc`
@@ -457,6 +488,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // In Serde, unit means an anonymous value containing no data. Map this to
     // JSON as `null`.
     fn serialize_unit(self) -> Result<()> {
+        // Note, hitting this means that ...
         unimplemented!();
     }
 

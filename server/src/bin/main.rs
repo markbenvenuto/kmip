@@ -71,7 +71,7 @@ extern crate bson;
 extern crate ring;
 use ring::rand::*;
 
-use kmip_server::store::KmipStore;
+use kmip_server::{store::KmipStore, TestClockSource};
 use kmip_server::store::KmipMemoryStore;
 use kmip_server::store::KmipMongoDBStore;
 use kmip_server::ServerContext;
@@ -215,7 +215,8 @@ fn main() {
         }
     };
 
-    let server_context = Arc::new(ServerContext::new(store));
+    let clock_source = Arc::new(TestClockSource::new());
+    let server_context = Arc::new(ServerContext::new(store, clock_source));
     let sc = Arc::new(server_config);
 
     for stream in listener.incoming() {

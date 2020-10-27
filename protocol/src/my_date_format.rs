@@ -1,3 +1,4 @@
+use chrono::{NaiveDateTime, Utc};
 use serde::{self, Deserialize, Deserializer, Serializer};
 
 // The signature of a serialize_with function must follow the pattern:
@@ -11,7 +12,7 @@ pub fn serialize<S>(date: &chrono::DateTime<chrono::Utc>, serializer: S) -> Resu
 where
     S: Serializer,
 {
-    let v = date.timestamp_millis();
+    let v = date.timestamp();
     serializer.serialize_newtype_struct("my_date", &v)
     //serializer.serialize_str(&s)
 }
@@ -27,7 +28,7 @@ pub fn deserialize<'de, D>(deserializer: D) -> Result<chrono::DateTime<chrono::U
 where
     D: Deserializer<'de>,
 {
-    i64::deserialize(deserializer)?;
+    let v = i64::deserialize(deserializer)?;
 
-    return Ok(chrono::Utc::now());
+    Ok(chrono::DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(v, 0), Utc))
 }

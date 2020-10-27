@@ -261,7 +261,6 @@ dependencies = [
  "mio 0.7.3",
  "pretty-hex",
  "protocol",
- "quick-xml 0.20.0",
  "rustls 0.18.1",
  "structopt 0.3.20",
  "webpki",
@@ -1018,7 +1017,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe549115a674f5ec64c754d85e37d6f42664bd0ef4ffb62b619489ad99c6cb1a"
 dependencies = [
- "quick-xml 0.17.2",
+ "quick-xml",
 ]
 
 [[package]]
@@ -1460,15 +1459,6 @@ name = "quick-xml"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe1e430bdcf30c9fdc25053b9c459bb1a4672af4617b6c783d7d91dc17c6bbb0"
-dependencies = [
- "memchr",
-]
-
-[[package]]
-name = "quick-xml"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26aab6b48e2590e4a64d1ed808749ba06257882b461d01ca71baeb747074a6dd"
 dependencies = [
  "memchr",
 ]
@@ -1995,9 +1985,14 @@ dependencies = [
 name = "tests_e2e"
 version = "0.1.0"
 dependencies = [
+ "hex",
  "kmip_client",
  "kmip_server",
  "log",
+ "minidom",
+ "protocol",
+ "rustls 0.18.1",
+ "webpki",
 ]
 
 [[package]]

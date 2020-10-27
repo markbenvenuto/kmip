@@ -147,7 +147,7 @@ where
 
 
     let mut reqs : Vec<String>  = Vec::new();
-    let resps : Vec<String>  = Vec::new();
+    let mut resps : Vec<String>  = Vec::new();
     for child in root.children() {
 
         let mut buf : Vec<u8>  = Vec::new();
@@ -158,14 +158,17 @@ where
         if child.name() == "RequestMessage" {
             reqs.push(xml_str);
         } else  if child.name() == "ResponseMessage" {
-            reqs.push(xml_str);
+            resps.push(xml_str);
         } else {
             panic!(format!("Unknown XML child {:?}", child.name()));
         }
     }
+    assert_eq!(reqs.len(), resps.len());
 
-
-        client.make_xml_request(&reqs[0]);
+    for req in reqs {
+        let resp = client.make_xml_request(&req);
+        eprintln!("{:?}", resp);
+    }
     
 }
 

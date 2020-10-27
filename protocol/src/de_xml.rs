@@ -47,9 +47,10 @@ struct XmlEncodingReader<'a> {
     end_document: bool,
     tag: Option<Tag>,
     element: Option<XmlItem>,
+    last_attribute_tag: Option<Tag>,
 }
 
-impl<'a> XmlEncodingReader<'a> { 
+impl<'a> XmlEncodingReader<'a> {
 
 fn is_empty2(&mut self) -> TTLVResult<bool> {
     eprintln!("is_empty: ");
@@ -77,7 +78,7 @@ fn read_one_event(&mut self)  -> TTLVResult<Option<XmlItem>>  {
             let name = name.local_name;
             let item_type = attributes.iter().find(|i| i.name.local_name == "type" );
             let value = attributes.iter().find(|i| i.name.local_name == "value" ).map(|x| x.value.to_string());
-            
+
             // If type is missing, the default is Structure
             let item_type_enum = match item_type {
                 Some(x) => ItemType::from_str(&x.value).map_err(|_| TTLVError::XmlError)?,
@@ -106,7 +107,7 @@ fn read_one_event(&mut self)  -> TTLVResult<Option<XmlItem>>  {
 }
 
 fn read_one_element(&mut self)  -> TTLVResult<()>  {
-    
+
     while !self.end_document && self.element.is_none() {
         self.element =  self.read_one_event()?
     }
@@ -128,7 +129,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
             end_document: false,
             tag: None,
             element : None,
-            
+            last_attribute_tag : None,
         };
     }
 
@@ -178,8 +179,8 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
         eprintln!("read_type");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::LengthValue;
-        
-        
+
+
        Ok( self.element.as_ref().unwrap().item_type)
 
     }
@@ -219,7 +220,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     fn peek_tag(&mut self) -> TTLVResult<Tag> {
         eprintln!("peek_tag");
         assert_eq!(self.state, ReaderState::Tag);
-        
+
         let tag = Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
 
         return Ok(tag);
@@ -231,13 +232,44 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
         self.state = ReaderState::Tag;
     }
 
-    fn read_i32(&mut self) -> TTLVResult<i32> {
+    fn read_i32(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
         eprintln!("read_i32");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
-        let value = self.element.as_ref().unwrap().value.as_ref().unwrap().parse::<i32>().map_err(|_| TTLVError::XmlError)?;
+        // Special case
+        // Per 2.1: 5.4.1.6.4 - (Cryptographic Usage Mask, Storage Status Mask) are special and may be strings
+       let value = self.element.as_ref().unwrap().value.as_ref().unwrap();
+        let parse_ret = value.parse::<i32>();
+        let valuei: i32;
+        if self.tag == Some(Tag::AttributeValue) {
+            valuei = match self.last_attribute_tag.unwrap() {
+                Tag::CryptographicUsageMask => {
+                     match parse_ret {
+                        Ok(i) => i,
+                        Err(_) => {
+                            let mut iv: i32 = 0;
+                                  // Resolve as string for enum
+                for ev in value.split(" ") {
+                    iv |= enum_resolver.resolve_enum_str(Tag::CryptographicUsageMask, ev).unwrap();
+                }
+                            iv
+                        }
+                    }
+                },
+                Tag::StorageStatusMask => {
+                    unimplemented!();
+                }
+                _ => {
+                    parse_ret.map_err(|_| TTLVError::XmlError)?
+                }
+            }
+        } else {
+            valuei = parse_ret.map_err(|_| TTLVError::XmlError)?;
+
+        }
+ 
         self.element = None;
-        Ok(value)
+        Ok(valuei)
     }
 
     fn read_enumeration(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
@@ -253,15 +285,21 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
             value = i32::from_str_radix(without_prefix, 16).map_err(|_| TTLVError::XmlError)?;
         } else {
             value = 0;
+            let tag = match self.last_attribute_tag {
+                Some(t) => t,
+                None => self.tag.unwrap(),
+            };
+
             // Resolve as string for enum
             for ev in input_str.split(" ") {
-                value |= enum_resolver.resolve_enum_str(self.tag.unwrap(), ev).unwrap();
+                value |= enum_resolver.resolve_enum_str(tag, ev).unwrap();
             }
-            
+
         }
 
-  
+
         self.element = None;
+        self.last_attribute_tag = None;
         Ok(value)
     }
 
@@ -289,6 +327,15 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         let value = self.element.as_ref().unwrap().value.as_ref().unwrap().to_string();
+
+        // Buffer the attribute name so that enumerations can be decoded not as AttributeValue, but their real enumeration value
+
+        if self.tag == Some(Tag::AttributeName) {
+            let trimmed = value.replace(" ", "");
+            let name = trimmed.as_ref();
+            self.last_attribute_tag = Some(Tag::from_str(name).map_err(|_| TTLVError::XmlError)?)
+        }
+
         self.element = None;
         Ok(value)
     }

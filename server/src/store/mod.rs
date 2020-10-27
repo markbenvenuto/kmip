@@ -49,8 +49,8 @@ pub struct ManagedAttributes {
     // #[serde(with = "ts_milliseconds")]
     // pub deactivation_date : Option<chrono::DateTime<Utc>>,
 
-    // #[serde(with = "ts_milliseconds")]
-    // pub destroy_date : Option<chrono::DateTime<Utc>>,
+    #[serde(default, deserialize_with = "option_datefmt")]
+    pub destroy_date : Option<chrono::DateTime<Utc>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
