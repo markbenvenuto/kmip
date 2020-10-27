@@ -38,8 +38,8 @@ extern crate confy;
 
 extern crate chrono;
 
-use chrono::{DateTime, NaiveDateTime};
 use chrono::Utc;
+use chrono::{DateTime, NaiveDateTime};
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -86,7 +86,6 @@ use store::ManagedAttributes;
 use store::ManagedObject;
 use store::ManagedObjectEnum;
 
-
 /// Process some amount of received plaintext.
 pub fn handle_client<T>(stream: &mut T, server_context: &ServerContext)
 where
@@ -103,24 +102,21 @@ where
     stream.write_all(response.as_slice()).unwrap();
 }
 
-
 pub trait ClockSource {
     fn now(&self) -> chrono::DateTime<Utc>;
 }
 
-pub struct TestClockSource {
-
-}
+pub struct TestClockSource {}
 
 impl TestClockSource {
     pub fn new() -> TestClockSource {
-        TestClockSource{}
+        TestClockSource {}
     }
 }
 
 impl ClockSource for TestClockSource {
     fn now(&self) -> chrono::DateTime<Utc> {
-        chrono::DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(123, 0), Utc) 
+        chrono::DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(123, 0), Utc)
     }
 }
 
@@ -128,21 +124,22 @@ struct ServerContextInner {
     count: i32,
 }
 
-
-
 #[derive(Clone)]
 pub struct ServerContext {
     inner: Arc<Mutex<ServerContextInner>>,
     store: Arc<dyn KmipStore + Send + Sync>,
-    clock_source: Arc<dyn ClockSource  + Send + Sync>,
+    clock_source: Arc<dyn ClockSource + Send + Sync>,
 }
 
 impl ServerContext {
-    pub fn new(store: Arc<dyn KmipStore + Send + Sync>, clock_source: Arc<dyn ClockSource  + Send + Sync>) -> ServerContext {
+    pub fn new(
+        store: Arc<dyn KmipStore + Send + Sync>,
+        clock_source: Arc<dyn ClockSource + Send + Sync>,
+    ) -> ServerContext {
         ServerContext {
             inner: Arc::new(Mutex::new(ServerContextInner { count: 0 })),
             store: store,
-            clock_source : clock_source,
+            clock_source: clock_source,
         }
     }
 
@@ -201,7 +198,10 @@ impl<'a> RequestContext<'a> {
     // }
 }
 
-fn create_error_response(msg: Option<String>, clock_source:&dyn ClockSource) -> protocol::ResponseMessage {
+fn create_error_response(
+    msg: Option<String>,
+    clock_source: &dyn ClockSource,
+) -> protocol::ResponseMessage {
     let r = protocol::ResponseMessage {
         response_header: protocol::ResponseHeader {
             protocol_version: protocol::ProtocolVersion {
@@ -313,7 +313,7 @@ fn process_create_request(
         initial_date: rc.get_server_context().get_clock_source().now(),
 
         activation_date: None,
-        destroy_date : None,
+        destroy_date: None,
 
         cryptographic_algorithm: None,
 
@@ -435,7 +435,6 @@ fn process_activate_request(
     Ok(resp)
 }
 
-
 fn process_destroy_request(
     rc: &RequestContext,
     req: DestroyRequest,
@@ -452,11 +451,12 @@ fn process_destroy_request(
     let mut mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
 
     // TODO - throw an error on illegal state transition??
-    if mo.attributes.state == ObjectStateEnum::PreActive || 
-        mo.attributes.state == ObjectStateEnum::Deactivated {
-            mo.attributes.state = ObjectStateEnum::Destroyed;
+    if mo.attributes.state == ObjectStateEnum::PreActive
+        || mo.attributes.state == ObjectStateEnum::Deactivated
+    {
+        mo.attributes.state = ObjectStateEnum::Destroyed;
 
-            mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());
+        mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());
 
         let d = bson::to_bson(&mo).unwrap();
 
@@ -476,8 +476,10 @@ fn process_destroy_request(
     Ok(resp)
 }
 
-
-fn create_ok_response(op: protocol::ResponseOperationEnum, clock_source:&dyn ClockSource) -> protocol::ResponseMessage {
+fn create_ok_response(
+    op: protocol::ResponseOperationEnum,
+    clock_source: &dyn ClockSource,
+) -> protocol::ResponseMessage {
     let r = protocol::ResponseMessage {
         response_header: protocol::ResponseHeader {
             protocol_version: protocol::ProtocolVersion {
@@ -544,7 +546,9 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     };
 
     let rm = match result {
-        std::result::Result::Ok(t) => create_ok_response(t, rc.get_server_context().get_clock_source()),
+        std::result::Result::Ok(t) => {
+            create_ok_response(t, rc.get_server_context().get_clock_source())
+        }
         std::result::Result::Err(e) => {
             let msg = format!("error: {}", e);
             create_error_response(Some(msg), rc.get_server_context().get_clock_source())

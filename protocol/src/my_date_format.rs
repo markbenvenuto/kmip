@@ -30,5 +30,8 @@ where
 {
     let v = i64::deserialize(deserializer)?;
 
-    Ok(chrono::DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(v, 0), Utc))
+    Ok(chrono::DateTime::<Utc>::from_utc(
+        NaiveDateTime::from_timestamp(v, 0),
+        Utc,
+    ))
 }

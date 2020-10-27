@@ -1,4 +1,3 @@
-
 #[macro_use]
 extern crate log;
 extern crate env_logger;
@@ -21,7 +20,6 @@ extern crate confy;
 
 extern crate chrono;
 
-
 use std::sync::Arc;
 
 use rustls;
@@ -31,20 +29,19 @@ use rustls::{
     RootCertStore, Session,
 };
 
-
 use std::fs;
-use std::io::{BufReader};
+use std::io::BufReader;
 use std::net;
-use std::net::{TcpListener};
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::string::ToString;
 use std::thread;
 
-use kmip_server::{store::KmipStore, TestClockSource};
+use kmip_server::handle_client;
 use kmip_server::store::KmipMemoryStore;
 use kmip_server::store::KmipMongoDBStore;
 use kmip_server::ServerContext;
-use kmip_server::handle_client;
+use kmip_server::{store::KmipStore, TestClockSource};
 
 // use bson;
 
@@ -56,7 +53,6 @@ enum StoreType {
     MongoDB,
 }
 
-
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, StructOpt)]
 #[structopt(global_settings(&[structopt::clap::AppSettings::ColoredHelp]))]
@@ -66,7 +62,6 @@ struct CmdLine {
 
     // #[structopt(flatten)]
     // log: clap_log_flag::Log,
-
     #[structopt(name = "debug", short = "d", long = "debug")]
     /// Debug output
     debug: bool,

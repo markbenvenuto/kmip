@@ -1,9 +1,12 @@
 use serde::{ser, Serialize};
-use std::{rc::Rc, io::Write};
+use std::{io::Write, rc::Rc};
 
 use std::str::FromStr;
 
-use crate::{EnumResolver, error::{Error, Result}};
+use crate::{
+    error::{Error, Result},
+    EnumResolver,
+};
 
 extern crate num;
 //#[macro_use]
@@ -238,34 +241,33 @@ pub fn write_struct_start(writer: &mut dyn Write) -> TTLVResult<()> {
 }
 
 pub trait EncodedWriter {
-    fn new() -> Self ;
+    fn new() -> Self;
 
-    fn get_vector(self) -> Vec<u8> ;
+    fn get_vector(self) -> Vec<u8>;
 
-    fn set_tag(&mut self, tag: Tag) ;
+    fn set_tag(&mut self, tag: Tag);
 
     fn write_optional_tag(&mut self) -> TTLVResult<()>;
 
-    fn write_i32(&mut self, v: i32) -> TTLVResult<()> ;
+    fn write_i32(&mut self, v: i32) -> TTLVResult<()>;
 
-    fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver) -> TTLVResult<()> ;
-    fn write_i64(&mut self, v: i64) -> TTLVResult<()> ;
-    fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()> ;
+    fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver)
+        -> TTLVResult<()>;
+    fn write_i64(&mut self, v: i64) -> TTLVResult<()>;
+    fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()>;
 
-    fn write_string(&mut self, v: &str) -> TTLVResult<()> ;
+    fn write_string(&mut self, v: &str) -> TTLVResult<()>;
 
-    fn write_bytes(&mut self, v: &[u8]) -> TTLVResult<()> ;
+    fn write_bytes(&mut self, v: &[u8]) -> TTLVResult<()>;
 
-    fn write_tag_enum(&mut self, t: Tag) -> TTLVResult<()> ;
+    fn write_tag_enum(&mut self, t: Tag) -> TTLVResult<()>;
 
-    fn write_struct_start(&mut self) -> TTLVResult<()> ;
+    fn write_struct_start(&mut self) -> TTLVResult<()>;
 
+    fn begin_inner(&mut self) -> TTLVResult<()>;
 
-    fn begin_inner(&mut self) -> TTLVResult<()> ;
-
-    fn close_inner(&mut self) -> TTLVResult<()> ;
+    fn close_inner(&mut self) -> TTLVResult<()>;
 }
-
 
 struct NestedWriter {
     start_positions: Vec<usize>,
@@ -331,12 +333,16 @@ impl EncodedWriter for NestedWriter {
 
         Ok(())
     }
-    
+
     fn write_i32(&mut self, v: i32) -> TTLVResult<()> {
         write_i32(&mut self.vec, v)
     }
 
-    fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver) -> TTLVResult<()> {
+    fn write_i32_enumeration(
+        &mut self,
+        v: i32,
+        enum_resolver: &dyn EnumResolver,
+    ) -> TTLVResult<()> {
         write_enumeration(&mut self.vec, v)
     }
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
@@ -351,7 +357,7 @@ impl EncodedWriter for NestedWriter {
     }
 
     fn write_bytes(&mut self, v: &[u8]) -> TTLVResult<()> {
-        write_bytes(&mut self.vec, v) 
+        write_bytes(&mut self.vec, v)
     }
 
     fn write_tag_enum(&mut self, t: Tag) -> TTLVResult<()> {
@@ -374,10 +380,12 @@ impl Write for NestedWriter {
 }
 
 pub struct Serializer<W>
-where W : EncodedWriter {
+where
+    W: EncodedWriter,
+{
     // This string starts empty and JSON is appended as values are serialized.
     pub output: W,
-    pub enum_resolver: Rc<dyn EnumResolver>
+    pub enum_resolver: Rc<dyn EnumResolver>,
 }
 
 // By convention, the public API of a Serde serializer is one or more `to_abc`
@@ -395,7 +403,7 @@ where
     Ok(serializer.output.get_vector())
 }
 
-impl<'a, W : EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
+impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     // The output type produced by this `Serializer` during successful
     // serialization. Most serializers that produce text or binary output should
     // set `Ok = ()` and serialize into an `io::Write` or buffer contained
@@ -554,7 +562,8 @@ impl<'a, W : EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
             let mut mydate_serializer = MyDateSerializer::new(&mut self.output);
             return value.serialize(&mut mydate_serializer);
         } else if _name == "my_enum" {
-            let mut myenum_serializer = MyEnumSerializer::new(&mut self.output, self.enum_resolver.clone());
+            let mut myenum_serializer =
+                MyEnumSerializer::new(&mut self.output, self.enum_resolver.clone());
             return value.serialize(&mut myenum_serializer);
         }
 
@@ -661,16 +670,14 @@ impl<'a, W : EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     }
 }
 
-
 impl<'a, 'b, W: EncodedWriter> Serializer<W> {
-
     fn serialize_element_one<T>(&'a mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }  
-} 
+    }
+}
 
 // The following 7 impls deal with the serialization of compound types like
 // sequences and maps. Serialization of such types is begun by a Serializer
@@ -679,7 +686,7 @@ impl<'a, 'b, W: EncodedWriter> Serializer<W> {
 //
 // This impl is SerializeSeq so these methods are called after `serialize_seq`
 // is called on the Serializer.
-impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut Serializer<W> {
+impl<'a, W: EncodedWriter> ser::SerializeSeq for &'a mut Serializer<W> {
     // Must match the `Ok` type of the serializer.
     type Ok = ();
     // Must match the `Error` type of the serializer.
@@ -700,7 +707,7 @@ impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut Serializer<W> {
 }
 
 // Same thing but for tuples.
-impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut Serializer<W> {
+impl<'a, W: EncodedWriter> ser::SerializeTuple for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -717,7 +724,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut Serializer<W> {
 }
 
 // Same thing but for tuple structs.
-impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut Serializer<W> {
+impl<'a, W: EncodedWriter> ser::SerializeTupleStruct for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -742,7 +749,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut Serializer<W> 
 //
 // So the `end` method in this impl is responsible for closing both the `]` and
 // the `}`.
-impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut Serializer<W> {
+impl<'a, W: EncodedWriter> ser::SerializeTupleVariant for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -766,7 +773,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut Serializer<W>
 // `serialize_entry` method allows serializers to optimize for the case where
 // key and value are both available simultaneously. In JSON it doesn't make a
 // difference so the default behavior for `serialize_entry` is fine.
-impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut Serializer<W> {
+impl<'a, W: EncodedWriter> ser::SerializeMap for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -802,7 +809,7 @@ impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut Serializer<W> {
 
 // Structs are like maps in which the keys are constrained to be compile-time
 // constant strings.
-impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut Serializer<W> {
+impl<'a, W: EncodedWriter> ser::SerializeStruct for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -829,7 +836,7 @@ impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut Serializer<W> {
 
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
-impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut Serializer<W> {
+impl<'a, W: EncodedWriter> ser::SerializeStructVariant for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -847,17 +854,20 @@ impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut Serializer<W
     }
 }
 
-struct MyDateSerializer<'a, W > where W : EncodedWriter {
+struct MyDateSerializer<'a, W>
+where
+    W: EncodedWriter,
+{
     output: &'a mut W,
 }
 
-impl<'a, W : EncodedWriter> MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> MyDateSerializer<'a, W> {
     pub fn new(output: &'a mut W) -> MyDateSerializer<'a, W> {
         MyDateSerializer { output: output }
     }
 }
 
-impl<'a, W : EncodedWriter> ser::Serializer for &'a mut MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::Serializer for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1081,7 +1091,7 @@ impl<'a, W : EncodedWriter> ser::Serializer for &'a mut MyDateSerializer<'a, W> 
     }
 }
 
-impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeSeq for &'a mut MyDateSerializer<'a, W> {
     // Must match the `Ok` type of the serializer.
     type Ok = ();
     // Must match the `Error` type of the serializer.
@@ -1102,7 +1112,7 @@ impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut MyDateSerializer<'a, W
 }
 
 // Same thing but for tuples.
-impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeTuple for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1119,7 +1129,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut MyDateSerializer<'a,
 }
 
 // Same thing but for tuple structs.
-impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeTupleStruct for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1144,7 +1154,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut MyDateSerializ
 //
 // So the `end` method in this impl is responsible for closing both the `]` and
 // the `}`.
-impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeTupleVariant for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1168,7 +1178,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut MyDateSeriali
 // `serialize_entry` method allows serializers to optimize for the case where
 // key and value are both available simultaneously. In JSON it doesn't make a
 // difference so the default behavior for `serialize_entry` is fine.
-impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeMap for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1204,7 +1214,7 @@ impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut MyDateSerializer<'a, W
 
 // Structs are like maps in which the keys are constrained to be compile-time
 // constant strings.
-impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeStruct for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1222,7 +1232,7 @@ impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut MyDateSerializer<'a
 
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
-impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyDateSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeStructVariant for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1238,18 +1248,24 @@ impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyDateSerial
     }
 }
 
-struct MyEnumSerializer<'a, W> where  W : EncodedWriter{
+struct MyEnumSerializer<'a, W>
+where
+    W: EncodedWriter,
+{
     output: &'a mut W,
     enum_resolver: Rc<dyn EnumResolver>,
 }
 
-impl<'a, W : EncodedWriter> MyEnumSerializer<'a, W> {
-    pub fn new(output: &'a mut W, enum_resolver : Rc<dyn EnumResolver>) -> MyEnumSerializer<'a, W> {
-        MyEnumSerializer { output: output, enum_resolver : enum_resolver }
+impl<'a, W: EncodedWriter> MyEnumSerializer<'a, W> {
+    pub fn new(output: &'a mut W, enum_resolver: Rc<dyn EnumResolver>) -> MyEnumSerializer<'a, W> {
+        MyEnumSerializer {
+            output: output,
+            enum_resolver: enum_resolver,
+        }
     }
 }
 
-impl<'a, W : EncodedWriter> ser::Serializer for &'a mut MyEnumSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::Serializer for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1279,7 +1295,8 @@ impl<'a, W : EncodedWriter> ser::Serializer for &'a mut MyEnumSerializer<'a, W> 
 
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.output.write_optional_tag()?;
-        self.output.write_i32_enumeration(v, self.enum_resolver.as_ref())?;
+        self.output
+            .write_i32_enumeration(v, self.enum_resolver.as_ref())?;
         Ok(())
     }
 
@@ -1473,7 +1490,7 @@ impl<'a, W : EncodedWriter> ser::Serializer for &'a mut MyEnumSerializer<'a, W> 
     }
 }
 
-impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut MyEnumSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeSeq for &'a mut MyEnumSerializer<'a, W> {
     // Must match the `Ok` type of the serializer.
     type Ok = ();
     // Must match the `Error` type of the serializer.
@@ -1494,7 +1511,7 @@ impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut MyEnumSerializer<'a, W
 }
 
 // Same thing but for tuples.
-impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut MyEnumSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeTuple for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1511,7 +1528,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut MyEnumSerializer<'a,
 }
 
 // Same thing but for tuple structs.
-impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut MyEnumSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeTupleStruct for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1536,7 +1553,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut MyEnumSerializ
 //
 // So the `end` method in this impl is responsible for closing both the `]` and
 // the `}`.
-impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut MyEnumSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeTupleVariant for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1560,7 +1577,7 @@ impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut MyEnumSeriali
 // `serialize_entry` method allows serializers to optimize for the case where
 // key and value are both available simultaneously. In JSON it doesn't make a
 // difference so the default behavior for `serialize_entry` is fine.
-impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut MyEnumSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeMap for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1596,7 +1613,7 @@ impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut MyEnumSerializer<'a, W
 
 // Structs are like maps in which the keys are constrained to be compile-time
 // constant strings.
-impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut MyEnumSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeStruct for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1614,7 +1631,7 @@ impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut MyEnumSerializer<'a
 
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
-impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSerializer<'a, W> {
+impl<'a, W: EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1632,9 +1649,9 @@ impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSerial
 
 #[cfg(test)]
 mod tests {
-        use std::rc::Rc;
+    use std::rc::Rc;
 
-use crate::{EnumResolver, TTLVError, chrono::TimeZone};
+    use crate::{chrono::TimeZone, EnumResolver, TTLVError};
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
@@ -1650,10 +1667,14 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(
+            &self,
+            _tag: crate::kmip_enums::Tag,
+            _value: &str,
+        ) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
-        
+
         fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
             unimplemented!();
         }
@@ -1669,7 +1690,7 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
             #[serde(rename = "ProtocolVersionMinor")]
             pub protocol_version_minor: i32,
 
-            #[serde(skip_serializing_if = "Option::is_none", rename="BatchOrderOption")]
+            #[serde(skip_serializing_if = "Option::is_none", rename = "BatchOrderOption")]
             batch_order_option: Option<i32>,
             // Option::None - serializes as serialize_none()
             // TODO: Other fields are optional
@@ -1707,11 +1728,9 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
     fn test_struct_nested() {
         #[derive(Serialize, Debug)]
         struct RequestHeader {
-                        #[serde(rename = "ProtocolVersionMajor")]
-
+            #[serde(rename = "ProtocolVersionMajor")]
             protocol_version_major: i32,
-                        #[serde(rename = "BatchCount")]
-
+            #[serde(rename = "BatchCount")]
             batch_count: i32,
         }
 
@@ -1732,8 +1751,7 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
             unique_identifier: String::new(),
         };
 
-        
-       let r = Rc::new(TestEnumResolver {});
+        let r = Rc::new(TestEnumResolver {});
         let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
@@ -1775,8 +1793,7 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
             batch_count: 3,
         };
 
-        
-       let r = Rc::new(TestEnumResolver {});
+        let r = Rc::new(TestEnumResolver {});
         let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
@@ -1800,7 +1817,7 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
             #[serde(rename = "ProtocolVersionMajor")]
             protocol_version_major: String,
 
-            #[serde(with = "serde_bytes", rename="ProtocolVersionMinor")]
+            #[serde(with = "serde_bytes", rename = "ProtocolVersionMinor")]
             protocol_version_minor: &'a [u8],
 
             #[serde(rename = "BatchCount")]
@@ -1814,8 +1831,7 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
             batch_count: 3,
         };
 
-        
-       let r = Rc::new(TestEnumResolver {});
+        let r = Rc::new(TestEnumResolver {});
         let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
@@ -1834,10 +1850,9 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
         }
 
         let a = CRTCoefficient::CertificateRequest(String::new());
-        let _b = CRTCoefficient::Attribute(vec!{0x1});
+        let _b = CRTCoefficient::Attribute(vec![0x1]);
 
-        
-       let r = Rc::new(TestEnumResolver {});
+        let r = Rc::new(TestEnumResolver {});
         let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
@@ -1867,8 +1882,7 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
             batch_count: vec![0x66, 0x77, 0x88],
         };
 
-        
-       let r = Rc::new(TestEnumResolver {});
+        let r = Rc::new(TestEnumResolver {});
         let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
@@ -1898,8 +1912,7 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
             batch_count: chrono::Utc.timestamp(123456, 0),
         };
 
-        
-       let r = Rc::new(TestEnumResolver {});
+        let r = Rc::new(TestEnumResolver {});
         let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
@@ -1907,12 +1920,11 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
         to_print(v.as_slice());
 
         let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0,  0, 0, 0, 0, 1, 226, 64
+            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 0, 0, 0, 0, 1, 226, 64,
         ];
 
         assert_eq!(v.len(), 24);
 
         assert_eq!(v, good);
     }
-
 }

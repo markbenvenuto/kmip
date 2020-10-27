@@ -42,11 +42,11 @@ use strum::AsStaticRef;
 use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
-pub use de::{from_bytes};
+pub use de::from_bytes;
+pub use de_xml::from_xml_bytes;
 pub use error::{Error, Result};
-pub use ser::{to_bytes};
-pub use ser_xml::{to_xml_bytes};
-pub use de_xml::{from_xml_bytes};
+pub use ser::to_bytes;
+pub use ser_xml::to_xml_bytes;
 
 pub use de::to_print;
 pub use failures::TTLVError;
@@ -60,8 +60,9 @@ pub use de::read_type;
 pub use kmip_enums::ItemType;
 pub use kmip_enums::Tag;
 
-
-#[derive(FromPrimitive, ToPrimitive, Serialize_enum, Deserialize_enum, Debug,  EnumString,AsStaticStr)]
+#[derive(
+    FromPrimitive, ToPrimitive, Serialize_enum, Deserialize_enum, Debug, EnumString, AsStaticStr,
+)]
 #[repr(i32)]
 pub enum Operation {
     Create = 0x00000001,
@@ -109,7 +110,9 @@ pub enum Operation {
     Export = 0x0000002B,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive,AsStaticStr)]
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+)]
 #[repr(i32)]
 pub enum ObjectTypeEnum {
     Certificate = 0x00000001,
@@ -123,7 +126,16 @@ pub enum ObjectTypeEnum {
     PGPKey = 0x00000009,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum,  EnumString,FromPrimitive,ToPrimitive, AsStaticStr, PartialEq)]
+#[derive(
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    PartialEq,
+)]
 #[repr(i32)]
 pub enum ObjectStateEnum {
     PreActive = 0x00000001,
@@ -134,7 +146,9 @@ pub enum ObjectStateEnum {
     DestroyedCompromised = 0x00000006,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum,  EnumString,FromPrimitive,ToPrimitive, AsStaticStr)]
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+)]
 #[repr(i32)]
 pub enum NameTypeEnum {
     UninterpretedTextString = 0x00000001,
@@ -142,7 +156,14 @@ pub enum NameTypeEnum {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone,
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
 )]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
@@ -442,7 +463,6 @@ pub struct ActivateResponse {
     pub unique_identifier: String,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct DestroyRequest {
@@ -475,15 +495,17 @@ pub struct ProtocolVersion {
 
     #[serde(rename = "ProtocolVersionMinor")]
     pub protocol_version_minor: i32,
-
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RequestHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
-    
-    #[serde(skip_serializing_if = "Option::is_none", rename = "ClientCorrelationValue")]
+
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "ClientCorrelationValue"
+    )]
     pub client_correlation_value: Option<String>,
 
     // TODO: Other fields are optional
@@ -768,7 +790,8 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                     }
                 }
 
-                let _operation = operation.ok_or_else(|| serde::de::Error::missing_field("Operation"))?;
+                let _operation =
+                    operation.ok_or_else(|| serde::de::Error::missing_field("Operation"))?;
                 let result_status =
                     result_status.ok_or_else(|| serde::de::Error::missing_field("ResultStatus"))?;
 
@@ -808,23 +831,29 @@ impl EnumResolver for KmipEnumResolver {
         match tag {
             Tag::CryptographicAlgorithm => {
                 // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_i32( &CryptographicAlgorithm::from_str(value).unwrap() ).unwrap())
+                Ok(
+                    num::ToPrimitive::to_i32(&CryptographicAlgorithm::from_str(value).unwrap())
+                        .unwrap(),
+                )
             }
             Tag::CryptographicUsageMask => {
                 // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_i32( &CryptographicUsageMask::from_str(value).unwrap() ).unwrap())
+                Ok(
+                    num::ToPrimitive::to_i32(&CryptographicUsageMask::from_str(value).unwrap())
+                        .unwrap(),
+                )
             }
             Tag::Operation => {
                 // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_i32( &Operation::from_str(value).unwrap() ).unwrap())
+                Ok(num::ToPrimitive::to_i32(&Operation::from_str(value).unwrap()).unwrap())
             }
             Tag::ObjectType => {
                 // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_i32( &ObjectTypeEnum::from_str(value).unwrap() ).unwrap())
+                Ok(num::ToPrimitive::to_i32(&ObjectTypeEnum::from_str(value).unwrap()).unwrap())
             }
             Tag::NameType => {
                 // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_i32( &NameTypeEnum::from_str(value).unwrap() ).unwrap())
+                Ok(num::ToPrimitive::to_i32(&NameTypeEnum::from_str(value).unwrap()).unwrap())
             }
             _ => {
                 println!("Not implemented resolve_enum_str: {:?}", tag);
@@ -832,7 +861,7 @@ impl EnumResolver for KmipEnumResolver {
             }
         }
     }
-    
+
     fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
         match tag {
             Tag::CryptographicAlgorithm => {

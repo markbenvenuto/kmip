@@ -38,9 +38,9 @@ pub fn read_tag(reader: &mut dyn Read) -> TTLVResult<u32> {
     let v = reader
         .read_u8()
         .map_err(|error| TTLVError::BadRead { count: 1, error })?;
-    
+
     if v != 0x42 {
-        return Err(TTLVError::InvalidTagPrefix { byte : v});
+        return Err(TTLVError::InvalidTagPrefix { byte: v });
     }
 
     let tag = reader
@@ -79,9 +79,12 @@ pub fn read_type(reader: &mut dyn Read) -> TTLVResult<ItemType> {
     Err(TTLVError::InvalidType { byte: i })
 }
 
-fn check_type_len(actual: u32, expected: u32) ->  TTLVResult<()> {
+fn check_type_len(actual: u32, expected: u32) -> TTLVResult<()> {
     if actual != expected {
-        return Err(TTLVError::InvalidTypeLength{ actual: actual, expected: expected});
+        return Err(TTLVError::InvalidTypeLength {
+            actual: actual,
+            expected: expected,
+        });
     }
 
     return Ok(());
@@ -89,7 +92,7 @@ fn check_type_len(actual: u32, expected: u32) ->  TTLVResult<()> {
 
 fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
-    check_type_len(len,4)?;
+    check_type_len(len, 4)?;
 
     let v = reader
         .read_i32::<BigEndian>()
@@ -107,7 +110,7 @@ fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
 
 fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
-    check_type_len(len,4)?;
+    check_type_len(len, 4)?;
 
     let v = reader
         .read_i32::<BigEndian>()
@@ -125,7 +128,7 @@ fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
 
 fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
     let len = read_len(reader)?;
-    check_type_len(len,8)?;
+    check_type_len(len, 8)?;
 
     let v = reader
         .read_i64::<BigEndian>()
@@ -136,7 +139,7 @@ fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
 
 fn read_datetime_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
     let len = read_len(reader)?;
-    check_type_len(len,8)?;
+    check_type_len(len, 8)?;
 
     let v = reader
         .read_i64::<BigEndian>()
@@ -333,9 +336,6 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
 //     }
 // }
 
-
-
-
 pub trait EnumResolver {
     fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
     fn resolve_enum_str(&self, tag: Tag, value: &str) -> std::result::Result<i32, TTLVError>;
@@ -343,7 +343,7 @@ pub trait EnumResolver {
 }
 
 pub trait EncodingReader<'a> {
-    fn new(buf: &'a [u8]) -> Self ;
+    fn new(buf: &'a [u8]) -> Self;
 
     fn begin_inner_or_more(&mut self) -> TTLVResult<()>;
 
@@ -405,7 +405,6 @@ struct NestedReader<'a> {
 //     }
 // }
 
-
 impl<'a> EncodingReader<'a> for NestedReader<'a> {
     fn new(buf: &'a [u8]) -> NestedReader {
         return NestedReader {
@@ -447,7 +446,7 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         self.end_positions.pop().unwrap();
     }
 
-    fn is_empty(&mut self) -> TTLVResult<bool>{
+    fn is_empty(&mut self) -> TTLVResult<bool> {
         if self.end_positions.is_empty() {
             return Ok(true);
         }
@@ -469,8 +468,11 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::LengthValue;
         let t = read_type(&mut self.cur)?;
-        if t!=expected {
-            return Err(TTLVError::UnexpectedType{actual: t, expected : expected})
+        if t != expected {
+            return Err(TTLVError::UnexpectedType {
+                actual: t,
+                expected: expected,
+            });
         }
 
         Ok(())
@@ -563,7 +565,9 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
 ////////////////////
 
 pub struct Deserializer<'de, R>
-    where R : EncodingReader<'de> {
+where
+    R: EncodingReader<'de>,
+{
     // This string starts with the input data and characters are truncated off
     // the beginning as data is parsed.
     //pub input: &'de [u8],
@@ -572,7 +576,7 @@ pub struct Deserializer<'de, R>
     enum_resolver: &'de dyn EnumResolver,
 }
 
-impl<'de, R : EncodingReader<'de>> Deserializer<'de, R> {
+impl<'de, R: EncodingReader<'de>> Deserializer<'de, R> {
     // By convention, `Deserializer` constructors are named like `from_xyz`.
     // That way basic use cases are satisfied by something like
     // `serde_json::from_str(...)` while advanced use cases that require a
@@ -604,7 +608,7 @@ where
     }
 }
 
-impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deserializer<'de, R> {
+impl<'de, 'a, R: EncodingReader<'de>> de::Deserializer<'de> for &'a mut Deserializer<'de, R> {
     type Error = Error;
 
     // Look at the input data to decide what Serde data model type to
@@ -700,7 +704,9 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         let t = self.input.read_type()?;
 
         match t {
-            ItemType::Enumeration => visitor.visit_i32(self.input.read_enumeration(self.enum_resolver)?),
+            ItemType::Enumeration => {
+                visitor.visit_i32(self.input.read_enumeration(self.enum_resolver)?)
+            }
             ItemType::Integer => visitor.visit_i32(self.input.read_i32(self.enum_resolver)?),
             _ => {
                 unreachable! {}
@@ -728,7 +734,7 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
         V: Visitor<'de>,
     {
         self.input.read_type_and_check(ItemType::Integer)?;
-       visitor.visit_u8(self.input.read_i32(self.enum_resolver)? as u8)
+        visitor.visit_u8(self.input.read_i32(self.enum_resolver)? as u8)
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
@@ -1007,11 +1013,13 @@ impl<'de, 'a, R : EncodingReader<'de> > de::Deserializer<'de> for &'a mut Deseri
 }
 
 struct MapParser<'a, 'de: 'a, R>
-where R : EncodingReader<'de>  {
+where
+    R: EncodingReader<'de>,
+{
     de: &'a mut Deserializer<'de, R>,
 }
 
-impl<'a, 'de, R : EncodingReader<'de>> MapParser<'a, 'de, R> {
+impl<'a, 'de, R: EncodingReader<'de>> MapParser<'a, 'de, R> {
     fn new(de: &'a mut Deserializer<'de, R>) -> Self {
         MapParser { de }
     }
@@ -1019,7 +1027,7 @@ impl<'a, 'de, R : EncodingReader<'de>> MapParser<'a, 'de, R> {
 
 // `MapAccess` is provided to the `Visitor` to give it the ability to iterate
 // through entries of the map.
-impl<'de, 'a, R : EncodingReader<'de>> MapAccess<'de> for MapParser<'a, 'de, R> {
+impl<'de, 'a, R: EncodingReader<'de>> MapAccess<'de> for MapParser<'a, 'de, R> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -1049,15 +1057,15 @@ impl<'de, 'a, R : EncodingReader<'de>> MapAccess<'de> for MapParser<'a, 'de, R> 
     }
 }
 
-struct SeqParser<'a, 'de: 'a, R> 
-    where R : EncodingReader<'de> 
+struct SeqParser<'a, 'de: 'a, R>
+where
+    R: EncodingReader<'de>,
 {
     de: &'a mut Deserializer<'de, R>,
     tag: Option<Tag>,
 }
 
-impl<'a, 'de, R : EncodingReader<'de>> SeqParser<'a, 'de, R> {
-    
+impl<'a, 'de, R: EncodingReader<'de>> SeqParser<'a, 'de, R> {
     fn new(de: &'a mut Deserializer<'de, R>) -> Self {
         SeqParser { de, tag: None }
     }
@@ -1065,7 +1073,7 @@ impl<'a, 'de, R : EncodingReader<'de>> SeqParser<'a, 'de, R> {
 
 // `SeqAccess` is provided to the `Visitor` to give it the ability to iterate
 // through elements of the sequence.
-impl<'de, 'a, R : EncodingReader<'de>> SeqAccess<'de> for SeqParser<'a, 'de, R> {
+impl<'de, 'a, R: EncodingReader<'de>> SeqAccess<'de> for SeqParser<'a, 'de, R> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
@@ -1091,11 +1099,14 @@ impl<'de, 'a, R : EncodingReader<'de>> SeqAccess<'de> for SeqParser<'a, 'de, R> 
     }
 }
 
-struct EnumParser<'a, 'de: 'a, R> where R : EncodingReader<'de>{
-    de: &'a mut Deserializer<'de ,R>,
+struct EnumParser<'a, 'de: 'a, R>
+where
+    R: EncodingReader<'de>,
+{
+    de: &'a mut Deserializer<'de, R>,
 }
 
-impl<'a, 'de, R : EncodingReader<'de>> EnumParser<'a, 'de, R> {
+impl<'a, 'de, R: EncodingReader<'de>> EnumParser<'a, 'de, R> {
     fn new(de: &'a mut Deserializer<'de, R>) -> Self {
         EnumParser { de }
     }
@@ -1106,7 +1117,7 @@ impl<'a, 'de, R : EncodingReader<'de>> EnumParser<'a, 'de, R> {
 //
 // Note that all enum deserialization methods in Serde refer exclusively to the
 // "externally tagged" enum representation.
-impl<'de, 'a, R : EncodingReader<'de>> EnumAccess<'de> for EnumParser<'a, 'de, R> {
+impl<'de, 'a, R: EncodingReader<'de>> EnumAccess<'de> for EnumParser<'a, 'de, R> {
     type Error = Error;
     type Variant = Self;
 
@@ -1124,7 +1135,7 @@ impl<'de, 'a, R : EncodingReader<'de>> EnumAccess<'de> for EnumParser<'a, 'de, R
 
 // `VariantAccess` is provided to the `Visitor` to give it the ability to see
 // the content of the single variant that it decided to deserialize.
-impl<'de, 'a, R : EncodingReader<'de>> VariantAccess<'de> for EnumParser<'a, 'de, R> {
+impl<'de, 'a, R: EncodingReader<'de>> VariantAccess<'de> for EnumParser<'a, 'de, R> {
     type Error = Error;
 
     // If the `Visitor` expected this variant to be a unit variant, the input
@@ -1181,7 +1192,11 @@ mod tests {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(
+            &self,
+            _tag: crate::kmip_enums::Tag,
+            _value: &str,
+        ) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
         fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
@@ -1203,8 +1218,8 @@ mod tests {
             // BatchOrderOption : Option<i32>,
             // Option::None - serializes as serialize_none()
             // TODO: Other fields are optional
-     #[serde(rename = "BatchCount")]
-    pub batch_count: i32,
+            #[serde(rename = "BatchCount")]
+            pub batch_count: i32,
         }
 
         let good = vec![
@@ -1248,8 +1263,8 @@ mod tests {
     fn test_struct3() {
         #[derive(Deserialize, Debug)]
         struct CRTCoefficient {
-     #[serde(rename = "BatchCount")]
-    pub batch_count: Vec<i32>,
+            #[serde(rename = "BatchCount")]
+            pub batch_count: Vec<i32>,
         }
 
         let good = vec![
@@ -1268,19 +1283,19 @@ mod tests {
     fn test_datetime() {
         #[derive(Deserialize, Debug)]
         struct CRTCoefficient {
-            #[serde(with = "my_date_format", rename="BatchCount")]
+            #[serde(with = "my_date_format", rename = "BatchCount")]
             batch_count: chrono::DateTime<Utc>,
         }
 
         let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0,  0, 0, 0, 0, 1, 226, 64,
+            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 0, 0, 0, 0, 1, 226, 64,
         ];
 
         to_print(good.as_slice());
 
         let r: TestEnumResolver = TestEnumResolver {};
         let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
-        assert_eq!{a.batch_count.timestamp(), 123456};
+        assert_eq! {a.batch_count.timestamp(), 123456};
     }
 
     #[test]
@@ -1295,9 +1310,9 @@ mod tests {
 
         #[derive(Deserialize, Debug)]
         struct RequestMessage {
-    #[serde(rename = "RequestHeader")]
+            #[serde(rename = "RequestHeader")]
             request_header: RequestHeader,
-    #[serde(rename = "UniqueIdentifier")]
+            #[serde(rename = "UniqueIdentifier")]
             unique_identifier: String,
         }
 
@@ -1312,5 +1327,4 @@ mod tests {
         let r: TestEnumResolver = TestEnumResolver {};
         let _a = from_bytes::<RequestMessage>(&good, &r).unwrap();
     }
-
 }

@@ -4,7 +4,10 @@ extern crate log;
 #[macro_use]
 extern crate num_derive;
 
-use std::{rc::Rc, io::{Read, Write}};
+use std::{
+    io::{Read, Write},
+    rc::Rc,
+};
 
 use pretty_hex::*;
 
@@ -27,7 +30,7 @@ fn create_ok_request(op: RequestBatchItem) -> Vec<u8> {
         batch_item: op,
     };
 
-    let k  = Rc::new(KmipEnumResolver {});
+    let k = Rc::new(KmipEnumResolver {});
 
     return protocol::to_bytes(&r, k).unwrap();
 }
@@ -126,13 +129,14 @@ where
         return response.batch_item.response_payload.unwrap();
     }
 
-
     pub fn make_xml_request(&mut self, xml_str: &str) -> String {
-        let k  = Rc::new(KmipEnumResolver {});
+        let k = Rc::new(KmipEnumResolver {});
 
-        let request = protocol::from_xml_bytes::<RequestMessage>(xml_str.as_bytes(), k.clone().as_ref()).unwrap();
+        let request =
+            protocol::from_xml_bytes::<RequestMessage>(xml_str.as_bytes(), k.clone().as_ref())
+                .unwrap();
 
-        let bytes= protocol::to_bytes(&request, k.clone()).unwrap();
+        let bytes = protocol::to_bytes(&request, k.clone()).unwrap();
 
         self.stream.write_all(bytes.as_slice()).unwrap();
 
@@ -151,7 +155,9 @@ where
 
         // TODO check response
 
-        return std::str::from_utf8( &protocol::to_xml_bytes(&response, k ).unwrap() ).unwrap().to_string()
+        return std::str::from_utf8(&protocol::to_xml_bytes(&response, k).unwrap())
+            .unwrap()
+            .to_string();
     }
 
     //     fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {

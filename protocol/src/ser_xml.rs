@@ -1,8 +1,12 @@
 use serde::Serialize;
 
-use crate::{EnumResolver, error::Result, ser::{EncodedWriter, Serializer}};
-use std::{rc::Rc, str};
 use crate::chrono::TimeZone;
+use crate::{
+    error::Result,
+    ser::{EncodedWriter, Serializer},
+    EnumResolver,
+};
+use std::{rc::Rc, str};
 
 extern crate num;
 //#[macro_use]
@@ -20,16 +24,12 @@ use xml::writer::{EmitterConfig, XmlEvent};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
-
-
-
 struct NestedWriter {
     writer: xml::writer::EventWriter<std::vec::Vec<u8>>,
     tag: Option<Tag>,
 }
 
 impl NestedWriter {
-    
     fn write_element(&mut self, name: &str, type_name: &str, value: &str) -> TTLVResult<()> {
         // TODO - normalize names per 5.4.1.1 Normalizing Names
         self.writer
@@ -72,11 +72,19 @@ impl EncodedWriter for NestedWriter {
         self.write_element(self.tag.unwrap().as_ref(), "Integer", &v.to_string())
     }
 
-    fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver) -> TTLVResult<()> {
+    fn write_i32_enumeration(
+        &mut self,
+        v: i32,
+        enum_resolver: &dyn EnumResolver,
+    ) -> TTLVResult<()> {
         // TODO - write as hex string or camelCase per 5.4.1.6.7
-        
+
         let tag = self.tag.unwrap();
-        self.write_element(tag.as_ref(), "Enumeration", &enum_resolver.to_string(tag, v)?)
+        self.write_element(
+            tag.as_ref(),
+            "Enumeration",
+            &enum_resolver.to_string(tag, v)?,
+        )
     }
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
         self.write_element(self.tag.unwrap().as_ref(), "LongInteger", &v.to_string())
@@ -99,7 +107,9 @@ impl EncodedWriter for NestedWriter {
         // This starts a struct
         // TODO - omit type as it is the default
         // self.writer.write( XmlEvent::start_element(t.as_ref()).attr("type", "Structure")).map_err(|_| TTLVError::XmlError)
-        self.writer.write( XmlEvent::start_element(t.as_ref())).map_err(|_| TTLVError::XmlError)
+        self.writer
+            .write(XmlEvent::start_element(t.as_ref()))
+            .map_err(|_| TTLVError::XmlError)
     }
 
     fn write_struct_start(&mut self) -> TTLVResult<()> {
@@ -158,7 +168,7 @@ where
 {
     let mut serializer = Serializer {
         output: NestedWriter::new(),
-        enum_resolver: enum_resolver
+        enum_resolver: enum_resolver,
     };
     value.serialize(&mut serializer)?;
     Ok(serializer.output.get_vector())
@@ -166,9 +176,9 @@ where
 
 #[cfg(test)]
 mod tests {
-        use std::rc::Rc;
+    use std::rc::Rc;
 
-use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
+    use crate::{chrono::TimeZone, EnumResolver, TTLVError, Tag};
     use chrono::Utc;
 
     use crate::my_date_format;
@@ -180,7 +190,11 @@ use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(
+            &self,
+            _tag: crate::kmip_enums::Tag,
+            _value: &str,
+        ) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
         fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
@@ -250,7 +264,6 @@ use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
             unique_identifier: String::new(),
         };
 
-
         let r = Rc::new(TestEnumResolver {});
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
@@ -283,7 +296,6 @@ use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
             },
             batch_count: 3,
         };
-
 
         let r = Rc::new(TestEnumResolver {});
         let v = to_xml_bytes(&a, r).unwrap();
@@ -335,7 +347,6 @@ use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
         let a = CRTCoefficient::CertificateRequest(String::new());
         let _b = CRTCoefficient::Attribute(vec![0x1]);
 
-
         let r = Rc::new(TestEnumResolver {});
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
@@ -357,7 +368,6 @@ use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
             batch_count: vec![0x66, 0x77, 0x88],
         };
 
-
         let r = Rc::new(TestEnumResolver {});
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
@@ -378,7 +388,6 @@ use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
         let a = CRTCoefficient {
             batch_count: chrono::Utc.timestamp(123456, 0),
         };
-
 
         let r = Rc::new(TestEnumResolver {});
         let v = to_xml_bytes(&a, r).unwrap();

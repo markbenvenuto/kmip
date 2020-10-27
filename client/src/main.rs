@@ -1,4 +1,4 @@
-use std::{sync::Arc, fs::File};
+use std::{fs::File, sync::Arc};
 
 use std::fs;
 use std::io::BufReader;
@@ -34,7 +34,6 @@ struct CmdLine {
 
     // #[structopt(flatten)]
     // log: clap_log_flag::Log,
-
     #[structopt(name = "debug", short = "d", long = "debug")]
     /// Debug output
     debug: bool,
@@ -139,25 +138,22 @@ use minidom::Element;
 
 fn run_xml<'a, T>(filename: &PathBuf, client: &mut Client<'a, T>)
 where
-    T: 'a + Read + Write {
-
-
+    T: 'a + Read + Write,
+{
     let mut file = minidom::quick_xml::Reader::from_file(filename).unwrap();
     let root: Element = Element::from_reader(&mut file).unwrap();
 
-
-    let mut reqs : Vec<String>  = Vec::new();
-    let mut resps : Vec<String>  = Vec::new();
+    let mut reqs: Vec<String> = Vec::new();
+    let mut resps: Vec<String> = Vec::new();
     for child in root.children() {
-
-        let mut buf : Vec<u8>  = Vec::new();
+        let mut buf: Vec<u8> = Vec::new();
         child.write_to(&mut buf).unwrap();
         let xml_str = std::str::from_utf8(&buf).unwrap().to_string();
         // println!("{:?}", child);
         println!("xml_str{:?}", xml_str);
         if child.name() == "RequestMessage" {
             reqs.push(xml_str);
-        } else  if child.name() == "ResponseMessage" {
+        } else if child.name() == "ResponseMessage" {
             resps.push(xml_str);
         } else {
             panic!(format!("Unknown XML child {:?}", child.name()));
@@ -169,9 +165,7 @@ where
         let resp = client.make_xml_request(&req);
         eprintln!("{:?}", resp);
     }
-    
 }
-
 
 fn main() {
     println!("Hello, world!");
@@ -229,10 +223,9 @@ fn main() {
         }
         Command::RunXml { file } => {
             run_xml(&file, &mut client);
-        }
-        // _ => {
-        //     unimplemented!();
-        // }
+        } // _ => {
+          //     unimplemented!();
+          // }
     };
 
     let ciphersuite = tls.sess.get_negotiated_ciphersuite().unwrap();

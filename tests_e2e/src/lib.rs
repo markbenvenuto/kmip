@@ -1,197 +1,198 @@
 #[cfg(test)]
 mod tests {
-    
+
     use std::{
-    fs, io::BufReader, net, net::TcpListener, net::TcpStream, path::PathBuf, sync::Arc,
-    sync::Barrier, thread,
-};
-
-use kmip_client::Client;
-use kmip_server::{RequestContext, ServerContext, TestClockSource, handle_client, process_kmip_request, store::KmipMemoryStore};
-use minidom::Element;
-use rustls::{ClientSession, NoClientAuth, Stream};
-
-extern crate kmip_client;
-extern crate kmip_server;
-
-#[test]
-fn test_10_create() {
-    let clock_source = Arc::new(TestClockSource::new());
-
-    let store = Arc::new(KmipMemoryStore::new());
-
-    let server_context = ServerContext::new(store, clock_source);
-
-    let mut rc = RequestContext::new(&server_context);
-
-    // From 1.0 test case, 3.1.1
-    let bytes = hex::decode("42007801000001204200770100000038420069010000002042006A0200000004000000010000000042006B0200000004000000000000000042000D0200000004000000010000000042000F01000000D842005C0500000004000000010000000042007901000000C04200570500000004000000020000000042009101000000A8420008010000003042000A070000001743727970746F6772617068696320416C676F726974686D0042000B05000000040000000300000000420008010000003042000A070000001443727970746F67726170686963204C656E6774680000000042000B02000000040000008000000000420008010000003042000A070000001843727970746F67726170686963205573616765204D61736B42000B02000000040000000C00000000").unwrap();
-
-    let resp = process_kmip_request(&mut rc, bytes.as_slice());
-
-    protocol::to_print(resp.as_slice());
-
-    println!("Hello");
-}
-
-
-fn load_certs(filename: &PathBuf) -> Vec<rustls::Certificate> {
-    let certfile = fs::File::open(filename).expect("cannot open certificate file");
-    let mut reader = BufReader::new(certfile);
-    rustls::internal::pemfile::certs(&mut reader).unwrap()
-}
-
-fn load_private_key(filename: &PathBuf) -> rustls::PrivateKey {
-    let rsa_keys = {
-        let keyfile = fs::File::open(filename).expect("cannot open private key file");
-        let mut reader = BufReader::new(keyfile);
-        rustls::internal::pemfile::rsa_private_keys(&mut reader)
-            .expect("file contains invalid rsa private key")
+        fs, io::BufReader, net, net::TcpListener, net::TcpStream, path::PathBuf, sync::Arc,
+        sync::Barrier, thread,
     };
 
-    let pkcs8_keys = {
-        let keyfile = fs::File::open(filename).expect("cannot open private key file");
-        let mut reader = BufReader::new(keyfile);
-        rustls::internal::pemfile::pkcs8_private_keys(&mut reader)
-            .expect("file contains invalid pkcs8 private key (encrypted keys not supported)")
+    use kmip_client::Client;
+    use kmip_server::{
+        handle_client, process_kmip_request, store::KmipMemoryStore, RequestContext, ServerContext,
+        TestClockSource,
     };
+    use minidom::Element;
+    use rustls::{ClientSession, NoClientAuth, Stream};
 
-    // prefer to load pkcs8 keys
-    if !pkcs8_keys.is_empty() {
-        pkcs8_keys[0].clone()
-    } else {
-        assert!(!rsa_keys.is_empty());
-        rsa_keys[0].clone()
+    extern crate kmip_client;
+    extern crate kmip_server;
+
+    #[test]
+    fn test_10_create() {
+        let clock_source = Arc::new(TestClockSource::new());
+
+        let store = Arc::new(KmipMemoryStore::new());
+
+        let server_context = ServerContext::new(store, clock_source);
+
+        let mut rc = RequestContext::new(&server_context);
+
+        // From 1.0 test case, 3.1.1
+        let bytes = hex::decode("42007801000001204200770100000038420069010000002042006A0200000004000000010000000042006B0200000004000000000000000042000D0200000004000000010000000042000F01000000D842005C0500000004000000010000000042007901000000C04200570500000004000000020000000042009101000000A8420008010000003042000A070000001743727970746F6772617068696320416C676F726974686D0042000B05000000040000000300000000420008010000003042000A070000001443727970746F67726170686963204C656E6774680000000042000B02000000040000008000000000420008010000003042000A070000001843727970746F67726170686963205573616765204D61736B42000B02000000040000000C00000000").unwrap();
+
+        let resp = process_kmip_request(&mut rc, bytes.as_slice());
+
+        protocol::to_print(resp.as_slice());
+
+        println!("Hello");
     }
-}
 
-// TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write it
-fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, count: i32) {
-    let server_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/server.pem");
-    let server_key_file = PathBuf::from("/home/mark/projects/kmip/test_data/server.key");
-    let ca_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/ca.pem");
+    fn load_certs(filename: &PathBuf) -> Vec<rustls::Certificate> {
+        let certfile = fs::File::open(filename).expect("cannot open certificate file");
+        let mut reader = BufReader::new(certfile);
+        rustls::internal::pemfile::certs(&mut reader).unwrap()
+    }
 
-    // TODO - dynamically allocate port
-    let addr: net::SocketAddr = "0.0.0.0:5696".parse().unwrap();
-    //TODO addr.set_port(args.flag_port.unwrap_or(5696));
+    fn load_private_key(filename: &PathBuf) -> rustls::PrivateKey {
+        let rsa_keys = {
+            let keyfile = fs::File::open(filename).expect("cannot open private key file");
+            let mut reader = BufReader::new(keyfile);
+            rustls::internal::pemfile::rsa_private_keys(&mut reader)
+                .expect("file contains invalid rsa private key")
+        };
 
-    let listener = TcpListener::bind(&addr).expect("cannot listen on port");
-    let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
+        let pkcs8_keys = {
+            let keyfile = fs::File::open(filename).expect("cannot open private key file");
+            let mut reader = BufReader::new(keyfile);
+            rustls::internal::pemfile::pkcs8_private_keys(&mut reader)
+                .expect("file contains invalid pkcs8 private key (encrypted keys not supported)")
+        };
 
-    let mut server_certs = load_certs(&server_cert_file);
-    let privkey = load_private_key(&server_key_file);
-
-    let mut ca_certs = load_certs(&ca_cert_file);
-
-    server_certs.append(&mut ca_certs);
-
-    server_config
-        .set_single_cert(server_certs, privkey)
-        .unwrap();
-
-    let store = Arc::new(KmipMemoryStore::new());
-    let clock_source = Arc::new(TestClockSource::new());
-    let server_context = Arc::new(ServerContext::new(store, clock_source));
-    let sc = Arc::new(server_config);
-
-    start_barrier.wait();
-
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut stream) => {
-                println!("new client!");
-                let sc2 = sc.clone();
-                let server_context2 = server_context.clone();
-                // thread::spawn(move || {
-                let mut tls_session = rustls::ServerSession::new(&sc2);
-                let mut tls = rustls::Stream::new(&mut tls_session, &mut stream);
-
-                let mut req_count = count;
-                while req_count > 0 {
-                    handle_client(&mut tls, &server_context2);
-                    req_count -= 1;
-                }
-                
-    end_barrier.wait();
-
-                return;
-                // });
-            }
-            Err(e) => eprintln!("Connection failed: {}", e),
+        // prefer to load pkcs8 keys
+        if !pkcs8_keys.is_empty() {
+            pkcs8_keys[0].clone()
+        } else {
+            assert!(!rsa_keys.is_empty());
+            rsa_keys[0].clone()
         }
     }
 
-    end_barrier.wait();
-}
+    // TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write it
+    fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, count: i32) {
+        let server_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/server.pem");
+        let server_key_file = PathBuf::from("/home/mark/projects/kmip/test_data/server.key");
+        let ca_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/ca.pem");
 
-fn run_with_client<F>(mut func: F)
-where
-    F: FnMut(Client<Stream<ClientSession, TcpStream>>),
-{
-    let mut config = rustls::ClientConfig::new();
-    //config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+        // TODO - dynamically allocate port
+        let addr: net::SocketAddr = "0.0.0.0:5696".parse().unwrap();
+        //TODO addr.set_port(args.flag_port.unwrap_or(5696));
 
-    let ca_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/ca.pem");
-    let certfile = fs::File::open(ca_cert_file).expect("Cannot open CA file");
-    let mut reader = BufReader::new(certfile);
-    config.root_store.add_pem_file(&mut reader).unwrap();
+        let listener = TcpListener::bind(&addr).expect("cannot listen on port");
+        let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
 
-    // let mut server_certs = load_certs(args.serverCertFile.as_ref());
-    // let privkey = load_private_key(args.serverKeyFile.as_ref());
+        let mut server_certs = load_certs(&server_cert_file);
+        let privkey = load_private_key(&server_key_file);
 
-    // let mut ca_certs = load_certs(args.caCertFile.as_ref());
+        let mut ca_certs = load_certs(&ca_cert_file);
 
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
-    let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
-    // TODO - allocate port
-    let mut sock = TcpStream::connect(("localhost", 5696)).unwrap();
-    let mut tls = rustls::Stream::new(&mut sess, &mut sock);
+        server_certs.append(&mut ca_certs);
 
-    //let kmip_stream = StreamAdapter::new(&mut tls);
-    let a = Client::create_from_stream(&mut tls);
-    func(a);
-}
+        server_config
+            .set_single_cert(server_certs, privkey)
+            .unwrap();
 
-fn run_e2e_client_test<F>(count : i32, mut func: F)
-where
-    F: FnMut(Client<Stream<ClientSession, TcpStream>>)
-{
-    let start_barrier = Arc::new(Barrier::new(2));
-    let end_barrier = Arc::new(Barrier::new(2));
+        let store = Arc::new(KmipMemoryStore::new());
+        let clock_source = Arc::new(TestClockSource::new());
+        let server_context = Arc::new(ServerContext::new(store, clock_source));
+        let sc = Arc::new(server_config);
 
-    let b1 = start_barrier.clone();
-    let b2 = end_barrier.clone();
-    let t1 = thread::spawn(move || {
-        run_server_count(b1, b2, count);
-    });
+        start_barrier.wait();
 
-    start_barrier.wait();
+        for stream in listener.incoming() {
+            match stream {
+                Ok(mut stream) => {
+                    println!("new client!");
+                    let sc2 = sc.clone();
+                    let server_context2 = server_context.clone();
+                    // thread::spawn(move || {
+                    let mut tls_session = rustls::ServerSession::new(&sc2);
+                    let mut tls = rustls::Stream::new(&mut tls_session, &mut stream);
 
-    run_with_client(func);
+                    let mut req_count = count;
+                    while req_count > 0 {
+                        handle_client(&mut tls, &server_context2);
+                        req_count -= 1;
+                    }
 
-    end_barrier.wait();
+                    end_barrier.wait();
 
-    t1.join().unwrap();
-}
+                    return;
+                    // });
+                }
+                Err(e) => eprintln!("Connection failed: {}", e),
+            }
+        }
 
-#[test]
-fn e2e_test_10_create() {
-    run_e2e_client_test(1, |mut client| {
-        let mut bytes = hex::decode("42007801000001204200770100000038420069010000002042006A0200000004000000010000000042006B0200000004000000000000000042000D0200000004000000010000000042000F01000000D842005C0500000004000000010000000042007901000000C04200570500000004000000020000000042009101000000A8420008010000003042000A070000001743727970746F6772617068696320416C676F726974686D0042000B05000000040000000300000000420008010000003042000A070000001443727970746F67726170686963204C656E6774680000000042000B02000000040000008000000000420008010000003042000A070000001843727970746F67726170686963205573616765204D61736B42000B02000000040000000C00000000").unwrap();
+        end_barrier.wait();
+    }
 
-        let resp = client.make_request(&mut bytes);
-        eprintln!("{:?}", resp);
-    });
-}
+    fn run_with_client<F>(mut func: F)
+    where
+        F: FnMut(Client<Stream<ClientSession, TcpStream>>),
+    {
+        let mut config = rustls::ClientConfig::new();
+        //config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
 
+        let ca_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/ca.pem");
+        let certfile = fs::File::open(ca_cert_file).expect("Cannot open CA file");
+        let mut reader = BufReader::new(certfile);
+        config.root_store.add_pem_file(&mut reader).unwrap();
 
-// https://docs.oasis-open.org/kmip/testcases/v1.2/kmip-testcases-v1.2.html
-// has test cases for 1.0, 1.1 and 1.2
+        // let mut server_certs = load_certs(args.serverCertFile.as_ref());
+        // let privkey = load_private_key(args.serverKeyFile.as_ref());
 
-#[test]
-fn e2e_test_xml_10_create() {
-    run_e2e_client_test(1, |mut client| {
-let conv = r#"
+        // let mut ca_certs = load_certs(args.caCertFile.as_ref());
+
+        let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
+        let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
+        // TODO - allocate port
+        let mut sock = TcpStream::connect(("localhost", 5696)).unwrap();
+        let mut tls = rustls::Stream::new(&mut sess, &mut sock);
+
+        //let kmip_stream = StreamAdapter::new(&mut tls);
+        let a = Client::create_from_stream(&mut tls);
+        func(a);
+    }
+
+    fn run_e2e_client_test<F>(count: i32, mut func: F)
+    where
+        F: FnMut(Client<Stream<ClientSession, TcpStream>>),
+    {
+        let start_barrier = Arc::new(Barrier::new(2));
+        let end_barrier = Arc::new(Barrier::new(2));
+
+        let b1 = start_barrier.clone();
+        let b2 = end_barrier.clone();
+        let t1 = thread::spawn(move || {
+            run_server_count(b1, b2, count);
+        });
+
+        start_barrier.wait();
+
+        run_with_client(func);
+
+        end_barrier.wait();
+
+        t1.join().unwrap();
+    }
+
+    #[test]
+    fn e2e_test_10_create() {
+        run_e2e_client_test(1, |mut client| {
+            let mut bytes = hex::decode("42007801000001204200770100000038420069010000002042006A0200000004000000010000000042006B0200000004000000000000000042000D0200000004000000010000000042000F01000000D842005C0500000004000000010000000042007901000000C04200570500000004000000020000000042009101000000A8420008010000003042000A070000001743727970746F6772617068696320416C676F726974686D0042000B05000000040000000300000000420008010000003042000A070000001443727970746F67726170686963204C656E6774680000000042000B02000000040000008000000000420008010000003042000A070000001843727970746F67726170686963205573616765204D61736B42000B02000000040000000C00000000").unwrap();
+
+            let resp = client.make_request(&mut bytes);
+            eprintln!("{:?}", resp);
+        });
+    }
+
+    // https://docs.oasis-open.org/kmip/testcases/v1.2/kmip-testcases-v1.2.html
+    // has test cases for 1.0, 1.1 and 1.2
+
+    #[test]
+    fn e2e_test_xml_10_create() {
+        run_e2e_client_test(1, |mut client| {
+            let conv = r#"
 <RequestMessage>
   <RequestHeader>
     <ProtocolVersion>
@@ -222,58 +223,54 @@ let conv = r#"
   </BatchItem>
 </RequestMessage>"#;
 
-let resp = client.make_xml_request(conv);
-eprintln!("{:?}", resp);
-    });
-}
-
-
-fn run_e2e_xml_conversation(conv: &str) {
-  let mut file = minidom::quick_xml::Reader::from_str(conv);
-  file.trim_text(true);
-  let root: Element = Element::from_reader(&mut file).unwrap();
-  
-  let mut reqs : Vec<String>  = Vec::new();
-  let mut resps : Vec<String>  = Vec::new();
-  for child in root.children() {
-  
-      let buf : Vec<u8>  = Vec::new();
-      let mut writer = minidom::quick_xml::Writer::new(buf);
-      child.to_writer(&mut writer).unwrap();
-      
-      let xml_str = std::str::from_utf8(&writer.into_inner()).unwrap().to_string();
-      // println!("{:?}", child);
-      println!("xml_str{:?}", xml_str);
-      if child.name() == "RequestMessage" {
-          reqs.push(xml_str);
-      } else  if child.name() == "ResponseMessage" {
-          resps.push(xml_str);
-      } else {
-          panic!(format!("Unknown XML child {:?}", child.name()));
-      }
-  }
-  
-  assert_eq!(reqs.len(), resps.len());
-  
-      run_e2e_client_test(reqs.len() as i32, |mut client| {
-  
-  
-  for (i, req) in reqs.iter().enumerate() {
-      let mut resp = client.make_xml_request(&req);
-      eprintln!("{:?}", resp);
-
-      resp = resp.replace("<?xml version=\"1.0\" encoding=\"utf-8\"?>", "");
-      resp = resp.replace(" />", "/>");
-      assert_eq!{resp, resps[i]};
-  }
-  
-      });
+            let resp = client.make_xml_request(conv);
+            eprintln!("{:?}", resp);
+        });
     }
 
-#[test]
-fn e2e_test_xml_tc_311_10() {
+    fn run_e2e_xml_conversation(conv: &str) {
+        let mut file = minidom::quick_xml::Reader::from_str(conv);
+        file.trim_text(true);
+        let root: Element = Element::from_reader(&mut file).unwrap();
 
-    let conv = r#"
+        let mut reqs: Vec<String> = Vec::new();
+        let mut resps: Vec<String> = Vec::new();
+        for child in root.children() {
+            let buf: Vec<u8> = Vec::new();
+            let mut writer = minidom::quick_xml::Writer::new(buf);
+            child.to_writer(&mut writer).unwrap();
+
+            let xml_str = std::str::from_utf8(&writer.into_inner())
+                .unwrap()
+                .to_string();
+            // println!("{:?}", child);
+            println!("xml_str{:?}", xml_str);
+            if child.name() == "RequestMessage" {
+                reqs.push(xml_str);
+            } else if child.name() == "ResponseMessage" {
+                resps.push(xml_str);
+            } else {
+                panic!(format!("Unknown XML child {:?}", child.name()));
+            }
+        }
+
+        assert_eq!(reqs.len(), resps.len());
+
+        run_e2e_client_test(reqs.len() as i32, |mut client| {
+            for (i, req) in reqs.iter().enumerate() {
+                let mut resp = client.make_xml_request(&req);
+                eprintln!("{:?}", resp);
+
+                resp = resp.replace("<?xml version=\"1.0\" encoding=\"utf-8\"?>", "");
+                resp = resp.replace(" />", "/>");
+                assert_eq! {resp, resps[i]};
+            }
+        });
+    }
+
+    #[test]
+    fn e2e_test_xml_tc_311_10() {
+        let conv = r#"
 <KMIP>
 <RequestMessage>
   <RequestHeader>
@@ -357,8 +354,6 @@ fn e2e_test_xml_tc_311_10() {
 </KMIP>
 "#;
 
-run_e2e_xml_conversation(conv);
-
-}
-
+        run_e2e_xml_conversation(conv);
+    }
 } // mod tests

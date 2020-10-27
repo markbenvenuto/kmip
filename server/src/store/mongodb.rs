@@ -1,8 +1,8 @@
 use std::sync::Mutex;
 
 use bson::Document;
-use mongodb::*;
 use futures::StreamExt;
+use mongodb::*;
 
 use crate::store::KmipStore;
 
@@ -28,7 +28,7 @@ impl KmipMongoDBStore {
     fn make_connection(&self) -> Collection {
         let uri = self.inner.lock().unwrap().uri.clone();
         // TODO - make async
-        let client =  futures::executor::block_on(Client::with_uri_str(&uri)).unwrap();
+        let client = futures::executor::block_on(Client::with_uri_str(&uri)).unwrap();
 
         let db = client.database("kmip");
 
@@ -66,8 +66,9 @@ impl KmipStore for KmipMongoDBStore {
         let cursor = collection.find(Some(filter), None);
 
         // TODO - make async
-        let mut cur =  futures::executor::block_on(cursor).unwrap();
-        let mut results: Vec<mongodb::error::Result<Document>> = futures::executor::block_on(cur.collect());
+        let mut cur = futures::executor::block_on(cursor).unwrap();
+        let mut results: Vec<mongodb::error::Result<Document>> =
+            futures::executor::block_on(cur.collect());
         if results.len() == 0 {
             return None;
         }
