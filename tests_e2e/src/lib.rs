@@ -1,12 +1,16 @@
+//mod shared_stream;
+
+#[macro_use]
+extern crate lazy_static;
+
+  
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        fs, io::BufReader, net, net::TcpListener, net::TcpStream, path::PathBuf, sync::Arc,
-        sync::Barrier, thread,
-    };
+    use std::{fs, io::BufReader, net, net::TcpListener, net::{IpAddr, Ipv4Addr, TcpStream}, path::PathBuf, sync::Arc, sync::Barrier, sync::Mutex, thread};
 
-    use kmip_client::Client;
+        use std::env;
+use kmip_client::Client;
     use kmip_server::{
         handle_client, process_kmip_request, store::KmipMemoryStore, RequestContext, ServerContext,
         TestClockSource,
@@ -17,8 +21,34 @@ mod tests {
     extern crate kmip_client;
     extern crate kmip_server;
 
+
+    struct PortAllocator {
+      start: u16,
+    }
+    
+    impl PortAllocator {
+    
+      fn new() -> Self {
+        PortAllocator{
+          start: 6000,
+        }
+      }
+    
+      fn allocate(&mut self) -> u16 {
+        let port = self.start;
+        self.start+=1;
+        port
+      }
+    }
+          
+      lazy_static! {
+        static ref GLOBAL_PORT_ALLOCATOR: Mutex<PortAllocator> = Mutex::new(PortAllocator::new());
+      }
+    
+
     #[test]
     fn test_10_create() {
+
         let clock_source = Arc::new(TestClockSource::new());
 
         let store = Arc::new(KmipMemoryStore::new());
@@ -67,15 +97,25 @@ mod tests {
         }
     }
 
+      fn get_test_data_dir() -> PathBuf {
+        let path = env::current_dir().unwrap();
+        eprintln!("The current directory is {}", path.display());
+        let mut root_dir = PathBuf::from(&path.parent().unwrap());
+        root_dir.push("test_data");
+        root_dir
+      }
+
+
     // TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write it
-    fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, count: i32) {
-        let server_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/server.pem");
-        let server_key_file = PathBuf::from("/home/mark/projects/kmip/test_data/server.key");
-        let ca_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/ca.pem");
+    fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port  : u16, count: i32) {
+
+        let root_dir = get_test_data_dir();
+        let server_cert_file = root_dir.join("server.pem");
+        let server_key_file = root_dir.join("server.key");
+        let ca_cert_file = root_dir.join("ca.pem");
 
         // TODO - dynamically allocate port
-        let addr: net::SocketAddr = "0.0.0.0:5696".parse().unwrap();
-        //TODO addr.set_port(args.flag_port.unwrap_or(5696));
+        let addr: net::SocketAddr = net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
 
         let listener = TcpListener::bind(&addr).expect("cannot listen on port");
         let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
@@ -126,27 +166,22 @@ mod tests {
         end_barrier.wait();
     }
 
-    fn run_with_client<F>(mut func: F)
+    fn run_with_client<F>(port : u16, mut func: F)
     where
         F: FnMut(Client<Stream<ClientSession, TcpStream>>),
     {
         let mut config = rustls::ClientConfig::new();
-        //config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
 
-        let ca_cert_file = PathBuf::from("/home/mark/projects/kmip/test_data/ca.pem");
+        
+        let root_dir = get_test_data_dir();
+        let ca_cert_file = root_dir.join("ca.pem");
         let certfile = fs::File::open(ca_cert_file).expect("Cannot open CA file");
         let mut reader = BufReader::new(certfile);
         config.root_store.add_pem_file(&mut reader).unwrap();
 
-        // let mut server_certs = load_certs(args.serverCertFile.as_ref());
-        // let privkey = load_private_key(args.serverKeyFile.as_ref());
-
-        // let mut ca_certs = load_certs(args.caCertFile.as_ref());
-
         let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
         let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
-        // TODO - allocate port
-        let mut sock = TcpStream::connect(("localhost", 5696)).unwrap();
+        let mut sock = TcpStream::connect(("localhost", port)).unwrap();
         let mut tls = rustls::Stream::new(&mut sess, &mut sock);
 
         //let kmip_stream = StreamAdapter::new(&mut tls);
@@ -154,22 +189,25 @@ mod tests {
         func(a);
     }
 
-    fn run_e2e_client_test<F>(count: i32, mut func: F)
+    fn run_e2e_client_test<F>(count: i32, func: F)
     where
         F: FnMut(Client<Stream<ClientSession, TcpStream>>),
     {
+        //let ssf = SharedStreamFactory::new();
+
+        let port = GLOBAL_PORT_ALLOCATOR.lock().unwrap().allocate();
         let start_barrier = Arc::new(Barrier::new(2));
         let end_barrier = Arc::new(Barrier::new(2));
 
         let b1 = start_barrier.clone();
         let b2 = end_barrier.clone();
         let t1 = thread::spawn(move || {
-            run_server_count(b1, b2, count);
+            run_server_count(b1, b2, port, count);
         });
 
         start_barrier.wait();
 
-        run_with_client(func);
+        run_with_client(port, func);
 
         end_barrier.wait();
 
@@ -356,4 +394,91 @@ mod tests {
 
         run_e2e_xml_conversation(conv);
     }
-} // mod tests
+
+    #[test]
+    fn e2e_test_xml_tc_315_10() {
+        let conv = r#"
+<KMIP>
+<RequestMessage>
+  <RequestHeader>
+    <ProtocolVersion>
+      <ProtocolVersionMajor type="Integer" value="1"/>
+      <ProtocolVersionMinor type="Integer" value="0"/>
+    </ProtocolVersion> <BatchCount type="Integer" value="1"/>
+  </RequestHeader> <BatchItem>
+    <Operation type="Enumeration"                                   value="Register"/>
+     <RequestPayload>
+      <ObjectType type="Enumeration" value="SecretData"/>
+      <TemplateAttribute>
+        <Attribute>
+          <AttributeName type="TextString" value="Cryptographic Usage Mask"/>       
+          <AttributeValue type="Integer" value="Verify"/>
+        </Attribute>
+      </TemplateAttribute>
+      <SecretData>
+        <SecretDataType type="Enumeration"                          value="Password"/>
+         <KeyBlock>
+           <KeyFormatType type="Enumeration"                         value="Opaque"/>
+            <KeyValue>
+              <KeyMaterial type="ByteString"                          value="53656372657450617373776f7264"/>
+            </KeyValue>
+        </KeyBlock>
+      </SecretData>
+    </RequestPayload>
+  </BatchItem>
+</RequestMessage>
+<ResponseMessage>
+  <ResponseHeader>
+    <ProtocolVersion>
+      <ProtocolVersionMajor type="Integer" value="1"/>
+      <ProtocolVersionMinor type="Integer" value="0"/>
+    </ProtocolVersion>
+    <TimeStamp type="DateTime" value="2010-02-15T10:41:21+00:00"/>
+    <BatchCount type="Integer" value="1"/>
+  </ResponseHeader>
+  <BatchItem>
+    <Operation type="Enumeration" value="Register"/>
+    <ResultStatus type="Enumeration" value="Success"/>
+    <ResponsePayload>
+      <UniqueIdentifier type="TextString"                           value="$UNIQUE_IDENTIFIER_0"/>
+    </ResponsePayload>
+  </BatchItem>
+</ResponseMessage>
+<RequestMessage>
+  <RequestHeader>
+    <ProtocolVersion>
+      <ProtocolVersionMajor type="Integer" value="1"/>
+      <ProtocolVersionMinor type="Integer" value="0"/>
+    </ProtocolVersion>
+    <BatchCount type="Integer" value="1"/>
+  </RequestHeader>
+  <BatchItem>
+    <Operation type="Enumeration" value="Destroy"/>
+    <RequestPayload>
+      <UniqueIdentifier type="TextString"                           value="$UNIQUE_IDENTIFIER_0"/>
+    </RequestPayload>
+  </BatchItem>
+</RequestMessage>
+<ResponseMessage>
+  <ResponseHeader>
+    <ProtocolVersion>
+      <ProtocolVersionMajor type="Integer" value="1"/>
+      <ProtocolVersionMinor type="Integer" value="0"/>
+    </ProtocolVersion>
+    <TimeStamp type="DateTime" value="2010-02-15T10:41:21+00:00"/>
+    <BatchCount type="Integer" value="1"/>
+  </ResponseHeader>
+  <BatchItem>
+    <Operation type="Enumeration" value="Destroy"/>
+   <ResultStatus type="Enumeration" value="Success"/>
+
+   <ResponsePayload>
+      <UniqueIdentifier type="TextString"                           value="$UNIQUE_IDENTIFIER_0"/>
+    </ResponsePayload>
+  </BatchItem>
+</ResponseMessage>"#;
+
+run_e2e_xml_conversation(conv);
+}
+
+  } // mod tests

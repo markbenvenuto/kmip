@@ -1,5 +1,3 @@
-#[allow(non_snake_case)]
-#[macro_use]
 extern crate num_derive;
 
 #[macro_use]
@@ -9,27 +7,22 @@ extern crate lazy_static;
 extern crate pretty_hex;
 //extern crate serde_transcode;
 
-#[macro_use]
 extern crate log;
 extern crate env_logger;
-use log::{info, warn};
+use log::{info};
 
 #[macro_use]
 extern crate serde_derive;
 
-//#[macro_use]
 extern crate serde_enum;
 
-use std::{path::Path, rc::Rc};
+use std::{io::Read, rc::Rc, io::Write};
 
-#[macro_use]
 extern crate structopt;
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
-use structopt::StructOpt;
 
 extern crate strum;
-#[macro_use]
 extern crate strum_macros;
 
 use pretty_hex::*;
@@ -39,48 +32,24 @@ extern crate confy;
 extern crate chrono;
 
 use chrono::Utc;
-use chrono::{DateTime, NaiveDateTime};
+use chrono::{NaiveDateTime};
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use rustls;
-
-use rustls::{
-    AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth,
-    RootCertStore, Session,
-};
-
-use std::io;
-use std::io::Cursor;
-use vecio::Rawv;
-
-use std::collections::HashMap;
-use std::fs;
-use std::io::{BufReader, Read, Write};
-use std::net;
-use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
 use std::string::ToString;
-use std::thread;
 
-#[macro_use(bson, doc)]
+#[macro_use(doc)]
 extern crate bson;
 
 extern crate ring;
 use ring::rand::*;
 
-// use bson;
-
-// mod git;
-// mod watchman;
 pub mod store;
 
 use protocol::*;
 
-use store::KmipMemoryStore;
-use store::KmipMongoDBStore;
 use store::KmipStore;
 use store::ManagedAttributes;
 use store::ManagedObject;
@@ -165,7 +134,7 @@ impl KmipCrypto {
     fn gen_rand_bytes(len: usize) -> Vec<u8> {
         let mut a: Vec<u8> = Vec::new();
         a.resize(len, 0);
-        GLOBAL_RAND.fill(a.as_mut());
+        GLOBAL_RAND.fill(a.as_mut()).expect("Random number generator failed");
 
         return a;
     }
@@ -344,8 +313,9 @@ fn process_create_request(
                         key_format_type: KeyFormatTypeEnum::Raw,
                         key_value: KeyValue { key_material: key },
                         key_compression_type: None,
-                        cryptographic_algorithm: algo,
-                        cryptographic_length: crypt_len,
+                        cryptographic_algorithm: Some(algo),
+                        cryptographic_length: Some(crypt_len),
+                        key_wrapping_data : None,
                     },
                 }),
                 attributes: ma,
@@ -366,6 +336,16 @@ fn process_create_request(
         }
         _ => Err(KmipResponseError::new("Foo")),
     }
+}
+
+
+
+fn process_register_request(
+    rc: &RequestContext,
+    req: &RegisterRequest,
+) -> std::result::Result<RegisterResponse, KmipResponseError> {
+    unimplemented!()
+    // Err(KmipResponseError::new("Foo"))
 }
 
 fn process_get_request(
@@ -531,6 +511,10 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
             info!("Got Create Request");
             process_create_request(&rc, &x).map(|r| ResponseOperationEnum::Create(r))
         }
+        RequestBatchItem::Register(x) => {
+            info!("Got Register Request");
+            process_register_request(&rc, &x).map(|r| ResponseOperationEnum::Register(r))
+        }
         RequestBatchItem::Get(x) => {
             info!("Got Get Request");
             process_get_request(&rc, x).map(|r| ResponseOperationEnum::Get(r))
@@ -562,6 +546,14 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
 
     return vr;
 }
+#[cfg(test)]
+mod tests {
+        use std::sync::Arc;
+
+use protocol::{KmipEnumResolver, RequestMessage};
+
+    use crate::{RequestContext, ServerContext, TestClockSource, process_kmip_request, store::KmipMemoryStore};
+
 
 #[test]
 fn test_create_request() {
@@ -592,7 +584,7 @@ fn test_create_request() {
 
     let k: KmipEnumResolver = KmipEnumResolver {};
 
-    let a = protocol::from_bytes::<RequestMessage>(&bytes, &k).unwrap();
+    protocol::from_bytes::<RequestMessage>(&bytes, &k).unwrap();
 }
 
 #[test]
@@ -677,4 +669,6 @@ fn test_create_request3() {
     process_kmip_request(&mut rc, get_bytes.as_slice());
 
     //unimplemented!();
+}
+
 }

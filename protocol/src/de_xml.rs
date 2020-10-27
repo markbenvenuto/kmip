@@ -41,7 +41,7 @@ struct XmlItem {
 struct XmlEncodingReader<'a> {
     reader: EventReader<std::io::Cursor<&'a [u8]>>,
     state: ReaderState,
-    cur_depths: Vec<u64>,
+    cur_depths: Vec<(u64, Tag)>,
     depth: u64,
     end_document: bool,
     tag: Option<Tag>,
@@ -50,8 +50,11 @@ struct XmlEncodingReader<'a> {
 }
 
 impl<'a> XmlEncodingReader<'a> {
+
+ 
+
     fn is_empty2(&mut self) -> TTLVResult<bool> {
-        // eprintln!("is_empty: ");
+        eprintln!("is_empty2: ");
         if self.end_document {
             return Ok(true);
         }
@@ -61,7 +64,9 @@ impl<'a> XmlEncodingReader<'a> {
             return Ok(true);
         }
 
-        Ok(*(self.cur_depths.last().unwrap()) == self.depth)
+        let (depth, tag) = *(self.cur_depths.last().unwrap());
+        Ok(depth >= self.depth && tag != self.tag.unwrap())
+        // Ok(self.is_level_empty())
     }
 
     fn read_one_event(&mut self) -> TTLVResult<Option<XmlItem>> {
@@ -94,7 +99,7 @@ impl<'a> XmlEncodingReader<'a> {
                 }))
             }
             XmlEvent::EndElement { .. } => {
-                // eprintln!("Read End Element");
+                eprintln!("Read End Element");
                 self.depth -= 1;
                 Ok(None)
             }
@@ -125,7 +130,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
             reader: EventReader::new(cur),
             state: ReaderState::Tag,
             cur_depths: Vec::new(),
-            depth: 0,
+            depth: 1,
             end_document: false,
             tag: None,
             element: None,
@@ -134,7 +139,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
     }
 
     fn begin_inner_or_more(&mut self) -> TTLVResult<()> {
-        // eprintln!("begin_inner_or_more");
+        eprintln!("begin_inner_or_more");
         if self.state == ReaderState::Tag {
             self.element = None;
             self.read_one_element()?;
@@ -152,11 +157,15 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
     }
 
     fn begin_inner_skip(&mut self) -> TTLVResult<()> {
-        // eprintln!("begin_inner_skip");
+        eprintln!("begin_inner_skip");
         assert_eq!(self.state, ReaderState::LengthValue);
 
+        let t =
+        Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
+        self.tag = Some(t);
+
         //println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
-        self.cur_depths.push(self.depth);
+        self.cur_depths.push((self.depth, self.tag.unwrap()));
         self.state = ReaderState::Tag;
         self.element = None;
         Ok(())
@@ -169,9 +178,18 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
 
     fn is_empty(&mut self) -> TTLVResult<bool> {
         let e = self.is_empty2();
-        //        eprintln!("is_empty {:?} {:?} == {:?}",e , self.depth, (self.cur_depths.last().unwrap()));
-        //    eprintln!("is_empty {:?} {:?}",e , self.depth);
+        eprintln!("is_empty {:?} ({:?},{:?}) == {:?}",e , 
+            self.depth, self.tag, 
+            (self.cur_depths.last().unwrap_or(&(1, Tag::ReplacedUniqueIdentifier)))
+        );
+        eprintln!("is_empty {:?} {:?}",e , self.depth);
         e
+    }
+
+    fn is_level_empty(&self) -> bool {
+        //*(self.cur_depths.last().unwrap()) == (self.depth, self.tag.unwrap())
+        let (depth, tag) = *(self.cur_depths.last().unwrap());
+        depth <= self.depth && tag != self.tag.unwrap()
     }
 
     fn read_type(&mut self) -> TTLVResult<ItemType> {
@@ -270,6 +288,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
         }
 
         self.element = None;
+        self.last_attribute_tag = None;
         Ok(valuei)
     }
 
@@ -411,7 +430,7 @@ mod tests {
             unimplemented! {}
         }
 
-        fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
+        fn to_string(&self, _tag: Tag, _value: i32) -> std::result::Result<String, TTLVError> {
             unimplemented!();
         }
     }
@@ -434,7 +453,7 @@ mod tests {
             pub batch_count: i32,
         }
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
 
         let r: TestEnumResolver = TestEnumResolver {};
         let a = from_xml_bytes::<RequestHeader>(&good.as_bytes(), &r).unwrap();
@@ -463,7 +482,7 @@ mod tests {
             CertificateRequest(String),
         }
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><Operation type=\"TextString\" value=\"CertificateRequest\" /><BatchItem type=\"TextString\" value=\"\" /></CRTCoefficient>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient><Operation type=\"TextString\" value=\"CertificateRequest\" /><BatchItem type=\"TextString\" value=\"\" /></CRTCoefficient>";
 
         let r: TestEnumResolver = TestEnumResolver {};
         let _a = from_xml_bytes::<CRTCoefficient>(&good.as_bytes(), &r).unwrap();
@@ -475,9 +494,12 @@ mod tests {
         struct CRTCoefficient {
             #[serde(rename = "BatchCount")]
             pub batch_count: Vec<i32>,
+
+            #[serde(rename = "ProtocolVersionMinor")]
+            pub version: i32,
         }
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"Integer\" value=\"102\" /><BatchCount type=\"Integer\" value=\"119\" /><BatchCount type=\"Integer\" value=\"136\" /></CRTCoefficient>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient><BatchCount type=\"Integer\" value=\"102\" /><BatchCount type=\"Integer\" value=\"119\" /><BatchCount type=\"Integer\" value=\"136\" /><ProtocolVersionMinor type=\"Integer\" value=\"1\" /></CRTCoefficient>";
 
         let r: TestEnumResolver = TestEnumResolver {};
         let _a = from_xml_bytes::<CRTCoefficient>(&good.as_bytes(), &r).unwrap();
@@ -491,7 +513,7 @@ mod tests {
             batch_count: chrono::DateTime<Utc>,
         }
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"DateTime\" value=\"1973-11-29T21:20:00+00:00\" /></CRTCoefficient>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient><BatchCount type=\"DateTime\" value=\"1973-11-29T21:20:00+00:00\" /></CRTCoefficient>";
 
         let r: TestEnumResolver = TestEnumResolver {};
         let _a = from_xml_bytes::<CRTCoefficient>(&good.as_bytes(), &r).unwrap();
@@ -515,7 +537,7 @@ mod tests {
             unique_identifier: String,
         }
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestMessage type=\"Structure\"><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"3\" /><BatchCount type=\"Integer\" value=\"4\" /></RequestHeader><UniqueIdentifier type=\"TextString\" value=\"\" /></RequestMessage>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestMessage><RequestHeader><ProtocolVersionMajor type=\"Integer\" value=\"3\" /><BatchCount type=\"Integer\" value=\"4\" /></RequestHeader><UniqueIdentifier type=\"TextString\" value=\"\" /></RequestMessage>";
 
         let r: TestEnumResolver = TestEnumResolver {};
         let _a = from_xml_bytes::<RequestMessage>(&good.as_bytes(), &r).unwrap();

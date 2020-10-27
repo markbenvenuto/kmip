@@ -1,12 +1,11 @@
-use std::{fs::File, sync::Arc};
+use std::{sync::Arc};
 
 use std::fs;
 use std::io::BufReader;
-use std::io::{stdout, Read, Write};
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::PathBuf;
 
-#[macro_use]
 extern crate structopt;
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
@@ -18,8 +17,6 @@ extern crate log;
 use rustls;
 use rustls::Session;
 use webpki;
-
-use pretty_hex::*;
 
 use protocol::*;
 

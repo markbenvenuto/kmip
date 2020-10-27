@@ -197,7 +197,7 @@ mod tests {
         ) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
-        fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
+        fn to_string(&self, _tag: Tag, _value: i32) -> std::result::Result<String, TTLVError> {
             unimplemented!();
         }
     }
@@ -232,7 +232,7 @@ mod tests {
 
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader><ProtocolVersionMajor type=\"Integer\" value=\"1\" /><ProtocolVersionMinor type=\"Integer\" value=\"2\" /><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
@@ -268,7 +268,7 @@ mod tests {
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestMessage type=\"Structure\"><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"3\" /><BatchCount type=\"Integer\" value=\"4\" /></RequestHeader><UniqueIdentifier type=\"TextString\" value=\"\" /></RequestMessage>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestMessage><RequestHeader><ProtocolVersionMajor type=\"Integer\" value=\"3\" /><BatchCount type=\"Integer\" value=\"4\" /></RequestHeader><UniqueIdentifier type=\"TextString\" value=\"\" /></RequestMessage>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
@@ -301,7 +301,7 @@ mod tests {
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ObjectType type=\"Structure\"><UniqueIdentifier type=\"TextString\" value=\"\" /></ObjectType><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader><ObjectType><UniqueIdentifier type=\"TextString\" value=\"\" /></ObjectType><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
@@ -331,7 +331,7 @@ mod tests {
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"TextString\" value=\"\" /><ProtocolVersionMinor type=\"ByteString\" value=\"556677\" /><BatchCount type=\"LongInteger\" value=\"3\" /></RequestHeader>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader><ProtocolVersionMajor type=\"TextString\" value=\"\" /><ProtocolVersionMinor type=\"ByteString\" value=\"556677\" /><BatchCount type=\"LongInteger\" value=\"3\" /></RequestHeader>";
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
 
@@ -351,7 +351,7 @@ mod tests {
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><Operation type=\"TextString\" value=\"CertificateRequest\" /><BatchItem type=\"TextString\" value=\"\" /></CRTCoefficient>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient><Operation type=\"TextString\" value=\"CertificateRequest\" /><BatchItem type=\"TextString\" value=\"\" /></CRTCoefficient>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
@@ -372,7 +372,7 @@ mod tests {
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"Integer\" value=\"102\" /><BatchCount type=\"Integer\" value=\"119\" /><BatchCount type=\"Integer\" value=\"136\" /></CRTCoefficient>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient><BatchCount type=\"Integer\" value=\"102\" /><BatchCount type=\"Integer\" value=\"119\" /><BatchCount type=\"Integer\" value=\"136\" /></CRTCoefficient>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
@@ -393,7 +393,7 @@ mod tests {
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"DateTime\" value=\"1970-01-02T10:17:36+00:00\" /></CRTCoefficient>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient><BatchCount type=\"DateTime\" value=\"1970-01-02T10:17:36+00:00\" /></CRTCoefficient>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }

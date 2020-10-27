@@ -1988,6 +1988,7 @@ dependencies = [
  "hex",
  "kmip_client",
  "kmip_server",
+ "lazy_static",
  "log",
  "minidom",
  "protocol",

@@ -341,7 +341,7 @@ impl EncodedWriter for NestedWriter {
     fn write_i32_enumeration(
         &mut self,
         v: i32,
-        enum_resolver: &dyn EnumResolver,
+        _enum_resolver: &dyn EnumResolver,
     ) -> TTLVResult<()> {
         write_enumeration(&mut self.vec, v)
     }
@@ -1651,7 +1651,7 @@ impl<'a, W: EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSeriali
 mod tests {
     use std::rc::Rc;
 
-    use crate::{chrono::TimeZone, EnumResolver, TTLVError};
+    use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
@@ -1675,7 +1675,7 @@ mod tests {
             unimplemented! {}
         }
 
-        fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
+        fn to_string(&self, _tag: Tag, _value: i32) -> std::result::Result<String, TTLVError> {
             unimplemented!();
         }
     }

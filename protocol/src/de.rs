@@ -353,6 +353,8 @@ pub trait EncodingReader<'a> {
 
     fn is_empty(&mut self) -> TTLVResult<bool>;
 
+    fn is_level_empty(&self) -> bool;
+
     fn read_type(&mut self) -> TTLVResult<ItemType>;
 
     fn read_type_and_check(&mut self, expected: ItemType) -> TTLVResult<()>;
@@ -455,7 +457,11 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         //     *(self.end_positions.last().unwrap()),
         //     self.cur.position()
         // );
-        Ok(*(self.end_positions.last().unwrap()) == self.cur.position())
+        Ok(self.is_level_empty())
+    }
+    
+    fn is_level_empty(&self) -> bool {
+        *(self.end_positions.last().unwrap()) == self.cur.position()
     }
 
     fn read_type(&mut self) -> TTLVResult<ItemType> {
@@ -1179,7 +1185,7 @@ mod tests {
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
-    use crate::de::to_print;
+    use crate::{Tag, de::to_print};
 
     use crate::de::from_bytes;
     use crate::my_date_format;
@@ -1199,7 +1205,7 @@ mod tests {
         ) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
-        fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
+        fn to_string(&self, _tag: Tag, _value: i32) -> std::result::Result<String, TTLVError> {
             unimplemented!();
         }
     }

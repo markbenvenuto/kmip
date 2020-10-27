@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate log;
 extern crate env_logger;
 use log::{info, warn};
@@ -6,7 +5,6 @@ use log::{info, warn};
 #[macro_use]
 extern crate serde_derive;
 
-#[macro_use]
 extern crate structopt;
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
@@ -25,8 +23,7 @@ use std::sync::Arc;
 use rustls;
 
 use rustls::{
-    AllowAnyAnonymousOrAuthenticatedClient, AllowAnyAuthenticatedClient, NoClientAuth,
-    RootCertStore, Session,
+     NoClientAuth
 };
 
 use std::fs;
@@ -45,8 +42,6 @@ use kmip_server::{store::KmipStore, TestClockSource};
 
 // use bson;
 
-// mod git;
-// mod watchman;
 #[derive(Debug, EnumString)]
 enum StoreType {
     Memory,
@@ -165,7 +160,7 @@ fn main() {
 
     server_certs.append(&mut ca_certs);
 
-    server_config.set_single_cert(server_certs, privkey);
+    server_config.set_single_cert(server_certs, privkey).expect("Failed to set certificate");
 
     let store: Arc<dyn KmipStore + Send + Sync> = match args.store {
         StoreType::Memory => {
@@ -194,7 +189,7 @@ fn main() {
                     let mut tls_session = rustls::ServerSession::new(&sc2);
                     let mut tls = rustls::Stream::new(&mut tls_session, &mut stream);
 
-                    while true {
+                    loop {
                         handle_client(&mut tls, &server_context2);
                     }
                 });

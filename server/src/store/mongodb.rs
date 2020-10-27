@@ -39,7 +39,7 @@ impl KmipMongoDBStore {
 }
 
 impl KmipStore for KmipMongoDBStore {
-    fn add(&self, id: &str, doc: bson::Document) {
+    fn add(&self, _id: &str, doc: bson::Document) {
         let collection = self.make_connection();
 
         collection.insert_one(doc, None);
@@ -66,7 +66,7 @@ impl KmipStore for KmipMongoDBStore {
         let cursor = collection.find(Some(filter), None);
 
         // TODO - make async
-        let mut cur = futures::executor::block_on(cursor).unwrap();
+        let cur = futures::executor::block_on(cursor).unwrap();
         let mut results: Vec<mongodb::error::Result<Document>> =
             futures::executor::block_on(cur.collect());
         if results.len() == 0 {
