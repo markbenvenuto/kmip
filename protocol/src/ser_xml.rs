@@ -31,6 +31,23 @@ struct NestedWriter {
     tag: Option<Tag>,
 }
 
+impl NestedWriter {
+    
+    fn write_element(&mut self, name: &str, type_name: &str, value: &str) -> TTLVResult<()> {
+        // TODO - normalize names per 5.4.1.1 Normalizing Names
+        self.writer
+            .write(
+                XmlEvent::start_element(name)
+                    .attr("type", type_name)
+                    .attr("value", value),
+            )
+            .map_err(|_| TTLVError::XmlError)?;
+        self.writer
+            .write(XmlEvent::end_element())
+            .map_err(|_| TTLVError::XmlError)
+    }
+}
+
 impl EncodedWriter for NestedWriter {
     fn new() -> NestedWriter {
         let vec = Vec::new();
@@ -48,18 +65,8 @@ impl EncodedWriter for NestedWriter {
         self.tag = Some(tag)
     }
 
-    fn write_element(&mut self, name: &str, type_name: &str, value: &str) -> TTLVResult<()> {
-        // TODO - normalize names per 5.4.1.1 Normalizing Names
-        self.writer
-            .write(
-                XmlEvent::start_element(name)
-                    .attr("type", type_name)
-                    .attr("value", value),
-            )
-            .map_err(|_| TTLVError::XmlError)?;
-        self.writer
-            .write(XmlEvent::end_element())
-            .map_err(|_| TTLVError::XmlError)
+    fn write_optional_tag(&mut self) -> TTLVResult<()> {
+        Ok(())
     }
 
     fn write_i32(&mut self, v: i32) -> TTLVResult<()> {
@@ -1577,7 +1584,7 @@ mod tests {
         let v = to_xml_bytes(&a).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"DateTime\" value=\"1973-11-29T21:20:00+00:00\" /></CRTCoefficient>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"DateTime\" value=\"1970-01-02T10:17:36+00:00\" /></CRTCoefficient>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }

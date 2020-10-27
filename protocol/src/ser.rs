@@ -180,7 +180,7 @@ pub fn write_i64_datetime(writer: &mut dyn Write, value: i64) -> TTLVResult<()> 
 //     writer : &'a mut dyn Write,
 // }
 
-// impl<'a> Write for CountingWriter<'a> {
+// impl<'a, W : EncodedWriter> Write for CountingWriter<'a, W> {
 
 //    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
 //        let ret = self.writer.write(buf);
@@ -202,7 +202,7 @@ pub fn write_i64_datetime(writer: &mut dyn Write, value: i64) -> TTLVResult<()> 
 //     orig_writer : &'a mut dyn Write,
 // }
 
-// impl<'a>  StructWriter<'a> {
+// impl<'a, W : EncodedWriter>  StructWriter<'a, W> {
 //     pub fn new(writer : &'a mut dyn Write) -> StructWriter {
 //         StructWriter {
 //             vec :  Vec::new(),
@@ -215,7 +215,7 @@ pub fn write_i64_datetime(writer: &mut dyn Write, value: i64) -> TTLVResult<()> 
 //     }
 // }
 
-// impl<'a> Drop for StructWriter<'a> {
+// impl<'a, W : EncodedWriter> Drop for StructWriter<'a, W> {
 
 //     fn drop(&mut self) {
 //         self.orig_writer.write_u32::<BigEndian>(self.vec.len() as u32).unwrap();
@@ -231,7 +231,7 @@ pub fn write_i64_datetime(writer: &mut dyn Write, value: i64) -> TTLVResult<()> 
 //     return StructWriter::new(writer);
 // }
 
-pub fn write_struct(writer: &mut dyn Write) -> TTLVResult<()> {
+pub fn write_struct_start(writer: &mut dyn Write) -> TTLVResult<()> {
     writer
         .write_u8(ItemType::Structure as u8)
         .map_err(|error| TTLVError::BadWrite { count: 1, error })
@@ -244,7 +244,7 @@ pub trait EncodedWriter {
 
     fn set_tag(&mut self, tag: Tag) ;
 
-    fn write_element(&mut self, name: &str, type_name: &str, value: &str) -> TTLVResult<()> ;
+    fn write_optional_tag(&mut self) -> TTLVResult<()>;
 
     fn write_i32(&mut self, v: i32) -> TTLVResult<()> ;
 
@@ -331,6 +331,36 @@ impl EncodedWriter for NestedWriter {
 
         Ok(())
     }
+    
+    fn write_i32(&mut self, v: i32) -> TTLVResult<()> {
+        write_i32(&mut self.vec, v)
+    }
+
+    fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> {
+        write_enumeration(&mut self.vec, v)
+    }
+    fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
+        write_i64(&mut self.vec, v)
+    }
+    fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()> {
+        write_i64_datetime(&mut self.vec, v)
+    }
+
+    fn write_string(&mut self, v: &str) -> TTLVResult<()> {
+        write_string(&mut self.vec, v)
+    }
+
+    fn write_bytes(&mut self, v: &[u8]) -> TTLVResult<()> {
+        write_bytes(&mut self.vec, v) 
+    }
+
+    fn write_tag_enum(&mut self, t: Tag) -> TTLVResult<()> {
+        write_tag_enum(&mut self.vec, t)
+    }
+
+    fn write_struct_start(&mut self) -> TTLVResult<()> {
+        write_struct_start(&mut self.vec)
+    }
 }
 
 impl Write for NestedWriter {
@@ -363,7 +393,7 @@ where
     Ok(serializer.output.get_vector())
 }
 
-impl<'a> ser::Serializer for &'a mut Serializer {
+impl<'a, W : EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     // The output type produced by this `Serializer` during successful
     // serialization. Most serializers that produce text or binary output should
     // set `Ok = ()` and serialize into an `io::Write` or buffer contained
@@ -408,7 +438,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.output.write_optional_tag()?;
-        write_i32(&mut self.output, v)?;
+        self.output.write_i32(v)?;
         Ok(())
     }
 
@@ -416,7 +446,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<()> {
         self.output.write_optional_tag()?;
-        write_i64(&mut self.output, v)?;
+        self.output.write_i64(v)?;
         Ok(())
     }
 
@@ -455,7 +485,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<()> {
         self.output.write_optional_tag()?;
-        write_string(&mut self.output, v)?;
+        self.output.write_string(v)?;
         Ok(())
     }
 
@@ -464,7 +494,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // compactly.
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
         self.output.write_optional_tag()?;
-        write_bytes(&mut self.output, v)?;
+        self.output.write_bytes(v)?;
         Ok(())
     }
 
@@ -547,7 +577,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
             name: name.to_owned(),
         })?;
-        write_tag_enum(&mut self.output, tag)?;
+        self.output.write_tag_enum(tag)?;
         value.serialize(&mut *self)
     }
 
@@ -596,7 +626,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     // Maps are represented in JSON as `{ K: V, K: V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        write_struct(&mut self.output)?;
+        self.output.write_struct_start()?;
         self.output.begin_inner()?;
         Ok(self)
     }
@@ -611,7 +641,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
             name: name.to_owned(),
         })?;
-        write_tag_enum(&mut self.output, tag)?;
+        self.output.write_tag_enum(tag)?;
 
         self.serialize_map(Some(len))
     }
@@ -636,7 +666,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 //
 // This impl is SerializeSeq so these methods are called after `serialize_seq`
 // is called on the Serializer.
-impl<'a> ser::SerializeSeq for &'a mut Serializer {
+impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut Serializer<W> {
     // Must match the `Ok` type of the serializer.
     type Ok = ();
     // Must match the `Error` type of the serializer.
@@ -657,7 +687,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
 }
 
 // Same thing but for tuples.
-impl<'a> ser::SerializeTuple for &'a mut Serializer {
+impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -674,7 +704,7 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
 }
 
 // Same thing but for tuple structs.
-impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
+impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -699,7 +729,7 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
 //
 // So the `end` method in this impl is responsible for closing both the `]` and
 // the `}`.
-impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
+impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -723,7 +753,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
 // `serialize_entry` method allows serializers to optimize for the case where
 // key and value are both available simultaneously. In JSON it doesn't make a
 // difference so the default behavior for `serialize_entry` is fine.
-impl<'a> ser::SerializeMap for &'a mut Serializer {
+impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -759,7 +789,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
 
 // Structs are like maps in which the keys are constrained to be compile-time
 // constant strings.
-impl<'a> ser::SerializeStruct for &'a mut Serializer {
+impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -786,7 +816,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
 
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
-impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
+impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -795,7 +825,7 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         let tag = Tag::from_str(key).unwrap();
-        write_tag_enum(&mut self.output, tag)?;
+        self.output.write_tag_enum(tag)?;
         value.serialize(&mut **self)
     }
 
@@ -804,17 +834,17 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     }
 }
 
-struct MyDateSerializer<'a> {
-    output: &'a mut NestedWriter,
+struct MyDateSerializer<'a, W > where W : EncodedWriter {
+    output: &'a mut W,
 }
 
-impl<'a> MyDateSerializer<'a> {
-    pub fn new(output: &'a mut NestedWriter) -> MyDateSerializer {
+impl<'a, W : EncodedWriter> MyDateSerializer<'a, W> {
+    pub fn new(output: &'a mut W) -> MyDateSerializer<W> {
         MyDateSerializer { output: output }
     }
 }
 
-impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::Serializer for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -850,7 +880,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     // performant approach would be to use the `itoa` crate.
     fn serialize_i64(self, v: i64) -> Result<()> {
         self.output.write_optional_tag()?;
-        write_i64_datetime(&mut self.output, v)?;
+        self.output.write_i64_datetime(v)?;
         Ok(())
     }
 
@@ -1038,7 +1068,7 @@ impl<'a> ser::Serializer for &'a mut MyDateSerializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeSeq for &'a mut MyDateSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut MyDateSerializer<'a, W> {
     // Must match the `Ok` type of the serializer.
     type Ok = ();
     // Must match the `Error` type of the serializer.
@@ -1059,7 +1089,7 @@ impl<'a> ser::SerializeSeq for &'a mut MyDateSerializer<'a> {
 }
 
 // Same thing but for tuples.
-impl<'a> ser::SerializeTuple for &'a mut MyDateSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1076,7 +1106,7 @@ impl<'a> ser::SerializeTuple for &'a mut MyDateSerializer<'a> {
 }
 
 // Same thing but for tuple structs.
-impl<'a> ser::SerializeTupleStruct for &'a mut MyDateSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1101,7 +1131,7 @@ impl<'a> ser::SerializeTupleStruct for &'a mut MyDateSerializer<'a> {
 //
 // So the `end` method in this impl is responsible for closing both the `]` and
 // the `}`.
-impl<'a> ser::SerializeTupleVariant for &'a mut MyDateSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1125,7 +1155,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut MyDateSerializer<'a> {
 // `serialize_entry` method allows serializers to optimize for the case where
 // key and value are both available simultaneously. In JSON it doesn't make a
 // difference so the default behavior for `serialize_entry` is fine.
-impl<'a> ser::SerializeMap for &'a mut MyDateSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1161,7 +1191,7 @@ impl<'a> ser::SerializeMap for &'a mut MyDateSerializer<'a> {
 
 // Structs are like maps in which the keys are constrained to be compile-time
 // constant strings.
-impl<'a> ser::SerializeStruct for &'a mut MyDateSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1179,7 +1209,7 @@ impl<'a> ser::SerializeStruct for &'a mut MyDateSerializer<'a> {
 
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
-impl<'a> ser::SerializeStructVariant for &'a mut MyDateSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyDateSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1195,17 +1225,17 @@ impl<'a> ser::SerializeStructVariant for &'a mut MyDateSerializer<'a> {
     }
 }
 
-struct MyEnumSerializer<'a> {
-    output: &'a mut NestedWriter,
+struct MyEnumSerializer<'a, W> where  W : EncodedWriter{
+    output: &'a mut W,
 }
 
-impl<'a> MyEnumSerializer<'a> {
-    pub fn new(output: &'a mut NestedWriter) -> MyEnumSerializer {
+impl<'a, W : EncodedWriter> MyEnumSerializer<'a, W> {
+    pub fn new(output: &'a mut W) -> MyEnumSerializer<W> {
         MyEnumSerializer { output: output }
     }
 }
 
-impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::Serializer for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1235,7 +1265,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
 
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.output.write_optional_tag()?;
-        write_enumeration(&mut self.output, v)?;
+        self.output.write_i32_enumeration(v)?;
         Ok(())
     }
 
@@ -1429,7 +1459,7 @@ impl<'a> ser::Serializer for &'a mut MyEnumSerializer<'a> {
     }
 }
 
-impl<'a> ser::SerializeSeq for &'a mut MyEnumSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut MyEnumSerializer<'a, W> {
     // Must match the `Ok` type of the serializer.
     type Ok = ();
     // Must match the `Error` type of the serializer.
@@ -1450,7 +1480,7 @@ impl<'a> ser::SerializeSeq for &'a mut MyEnumSerializer<'a> {
 }
 
 // Same thing but for tuples.
-impl<'a> ser::SerializeTuple for &'a mut MyEnumSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeTuple for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1467,7 +1497,7 @@ impl<'a> ser::SerializeTuple for &'a mut MyEnumSerializer<'a> {
 }
 
 // Same thing but for tuple structs.
-impl<'a> ser::SerializeTupleStruct for &'a mut MyEnumSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeTupleStruct for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1492,7 +1522,7 @@ impl<'a> ser::SerializeTupleStruct for &'a mut MyEnumSerializer<'a> {
 //
 // So the `end` method in this impl is responsible for closing both the `]` and
 // the `}`.
-impl<'a> ser::SerializeTupleVariant for &'a mut MyEnumSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeTupleVariant for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1516,7 +1546,7 @@ impl<'a> ser::SerializeTupleVariant for &'a mut MyEnumSerializer<'a> {
 // `serialize_entry` method allows serializers to optimize for the case where
 // key and value are both available simultaneously. In JSON it doesn't make a
 // difference so the default behavior for `serialize_entry` is fine.
-impl<'a> ser::SerializeMap for &'a mut MyEnumSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeMap for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1552,7 +1582,7 @@ impl<'a> ser::SerializeMap for &'a mut MyEnumSerializer<'a> {
 
 // Structs are like maps in which the keys are constrained to be compile-time
 // constant strings.
-impl<'a> ser::SerializeStruct for &'a mut MyEnumSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeStruct for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1570,7 +1600,7 @@ impl<'a> ser::SerializeStruct for &'a mut MyEnumSerializer<'a> {
 
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
-impl<'a> ser::SerializeStructVariant for &'a mut MyEnumSerializer<'a> {
+impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSerializer<'a, W> {
     type Ok = ();
     type Error = Error;
 
@@ -1825,7 +1855,7 @@ mod tests {
         }
 
         let a = CRTCoefficient {
-            batch_count: chrono::Utc.timestamp(1563373983625, 0),
+            batch_count: chrono::Utc.timestamp(123456, 0),
         };
 
         let v = to_bytes(&a).unwrap();
@@ -1835,7 +1865,7 @@ mod tests {
         to_print(v.as_slice());
 
         let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40,
+            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0,  0, 0, 0, 0, 1, 226, 64
         ];
 
         assert_eq!(v.len(), 24);

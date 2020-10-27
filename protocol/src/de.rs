@@ -1272,13 +1272,14 @@ mod tests {
         }
 
         let good = vec![
-            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0, 5, 141, 225, 94, 241, 239, 40,
+            66, 0, 39, 1, 0, 0, 0, 16, 66, 0, 13, 9, 0, 0, 0, 8, 0,  0, 0, 0, 0, 1, 226, 64,
         ];
 
         to_print(good.as_slice());
 
         let r: TestEnumResolver = TestEnumResolver {};
-        let _a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+        let a = from_bytes::<CRTCoefficient>(&good, &r).unwrap();
+        assert_eq!{a.batch_count.timestamp(), 123456};
     }
 
     #[test]
