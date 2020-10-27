@@ -376,7 +376,7 @@ impl Write for NestedWriter {
 pub struct Serializer<W>
 where W : EncodedWriter {
     // This string starts empty and JSON is appended as values are serialized.
-    output: W,
+    pub output: W,
 }
 
 // By convention, the public API of a Serde serializer is one or more `to_abc`
