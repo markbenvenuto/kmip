@@ -1,26 +1,8 @@
-#[allow(non_snake_case)]
-#[macro_use]
-extern crate num_derive;
-
-#[macro_use]
-extern crate lazy_static;
-
-#[allow(unused_imports)]
-extern crate pretty_hex;
-//extern crate serde_transcode;
 
 #[macro_use]
 extern crate log;
 extern crate env_logger;
 use log::{info, warn};
-
-#[macro_use]
-extern crate serde_derive;
-
-//#[macro_use]
-extern crate serde_enum;
-
-use std::path::Path;
 
 #[macro_use]
 extern crate structopt;
@@ -32,18 +14,12 @@ extern crate strum;
 #[macro_use]
 extern crate strum_macros;
 
-use pretty_hex::*;
-
 extern crate confy;
 
 extern crate chrono;
 
-use chrono::DateTime;
-use chrono::Utc;
 
-use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use rustls;
 
@@ -52,24 +28,14 @@ use rustls::{
     RootCertStore, Session,
 };
 
-use std::io;
-use std::io::Cursor;
-use vecio::Rawv;
 
-use std::collections::HashMap;
 use std::fs;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader};
 use std::net;
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener};
 use std::path::PathBuf;
 use std::string::ToString;
 use std::thread;
-
-#[macro_use(bson, doc)]
-extern crate bson;
-
-extern crate ring;
-use ring::rand::*;
 
 use kmip_server::{store::KmipStore, TestClockSource};
 use kmip_server::store::KmipMemoryStore;

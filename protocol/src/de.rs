@@ -5,7 +5,6 @@ use std::string::ToString;
 
 use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::Deserialize;
-use std::iter::*;
 
 use crate::error::{Error, Result};
 
@@ -507,13 +506,13 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         self.cur.set_position(pos - 3);
     }
 
-    fn read_i32(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
+    fn read_i32(&mut self, _enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         read_i32(&mut self.cur)
     }
 
-    fn read_enumeration(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
+    fn read_enumeration(&mut self, _enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         read_enumeration(&mut self.cur)
@@ -1165,8 +1164,6 @@ impl<'de, 'a, R : EncodingReader<'de>> VariantAccess<'de> for EnumParser<'a, 'de
 
 #[cfg(test)]
 mod tests {
-    use serde::Deserialize;
-
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
@@ -1183,7 +1180,7 @@ mod tests {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(&self, tag : crate::kmip_enums::Tag, value: &str) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
     }

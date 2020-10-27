@@ -375,8 +375,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use serde::Deserialize;
-
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
@@ -391,7 +389,7 @@ mod tests {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(&self, tag : crate::kmip_enums::Tag, value: &str) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
     }

@@ -1618,8 +1618,6 @@ impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSerial
 
 #[cfg(test)]
 mod tests {
-    use serde::Serialize;
-
     use crate::chrono::TimeZone;
     use chrono::Utc;
 

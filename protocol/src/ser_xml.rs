@@ -1,9 +1,6 @@
-use serde::{ser, Serialize};
-use std::io::Write;
+use serde::Serialize;
 
-use std::str::FromStr;
-
-use crate::{error::{Error, Result}, ser::{EncodedWriter, Serializer}};
+use crate::{error::Result, ser::{EncodedWriter, Serializer}};
 use std::str;
 use crate::chrono::TimeZone;
 
@@ -165,8 +162,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use serde::Serialize;
-
     use crate::chrono::TimeZone;
     use chrono::Utc;
 
