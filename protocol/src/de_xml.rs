@@ -53,7 +53,7 @@ struct XmlEncodingReader<'a> {
 impl<'a> XmlEncodingReader<'a> {
 
 fn is_empty2(&mut self) -> TTLVResult<bool> {
-    eprintln!("is_empty: ");
+    // eprintln!("is_empty: ");
     if self.end_document {
         return Ok(true);
     }
@@ -93,7 +93,7 @@ fn read_one_event(&mut self)  -> TTLVResult<Option<XmlItem>>  {
             }))
         },
         XmlEvent::EndElement{..} => {
-            eprintln!("Read End Element");
+            // eprintln!("Read End Element");
             self.depth -=1;
             Ok(None)
         },
@@ -134,7 +134,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn begin_inner_or_more(&mut self) -> TTLVResult<()> {
-        eprintln!("begin_inner_or_more");
+        // eprintln!("begin_inner_or_more");
         if self.state == ReaderState::Tag {
             self.element = None;
             self.read_one_element()?;
@@ -152,7 +152,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn begin_inner_skip(&mut self) -> TTLVResult<()> {
-        eprintln!("begin_inner_skip");
+        // eprintln!("begin_inner_skip");
         assert_eq!(self.state, ReaderState::LengthValue);
 
         //println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
@@ -163,20 +163,20 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn close_inner(&mut self) {
-        eprintln!(" close_inner");
+        // eprintln!(" close_inner");
         self.cur_depths.pop().unwrap();
     }
 
     fn is_empty(&mut self) -> TTLVResult<bool> {
         let e = self.is_empty2();
 //        eprintln!("is_empty {:?} {:?} == {:?}",e , self.depth, (self.cur_depths.last().unwrap()));
-       eprintln!("is_empty {:?} {:?}",e , self.depth);
+    //    eprintln!("is_empty {:?} {:?}",e , self.depth);
         e
     }
 
 
     fn read_type(&mut self) -> TTLVResult<ItemType> {
-        eprintln!("read_type");
+        // eprintln!("read_type");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::LengthValue;
 
@@ -186,7 +186,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn read_type_and_check(&mut self, expected: ItemType) -> TTLVResult<()> {
-        eprintln!("read_type_and_check");
+        // eprintln!("read_type_and_check");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::LengthValue;
         let t = self.element.as_ref().unwrap().item_type;
@@ -202,12 +202,12 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn get_tag(&self) -> Tag {
-        eprintln!("get_tag");
+        // eprintln!("get_tag");
         return self.tag.unwrap();
     }
 
     fn read_tag(&mut self) -> TTLVResult<Tag> {
-        eprintln!("read_tag");
+        // eprintln!("read_tag");
         assert_eq!(self.state, ReaderState::Tag);
         self.state = ReaderState::Type;
         self.read_one_element()?;
@@ -218,7 +218,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn peek_tag(&mut self) -> TTLVResult<Tag> {
-        eprintln!("peek_tag");
+        // eprintln!("peek_tag");
         assert_eq!(self.state, ReaderState::Tag);
 
         let tag = Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
@@ -227,13 +227,13 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn reverse_tag(&mut self) {
-        eprintln!("reverse_tag");
+        // eprintln!("reverse_tag");
         assert_eq!(self.state, ReaderState::Type);
         self.state = ReaderState::Tag;
     }
 
     fn read_i32(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
-        eprintln!("read_i32");
+        // eprintln!("read_i32");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         // Special case
@@ -273,7 +273,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn read_enumeration(&mut self, enum_resolver: &'a dyn EnumResolver) -> TTLVResult<i32> {
-        eprintln!("read_enumeration");
+        // eprintln!("read_enumeration");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         // TODO - this can either be a hex string or camel case enum text per 5.4.1.6.7
@@ -304,7 +304,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn read_i64(&mut self) -> TTLVResult<i64> {
-        eprintln!("read_i64");
+        // eprintln!("read_i64");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         let value = self.element.as_ref().unwrap().value.as_ref().unwrap().parse::<i64>().map_err(|_| TTLVError::XmlError)?;
@@ -313,7 +313,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn read_datetime_i64(&mut self) -> TTLVResult<i64> {
-        eprintln!("read_datetime_i64");
+        // eprintln!("read_datetime_i64");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
            // TODO
@@ -323,7 +323,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn read_string(&mut self) -> TTLVResult<String> {
-        eprintln!("read_string");
+        // eprintln!("read_string");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         let value = self.element.as_ref().unwrap().value.as_ref().unwrap().to_string();
@@ -341,7 +341,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader <'a> {
     }
 
     fn read_bytes(&mut self) -> TTLVResult<Vec<u8>> {
-        eprintln!("read_bytes");
+        // eprintln!("read_bytes");
         assert_eq!(self.state, ReaderState::LengthValue);
         self.state = ReaderState::Tag;
         let value = hex::decode(&self.element.as_ref().unwrap().value.as_ref().unwrap()).map_err(|_| TTLVError::XmlError)?;

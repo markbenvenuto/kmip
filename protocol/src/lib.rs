@@ -601,7 +601,7 @@ impl Serialize for ResponseBatchItem {
                     ser_struct.serialize_field("Operation", &Operation::Activate)?;
                 }
                 ResponseOperationEnum::Destroy(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Activate)?;
+                    ser_struct.serialize_field("Operation", &Operation::Destroy)?;
                 }
                 ResponseOperationEnum::Empty => unimplemented!(),
             }
@@ -755,6 +755,10 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                                 Operation::Activate => {
                                     let c: ActivateResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Activate(c))
+                                }
+                                Operation::Destroy => {
+                                    let c: DestroyResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::Destroy(c))
                                 }
                                 _ => {
                                     unimplemented!();

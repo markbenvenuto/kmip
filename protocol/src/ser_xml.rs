@@ -98,7 +98,8 @@ impl EncodedWriter for NestedWriter {
     fn write_tag_enum(&mut self, t: Tag) -> TTLVResult<()> {
         // This starts a struct
         // TODO - omit type as it is the default
-        self.writer.write( XmlEvent::start_element(t.as_ref()).attr("type", "Structure")).map_err(|_| TTLVError::XmlError)
+        // self.writer.write( XmlEvent::start_element(t.as_ref()).attr("type", "Structure")).map_err(|_| TTLVError::XmlError)
+        self.writer.write( XmlEvent::start_element(t.as_ref())).map_err(|_| TTLVError::XmlError)
     }
 
     fn write_struct_start(&mut self) -> TTLVResult<()> {

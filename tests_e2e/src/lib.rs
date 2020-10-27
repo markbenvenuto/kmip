@@ -230,15 +230,18 @@ eprintln!("{:?}", resp);
 
 fn run_e2e_xml_conversation(conv: &str) {
   let mut file = minidom::quick_xml::Reader::from_str(conv);
+  file.trim_text(true);
   let root: Element = Element::from_reader(&mut file).unwrap();
   
   let mut reqs : Vec<String>  = Vec::new();
   let mut resps : Vec<String>  = Vec::new();
   for child in root.children() {
   
-      let mut buf : Vec<u8>  = Vec::new();
-      child.write_to(&mut buf).unwrap();
-      let xml_str = std::str::from_utf8(&buf).unwrap().to_string();
+      let buf : Vec<u8>  = Vec::new();
+      let mut writer = minidom::quick_xml::Writer::new(buf);
+      child.to_writer(&mut writer).unwrap();
+      
+      let xml_str = std::str::from_utf8(&writer.into_inner()).unwrap().to_string();
       // println!("{:?}", child);
       println!("xml_str{:?}", xml_str);
       if child.name() == "RequestMessage" {
@@ -256,17 +259,19 @@ fn run_e2e_xml_conversation(conv: &str) {
   
   
   for (i, req) in reqs.iter().enumerate() {
-      let resp = client.make_xml_request(&req);
+      let mut resp = client.make_xml_request(&req);
       eprintln!("{:?}", resp);
 
-      assert_eq!{resp, reqs[i]};
+      resp = resp.replace("<?xml version=\"1.0\" encoding=\"utf-8\"?>", "");
+      resp = resp.replace(" />", "/>");
+      assert_eq!{resp, resps[i]};
   }
   
       });
     }
 
 #[test]
-fn e2e_test_xml_TC_311_10() {
+fn e2e_test_xml_tc_311_10() {
 
     let conv = r#"
 <KMIP>
@@ -305,7 +310,7 @@ fn e2e_test_xml_TC_311_10() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="0"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="2009-11-12T10:47:30+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -338,7 +343,7 @@ fn e2e_test_xml_TC_311_10() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="0"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="2009-11-12T10:47:31+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
