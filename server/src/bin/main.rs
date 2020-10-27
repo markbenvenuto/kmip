@@ -5,6 +5,9 @@ extern crate env_logger;
 use log::{info, warn};
 
 #[macro_use]
+extern crate serde_derive;
+
+#[macro_use]
 extern crate structopt;
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;

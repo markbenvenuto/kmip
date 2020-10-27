@@ -1,4 +1,7 @@
-use std::{
+#[cfg(test)]
+mod tests {
+    
+    use std::{
     fs, io::BufReader, net, net::TcpListener, net::TcpStream, path::PathBuf, sync::Arc,
     sync::Barrier, thread,
 };
@@ -344,4 +347,6 @@ for req in &reqs {
 }
 
     });
+}
+
 }

@@ -20,7 +20,7 @@ extern crate serde_derive;
 //#[macro_use]
 extern crate serde_enum;
 
-use std::path::Path;
+use std::{path::Path, rc::Rc};
 
 #[macro_use]
 extern crate structopt;
@@ -504,12 +504,12 @@ fn create_ok_response(op: protocol::ResponseOperationEnum, clock_source:&dyn Clo
 // }
 
 pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
-    let k: KmipEnumResolver = protocol::KmipEnumResolver {};
+    let k = Rc::new(protocol::KmipEnumResolver {});
 
     info!("Request Message: {:?}", buf.hex_dump());
     protocol::to_print(buf);
 
-    let request = protocol::from_bytes::<RequestMessage>(&buf, &k).unwrap();
+    let request = protocol::from_bytes::<RequestMessage>(&buf, k.as_ref()).unwrap();
 
     // TODO - check protocol version
     info!(
@@ -551,7 +551,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         }
     };
 
-    let vr = protocol::to_bytes(&rm).unwrap();
+    let vr = protocol::to_bytes(&rm, k).unwrap();
     info!("Response Message: {:?}", vr.hex_dump());
 
     protocol::to_print(vr.as_slice());

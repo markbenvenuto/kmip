@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-use crate::{error::Result, ser::{EncodedWriter, Serializer}};
-use std::str;
+use crate::{EnumResolver, error::Result, ser::{EncodedWriter, Serializer}};
+use std::{rc::Rc, str};
 use crate::chrono::TimeZone;
 
 extern crate num;
@@ -72,7 +72,7 @@ impl EncodedWriter for NestedWriter {
         self.write_element(self.tag.unwrap().as_ref(), "Integer", &v.to_string())
     }
 
-    fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> {
+    fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver) -> TTLVResult<()> {
         // TODO - write as hex string or camelCase per 5.4.1.6.7
         self.write_element(self.tag.unwrap().as_ref(), "Enumeration", &format!("{:#x}",v))
     }
@@ -149,12 +149,13 @@ impl EncodedWriter for NestedWriter {
 // By convention, the public API of a Serde serializer is one or more `to_abc`
 // functions such as `to_string`, `to_bytes`, or `to_writer` depending on what
 // Rust types the serializer is able to produce as output.
-pub fn to_xml_bytes<T>(value: &T) -> Result<Vec<u8>>
+pub fn to_xml_bytes<'a, T>(value: &T, enum_resolver: Rc<dyn EnumResolver>) -> Result<Vec<u8>>
 where
     T: Serialize,
 {
     let mut serializer = Serializer {
         output: NestedWriter::new(),
+        enum_resolver: enum_resolver
     };
     value.serialize(&mut serializer)?;
     Ok(serializer.output.get_vector())
@@ -162,16 +163,24 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::chrono::TimeZone;
+        use std::rc::Rc;
+
+use crate::{EnumResolver, TTLVError, chrono::TimeZone};
     use chrono::Utc;
 
-    //use pretty_hex::hex_dump;
-    use crate::de::to_print;
-    use pretty_hex::PrettyHex;
-
     use crate::my_date_format;
-    use crate::ser::to_bytes;
     use crate::ser_xml::to_xml_bytes;
+
+    struct TestEnumResolver;
+
+    impl EnumResolver for TestEnumResolver {
+        fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
+            unimplemented! {}
+        }
+        fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
+            unimplemented! {}
+        }
+    }
 
     #[test]
     fn test_struct() {
@@ -198,7 +207,8 @@ mod tests {
             batch_count: 3,
         };
 
-        let v = to_xml_bytes(&a).unwrap();
+        let r = Rc::new(TestEnumResolver {});
+        let v = to_xml_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
@@ -234,7 +244,9 @@ mod tests {
             unique_identifier: String::new(),
         };
 
-        let v = to_xml_bytes(&a).unwrap();
+
+        let r = Rc::new(TestEnumResolver {});
+        let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestMessage type=\"Structure\"><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"Integer\" value=\"3\" /><BatchCount type=\"Integer\" value=\"4\" /></RequestHeader><UniqueIdentifier type=\"TextString\" value=\"\" /></RequestMessage>";
@@ -266,7 +278,9 @@ mod tests {
             batch_count: 3,
         };
 
-        let v = to_xml_bytes(&a).unwrap();
+
+        let r = Rc::new(TestEnumResolver {});
+        let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ObjectType type=\"Structure\"><UniqueIdentifier type=\"TextString\" value=\"\" /></ObjectType><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
@@ -295,12 +309,12 @@ mod tests {
             batch_count: 3,
         };
 
-        let v = to_bytes(&a).unwrap();
+        let r = Rc::new(TestEnumResolver {});
+        let v = to_xml_bytes(&a, r).unwrap();
+        print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        print!("Dump of bytes {:?}", v.hex_dump());
-
-        to_print(v.as_slice());
-        assert_eq!(v.len(), 48);
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader type=\"Structure\"><ProtocolVersionMajor type=\"TextString\" value=\"\" /><ProtocolVersionMinor type=\"ByteString\" value=\"556677\" /><BatchCount type=\"LongInteger\" value=\"3\" /></RequestHeader>";
+        assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }
 
     #[test]
@@ -315,7 +329,9 @@ mod tests {
         let a = CRTCoefficient::CertificateRequest(String::new());
         let _b = CRTCoefficient::Attribute(vec![0x1]);
 
-        let v = to_xml_bytes(&a).unwrap();
+
+        let r = Rc::new(TestEnumResolver {});
+        let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><Operation type=\"TextString\" value=\"CertificateRequest\" /><BatchItem type=\"TextString\" value=\"\" /></CRTCoefficient>";
@@ -335,7 +351,9 @@ mod tests {
             batch_count: vec![0x66, 0x77, 0x88],
         };
 
-        let v = to_xml_bytes(&a).unwrap();
+
+        let r = Rc::new(TestEnumResolver {});
+        let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"Integer\" value=\"102\" /><BatchCount type=\"Integer\" value=\"119\" /><BatchCount type=\"Integer\" value=\"136\" /></CRTCoefficient>";
@@ -355,7 +373,9 @@ mod tests {
             batch_count: chrono::Utc.timestamp(123456, 0),
         };
 
-        let v = to_xml_bytes(&a).unwrap();
+
+        let r = Rc::new(TestEnumResolver {});
+        let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient type=\"Structure\"><BatchCount type=\"DateTime\" value=\"1970-01-02T10:17:36+00:00\" /></CRTCoefficient>";

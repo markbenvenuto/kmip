@@ -1,9 +1,9 @@
 use serde::{ser, Serialize};
-use std::io::Write;
+use std::{rc::Rc, io::Write};
 
 use std::str::FromStr;
 
-use crate::error::{Error, Result};
+use crate::{EnumResolver, error::{Error, Result}};
 
 extern crate num;
 //#[macro_use]
@@ -248,7 +248,7 @@ pub trait EncodedWriter {
 
     fn write_i32(&mut self, v: i32) -> TTLVResult<()> ;
 
-    fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> ;
+    fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver) -> TTLVResult<()> ;
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> ;
     fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()> ;
 
@@ -336,7 +336,7 @@ impl EncodedWriter for NestedWriter {
         write_i32(&mut self.vec, v)
     }
 
-    fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> {
+    fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver) -> TTLVResult<()> {
         write_enumeration(&mut self.vec, v)
     }
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
@@ -377,17 +377,19 @@ pub struct Serializer<W>
 where W : EncodedWriter {
     // This string starts empty and JSON is appended as values are serialized.
     pub output: W,
+    pub enum_resolver: Rc<dyn EnumResolver>
 }
 
 // By convention, the public API of a Serde serializer is one or more `to_abc`
 // functions such as `to_string`, `to_bytes`, or `to_writer` depending on what
 // Rust types the serializer is able to produce as output.
-pub fn to_bytes<T>(value: &T) -> Result<Vec<u8>>
+pub fn to_bytes<'b, T>(value: &T, enum_resolver: Rc<dyn EnumResolver>) -> Result<Vec<u8>>
 where
     T: Serialize,
 {
     let mut serializer = Serializer {
         output: NestedWriter::new(),
+        enum_resolver: enum_resolver,
     };
     value.serialize(&mut serializer)?;
     Ok(serializer.output.get_vector())
@@ -552,7 +554,7 @@ impl<'a, W : EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
             let mut mydate_serializer = MyDateSerializer::new(&mut self.output);
             return value.serialize(&mut mydate_serializer);
         } else if _name == "my_enum" {
-            let mut myenum_serializer = MyEnumSerializer::new(&mut self.output);
+            let mut myenum_serializer = MyEnumSerializer::new(&mut self.output, self.enum_resolver.clone());
             return value.serialize(&mut myenum_serializer);
         }
 
@@ -659,6 +661,17 @@ impl<'a, W : EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     }
 }
 
+
+impl<'a, 'b, W: EncodedWriter> Serializer<W> {
+
+    fn serialize_element_one<T>(&'a mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }  
+} 
+
 // The following 7 impls deal with the serialization of compound types like
 // sequences and maps. Serialization of such types is begun by a Serializer
 // method and followed by zero or more calls to serialize individual elements of
@@ -677,7 +690,7 @@ impl<'a, W : EncodedWriter> ser::SerializeSeq for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut **self)
+        self.serialize_element_one(value)
     }
 
     // Close the sequence.
@@ -839,7 +852,7 @@ struct MyDateSerializer<'a, W > where W : EncodedWriter {
 }
 
 impl<'a, W : EncodedWriter> MyDateSerializer<'a, W> {
-    pub fn new(output: &'a mut W) -> MyDateSerializer<W> {
+    pub fn new(output: &'a mut W) -> MyDateSerializer<'a, W> {
         MyDateSerializer { output: output }
     }
 }
@@ -1227,11 +1240,12 @@ impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyDateSerial
 
 struct MyEnumSerializer<'a, W> where  W : EncodedWriter{
     output: &'a mut W,
+    enum_resolver: Rc<dyn EnumResolver>,
 }
 
 impl<'a, W : EncodedWriter> MyEnumSerializer<'a, W> {
-    pub fn new(output: &'a mut W) -> MyEnumSerializer<W> {
-        MyEnumSerializer { output: output }
+    pub fn new(output: &'a mut W, enum_resolver : Rc<dyn EnumResolver>) -> MyEnumSerializer<'a, W> {
+        MyEnumSerializer { output: output, enum_resolver : enum_resolver }
     }
 }
 
@@ -1265,7 +1279,7 @@ impl<'a, W : EncodedWriter> ser::Serializer for &'a mut MyEnumSerializer<'a, W> 
 
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.output.write_optional_tag()?;
-        self.output.write_i32_enumeration(v)?;
+        self.output.write_i32_enumeration(v, self.enum_resolver.as_ref())?;
         Ok(())
     }
 
@@ -1618,7 +1632,9 @@ impl<'a, W : EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSerial
 
 #[cfg(test)]
 mod tests {
-    use crate::chrono::TimeZone;
+        use std::rc::Rc;
+
+use crate::{EnumResolver, TTLVError, chrono::TimeZone};
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
@@ -1627,6 +1643,17 @@ mod tests {
 
     use crate::my_date_format;
     use crate::ser::to_bytes;
+
+    struct TestEnumResolver;
+
+    impl EnumResolver for TestEnumResolver {
+        fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
+            unimplemented! {}
+        }
+        fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
+            unimplemented! {}
+        }
+    }
 
     #[test]
     fn test_struct() {
@@ -1653,7 +1680,8 @@ mod tests {
             batch_count: 3,
         };
 
-        let v = to_bytes(&a).unwrap();
+        let r = Rc::new(TestEnumResolver {});
+        let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
 
@@ -1700,7 +1728,9 @@ mod tests {
             unique_identifier: String::new(),
         };
 
-        let v = to_bytes(&a).unwrap();
+        
+       let r = Rc::new(TestEnumResolver {});
+        let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
 
@@ -1741,7 +1771,9 @@ mod tests {
             batch_count: 3,
         };
 
-        let v = to_bytes(&a).unwrap();
+        
+       let r = Rc::new(TestEnumResolver {});
+        let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
 
@@ -1778,7 +1810,9 @@ mod tests {
             batch_count: 3,
         };
 
-        let v = to_bytes(&a).unwrap();
+        
+       let r = Rc::new(TestEnumResolver {});
+        let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
 
@@ -1798,7 +1832,9 @@ mod tests {
         let a = CRTCoefficient::CertificateRequest(String::new());
         let _b = CRTCoefficient::Attribute(vec!{0x1});
 
-        let v = to_bytes(&a).unwrap();
+        
+       let r = Rc::new(TestEnumResolver {});
+        let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
 
@@ -1827,7 +1863,9 @@ mod tests {
             batch_count: vec![0x66, 0x77, 0x88],
         };
 
-        let v = to_bytes(&a).unwrap();
+        
+       let r = Rc::new(TestEnumResolver {});
+        let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
 
@@ -1856,7 +1894,9 @@ mod tests {
             batch_count: chrono::Utc.timestamp(123456, 0),
         };
 
-        let v = to_bytes(&a).unwrap();
+        
+       let r = Rc::new(TestEnumResolver {});
+        let v = to_bytes(&a, r).unwrap();
 
         print!("Dump of bytes {:?}", v.hex_dump());
 
