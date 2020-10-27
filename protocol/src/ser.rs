@@ -1653,6 +1653,10 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
         fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
+        
+        fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
+            unimplemented!();
+        }
     }
 
     #[test]

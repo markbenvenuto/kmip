@@ -796,24 +796,8 @@ impl EnumResolver for KmipEnumResolver {
     fn resolve_enum(&self, orig: &str, value: i32) -> std::result::Result<String, TTLVError> {
         let trimmed = orig.replace(" ", "");
         let name = trimmed.as_ref();
-        match name {
-            "Operation" => {
-                let o: Operation = num::FromPrimitive::from_i32(value).unwrap();
-                return Ok(o.as_static().to_owned());
-            }
-            "ObjectType" => {
-                let o: ObjectTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
-                return Ok(o.as_static().to_owned());
-            }
-            "CryptographicAlgorithm" => {
-                let o: CryptographicAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
-                return Ok(o.as_static().to_owned());
-            }
-            _ => {
-                println!("Not implemented resolve_enum: {:?}", name);
-                unimplemented! {}
-            }
-        }
+        let tag = Tag::from_str(name).map_err(|_| TTLVError::XmlError)?;
+        return self.to_string(tag, value);
     }
 
     fn resolve_enum_str(&self, tag: Tag, value: &str) -> std::result::Result<i32, TTLVError> {
@@ -840,6 +824,31 @@ impl EnumResolver for KmipEnumResolver {
             }
             _ => {
                 println!("Not implemented resolve_enum_str: {:?}", tag);
+                unimplemented! {}
+            }
+        }
+    }
+    
+    fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
+        match tag {
+            Tag::CryptographicAlgorithm => {
+                let o: CryptographicAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::Operation => {
+                let o: Operation = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::ObjectType => {
+                let o: ObjectTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::ResultStatus => {
+                let o: ResultStatus = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            _ => {
+                println!("Not implemented to_string: {:?}", tag);
                 unimplemented! {}
             }
         }

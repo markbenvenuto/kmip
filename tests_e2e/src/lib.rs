@@ -228,6 +228,43 @@ eprintln!("{:?}", resp);
 }
 
 
+fn run_e2e_xml_conversation(conv: &str) {
+  let mut file = minidom::quick_xml::Reader::from_str(conv);
+  let root: Element = Element::from_reader(&mut file).unwrap();
+  
+  let mut reqs : Vec<String>  = Vec::new();
+  let mut resps : Vec<String>  = Vec::new();
+  for child in root.children() {
+  
+      let mut buf : Vec<u8>  = Vec::new();
+      child.write_to(&mut buf).unwrap();
+      let xml_str = std::str::from_utf8(&buf).unwrap().to_string();
+      // println!("{:?}", child);
+      println!("xml_str{:?}", xml_str);
+      if child.name() == "RequestMessage" {
+          reqs.push(xml_str);
+      } else  if child.name() == "ResponseMessage" {
+          resps.push(xml_str);
+      } else {
+          panic!(format!("Unknown XML child {:?}", child.name()));
+      }
+  }
+  
+  assert_eq!(reqs.len(), resps.len());
+  
+      run_e2e_client_test(reqs.len() as i32, |mut client| {
+  
+  
+  for (i, req) in reqs.iter().enumerate() {
+      let resp = client.make_xml_request(&req);
+      eprintln!("{:?}", resp);
+
+      assert_eq!{resp, reqs[i]};
+  }
+  
+      });
+    }
+
 #[test]
 fn e2e_test_xml_TC_311_10() {
 
@@ -276,7 +313,7 @@ fn e2e_test_xml_TC_311_10() {
     <ResultStatus type="Enumeration" value="Success"/>
     <ResponsePayload>
       <ObjectType type="Enumeration" value="SymmetricKey"/>
-      <UniqueIdentifier type="TextString"                           value="1"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </ResponsePayload>
   </BatchItem>
 </ResponseMessage>
@@ -291,7 +328,7 @@ fn e2e_test_xml_TC_311_10() {
   <BatchItem>
     <Operation type="Enumeration" value="Destroy"/>
     <RequestPayload>
-      <UniqueIdentifier type="TextString"                           value="1"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </RequestPayload>
   </BatchItem>
 </RequestMessage>
@@ -308,45 +345,15 @@ fn e2e_test_xml_TC_311_10() {
     <Operation type="Enumeration" value="Destroy"/>
     <ResultStatus type="Enumeration" value="Success"/>
     <ResponsePayload>
-      <UniqueIdentifier type="TextString"                           value="1"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </ResponsePayload>
   </BatchItem>
 </ResponseMessage>
 </KMIP>
 "#;
 
-let mut file = minidom::quick_xml::Reader::from_str(conv);
-let root: Element = Element::from_reader(&mut file).unwrap();
-
-let mut reqs : Vec<String>  = Vec::new();
-let mut resps : Vec<String>  = Vec::new();
-for child in root.children() {
-
-    let mut buf : Vec<u8>  = Vec::new();
-    child.write_to(&mut buf).unwrap();
-    let xml_str = std::str::from_utf8(&buf).unwrap().to_string();
-    // println!("{:?}", child);
-    println!("xml_str{:?}", xml_str);
-    if child.name() == "RequestMessage" {
-        reqs.push(xml_str);
-    } else  if child.name() == "ResponseMessage" {
-        resps.push(xml_str);
-    } else {
-        panic!(format!("Unknown XML child {:?}", child.name()));
-    }
-}
-
-assert_eq!(reqs.len(), resps.len());
-
-    run_e2e_client_test(reqs.len() as i32, |mut client| {
-
-
-for req in &reqs {
-    let resp = client.make_xml_request(&req);
-    eprintln!("{:?}", resp);
-}
-
-    });
-}
+run_e2e_xml_conversation(conv);
 
 }
+
+} // mod tests

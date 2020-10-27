@@ -74,7 +74,9 @@ impl EncodedWriter for NestedWriter {
 
     fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver) -> TTLVResult<()> {
         // TODO - write as hex string or camelCase per 5.4.1.6.7
-        self.write_element(self.tag.unwrap().as_ref(), "Enumeration", &format!("{:#x}",v))
+        
+        let tag = self.tag.unwrap();
+        self.write_element(tag.as_ref(), "Enumeration", &enum_resolver.to_string(tag, v)?)
     }
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
         self.write_element(self.tag.unwrap().as_ref(), "LongInteger", &v.to_string())
@@ -165,7 +167,7 @@ where
 mod tests {
         use std::rc::Rc;
 
-use crate::{EnumResolver, TTLVError, chrono::TimeZone};
+use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
     use chrono::Utc;
 
     use crate::my_date_format;
@@ -179,6 +181,9 @@ use crate::{EnumResolver, TTLVError, chrono::TimeZone};
         }
         fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
+        }
+        fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
+            unimplemented!();
         }
     }
 

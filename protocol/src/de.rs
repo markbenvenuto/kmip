@@ -339,6 +339,7 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
 pub trait EnumResolver {
     fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
     fn resolve_enum_str(&self, tag: Tag, value: &str) -> std::result::Result<i32, TTLVError>;
+    fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError>;
 }
 
 pub trait EncodingReader<'a> {
@@ -1182,6 +1183,9 @@ mod tests {
         }
         fn resolve_enum_str(&self, _tag : crate::kmip_enums::Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
+        }
+        fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
+            unimplemented!();
         }
     }
 
