@@ -11,6 +11,7 @@ extern crate strum;
 #[macro_use]
 extern crate strum_macros;
 
+use serde_bytes::ByteBuf;
 use serde_enum::{Deserialize_enum, Serialize_enum};
 
 use chrono::DateTime;
@@ -147,7 +148,7 @@ pub enum ObjectStateEnum {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Copy, Clone
 )]
 #[repr(i32)]
 pub enum NameTypeEnum {
@@ -209,7 +210,7 @@ pub enum CryptographicAlgorithm {
     SHAKE256 = 0x00000028,
 }
 
-#[derive(Debug, Deserialize, Serialize, EnumString, FromPrimitive, ToPrimitive, AsStaticStr)]
+#[derive(Debug, Deserialize, Serialize, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,  Clone, Copy)]
 #[repr(i32)]
 pub enum CryptographicUsageMask {
     Sign = 0x00000001,
@@ -235,7 +236,7 @@ pub enum CryptographicUsageMask {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
 )]
 #[repr(i32)]
 pub enum KeyFormatTypeEnum {
@@ -265,7 +266,7 @@ pub enum KeyFormatTypeEnum {
 
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
 )]
 #[repr(i32)]
 pub enum KeyCompressionType {
@@ -277,7 +278,7 @@ pub enum KeyCompressionType {
 
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
 )]
 #[repr(i32)]
 pub enum SecretDataType {
@@ -287,7 +288,7 @@ pub enum SecretDataType {
 
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
 )]
 #[repr(i32)]
 pub enum EncodingOption {
@@ -296,7 +297,7 @@ pub enum EncodingOption {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
 )]
 #[repr(i32)]
 pub enum WrappingMethod {
@@ -306,6 +307,123 @@ pub enum WrappingMethod {
     MACsignThenEncrypt=0x00000004,
     TR31= 0x00000005,
 }
+
+
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+)]
+#[repr(i32)]
+pub enum BlockCipherMode {
+    CBC = 0x00000001, 
+    ECB = 0x00000002, 
+    PCBC = 0x00000003, 
+    CFB = 0x00000004, 
+    OFB = 0x00000005, 
+    CTR = 0x00000006, 
+    CMAC = 0x00000007, 
+    CCM = 0x00000008, 
+    GCM = 0x00000009, 
+    CBCMAC = 0x0000000A, 
+    XTS = 0x0000000B, 
+    AESKeyWrapPadding = 0x0000000C, 
+    NISTKeyWrap = 0x0000000D, 
+    X9102AESKW = 0x0000000E, 
+    X9102TDKW = 0x0000000F, 
+    X9102AKW1 = 0x00000010, 
+    X9102AKW2 = 0x00000011, 
+}
+
+
+
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+)]
+#[repr(i32)]
+pub enum PaddingMethod {
+    None = 0x00000001,
+    OAEP = 0x00000002,
+    PKCS5 = 0x00000003,
+    SSL3 = 0x00000004,
+    Zeros = 0x00000005,
+    ANSIX923 = 0x00000006,
+    ISO10126 = 0x00000007,
+    PKCS1v15 = 0x00000008,
+    X931 = 0x00000009,
+    PSS = 0x0000000A,
+}
+
+
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+)]
+#[repr(i32)]
+pub enum HashingAlgorithm {
+MD2 = 0x00000001,
+MD4 = 0x00000002,
+MD5 = 0x00000003,
+SHA1 = 0x00000004,
+SHA224 = 0x00000005,
+SHA256 = 0x00000006,
+SHA384 = 0x00000007,
+SHA512 = 0x00000008,
+RIPEMD160 = 0x00000009,
+Tiger = 0x0000000A,
+Whirlpool = 0x0000000B,
+SHA512224 = 0x0000000C,
+SHA512256 = 0x0000000D,
+}
+
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+)]
+#[repr(i32)]
+pub enum KeyRoleType {
+BDK = 0x00000001,
+CVK = 0x00000002,
+DEK = 0x00000003,
+MKAC = 0x00000004,
+MKSMC = 0x00000005,
+MKSMI = 0x00000006,
+MKDAC = 0x00000007,
+MKDN = 0x00000008,
+MKCP = 0x00000009,
+MKOTH = 0x0000000A,
+KEK = 0x0000000B,
+MAC16609 = 0x0000000C,
+MAC97971 = 0x0000000D,
+MAC97972 = 0x0000000E,
+MAC97973 = 0x0000000F,
+MAC97974 = 0x00000010,
+MAC97975 = 0x00000011,
+ZPK = 0x00000012,
+PVKIBM = 0x00000013,
+PVKPVV = 0x00000014,
+PVKOTH = 0x00000015,
+}
+
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+)]
+#[repr(i32)]
+pub enum DigitalSignatureAlgorithm {
+MD2withRSAEncryptionPKCS1v15=0x00000001,
+MD5withRSAEncryptionPKCS1v15=0x00000002,
+SHA1withRSAEncryptionPKCS1v15=0x00000003,
+SHA224withRSAEncryptionPKCS1v15=0x00000004,
+SHA256withRSAEncryptionPKCS1v15=0x00000005,
+SHA384withRSAEncryptionPKCS1v15=0x00000006,
+SHA512withRSAEncryptionPKCS1v15=0x00000007,
+RSASSAPSSPKCS1v21=0x00000008,
+DSAwithSHA1=0x00000009,
+DSAwithSHA224=0x0000000A,
+DSAwithSHA256=0x0000000B,
+ECDSAwithSHA1=0x0000000C,
+ECDSAwithSHA224=0x0000000D,
+ECDSAwithSHA256=0x0000000E,
+ECDSAwithSHA384=0x0000000F,
+ECDSAwithSHA512=0x00000010,
+}
+
 
 #[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
 #[repr(i32)]
@@ -346,14 +464,14 @@ pub enum ResultReason {
     GeneralFailure = 0x00000100,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyValue {
     #[serde(with = "serde_bytes", rename = "KeyMaterial")]
     pub key_material: Vec<u8>,
 }
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EncryptionKeyInformation {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -363,7 +481,7 @@ pub struct EncryptionKeyInformation {
 }
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MACSignatureKeyInformation {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -373,7 +491,7 @@ pub struct MACSignatureKeyInformation {
 }
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyWrappingData {
     #[serde(rename = "Wrapping Method")]
     pub wrapping_method: WrappingMethod,
@@ -395,7 +513,7 @@ pub struct KeyWrappingData {
 }
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyBlock {
     #[serde(rename = "KeyFormatType")]
     pub key_format_type: KeyFormatTypeEnum,
@@ -407,7 +525,7 @@ pub struct KeyBlock {
     #[serde(rename = "KeyValue")]
     pub key_value: KeyValue,
 
-    // TODO - omitted in some cases
+    // omitted in for SecretData and other cases
     #[serde(skip_serializing_if = "Option::is_none",rename = "CryptographicAlgorithm")]
     pub cryptographic_algorithm: Option<CryptographicAlgorithm>,
 
@@ -418,6 +536,52 @@ pub struct KeyBlock {
     #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicLength")]
     pub key_wrapping_data  : Option<KeyWrappingData>,
 }
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename (serialize = "AttributeValue", deserialize = "Cryptographic Parameters"))]
+pub struct CryptographicParameters {
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "BlockCipherMode")]
+    pub block_cipher_mode: Option<BlockCipherMode>,
+    
+    #[serde(skip_serializing_if = "Option::is_none", rename = "PaddingMethod")]
+    pub padding_method: Option<PaddingMethod>,
+    
+    #[serde(skip_serializing_if = "Option::is_none", rename = "HashingAlgorithm")]
+    pub hashing_algorithm: Option<HashingAlgorithm>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyRoleType")]
+    pub key_role_type: Option<KeyRoleType>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "DigitalSignatureAlgorithm")]
+    pub digital_signature_algorigthm: Option<DigitalSignatureAlgorithm>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicAlgorithm")]
+    pub cryptographic_algorithm: Option<CryptographicAlgorithm>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "RandomIV")]
+    pub random_iv: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "IVLength")]
+    pub iv_length: Option<i32>,
+    
+    #[serde(skip_serializing_if = "Option::is_none", rename = "TagLength")]
+    pub tag_length: Option<i32>,
+    
+    #[serde(skip_serializing_if = "Option::is_none", rename = "FixedFieldLength")]
+    pub fixed_field_length: Option<i32>,
+    
+    #[serde(skip_serializing_if = "Option::is_none", rename = "InvocationFieldLength")]
+    pub invocation_field_length: Option<i32>,
+    
+    #[serde(skip_serializing_if = "Option::is_none", rename = "CounterLength")]
+    pub counter_length: Option<i32>,
+    
+    #[serde(skip_serializing_if = "Option::is_none", rename = "InitialCounterValue")]
+    pub initial_counter_value: Option<i32>,
+}
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SymmetricKey {
@@ -444,10 +608,12 @@ pub struct SecretData {
 //     //AttributeValue: ???
 // }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename (serialize = "AttributeValue", deserialize = "Name"))]
 pub struct NameStruct {
     #[serde(rename = "NameValue")]
     pub name_value: String,
+
     #[serde(rename = "NameType")]
     pub name_type: NameTypeEnum,
 }
@@ -476,8 +642,14 @@ pub enum AttributesEnum {
     #[serde(rename = "Cryptographic Usage Mask")]
     CryptographicUsageMask(i32),
 
-    #[serde(rename = "Activation Date")]
+    #[serde(with = "my_date_format", rename = "Activation Date")]
     ActivationDate(DateTime<Utc>),
+
+    #[serde(rename = "Name")]
+    Name(NameStruct),
+
+    #[serde(rename = "Cryptographic Parameters")]
+    CryptographicParameters(CryptographicParameters)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -489,6 +661,8 @@ pub struct TemplateAttribute {
     #[serde(rename = "Attribute")]
     pub attribute: Vec<AttributesEnum>,
 }
+
+///////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
@@ -507,16 +681,6 @@ pub struct CreateResponse {
     pub object_type: ObjectTypeEnum,
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-}
-
-
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(untagged)]
-pub enum RegisterPayloadEnum {
-    SecretData(SecretData),
-    SymmetricKey(SymmetricKey),
-    // TODO add support for other types
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -578,6 +742,9 @@ pub struct GetResponse {
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "SymmetricKey")]
     pub symmetric_key: Option<SymmetricKey>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "SecretData")]
+    pub secret_data: Option<SecretData>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -611,6 +778,66 @@ pub struct DestroyResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
+pub struct EncryptRequest {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
+    pub cryptographic_parameters: Option<CryptographicParameters>,
+    
+    #[serde(with = "serde_bytes",rename = "Data")]
+    pub data: Vec<u8>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
+    pub iv_counter_nonce: Option<ByteBuf>,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename = "ResponsePayload")]
+pub struct EncryptResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+    
+    #[serde(with = "serde_bytes", rename = "Data")]
+    pub data: Vec<u8>,
+        
+    #[serde(skip_serializing_if = "Option::is_none", with = "serde_bytes", rename = "IVCounterNonce")]
+    pub iv_counter_nonce: Option<Vec<u8>>,
+}
+
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
+pub struct DecryptRequest {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none",rename = "CryptographicParameters")]
+    pub cryptographic_parameters: Option<CryptographicParameters>,
+    
+    #[serde(with = "serde_bytes",rename = "Data")]
+    pub data: Vec<u8>,
+
+    #[serde(skip_serializing_if = "Option::is_none", with = "serde_bytes",rename = "IVCounterNonce")]
+    pub iv_counter_nonce: Option<Vec<u8>>,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename = "ResponsePayload")]
+pub struct DecryptResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+    
+    #[serde(with = "serde_bytes",rename = "Data")]
+    pub data: Vec<u8>,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
 pub enum RequestBatchItem {
     Create(CreateRequest),
@@ -618,6 +845,8 @@ pub enum RequestBatchItem {
     Activate(ActivateRequest),
     Destroy(DestroyRequest),
     Register(RegisterRequest),
+    Encrypt(EncryptRequest),
+    Decrypt(DecryptRequest),
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
 
@@ -675,6 +904,8 @@ pub enum ResponseOperationEnum {
     Activate(ActivateResponse),
     Destroy(DestroyResponse),
     Register(RegisterResponse),
+    Encrypt(EncryptResponse),
+    Decrypt(DecryptResponse),
     Empty,
     // TODO - add support for: Unique Batch Item ID
 }
@@ -762,6 +993,12 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Register(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Register)?;
                 }
+                ResponseOperationEnum::Encrypt(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::Encrypt)?;
+                }
+                ResponseOperationEnum::Decrypt(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::Decrypt )?;
+                }
                 ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
@@ -793,6 +1030,12 @@ impl Serialize for ResponseBatchItem {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Register(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::Encrypt(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::Decrypt(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Empty => unimplemented!(),
@@ -926,6 +1169,14 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                                     let c: RegisterResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Register(c))
                                 }
+                                Operation::Encrypt => {
+                                    let c: EncryptResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::Encrypt(c))
+                                }
+                                Operation::Decrypt => {
+                                    let c: DecryptResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::Decrypt(c))
+                                }
                                 _ => {
                                     unimplemented!();
                                 }
@@ -1007,6 +1258,23 @@ impl EnumResolver for KmipEnumResolver {
                 // TODO - go from string to i32 in one pass instead of two
                 Ok(num::ToPrimitive::to_i32(&KeyFormatTypeEnum::from_str(value).unwrap()).unwrap())
             }
+            Tag::BlockCipherMode => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32(&BlockCipherMode::from_str(value).unwrap()).unwrap())
+            }
+            Tag::PaddingMethod => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32(&PaddingMethod::from_str(value).unwrap()).unwrap())
+            }
+            Tag::HashingAlgorithm => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32(&HashingAlgorithm::from_str(value).unwrap()).unwrap())
+            }
+            Tag::DigitalSignatureAlgorithm => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32(&DigitalSignatureAlgorithm::from_str(value).unwrap()).unwrap())
+            }
+
             _ => {
                 println!("Not implemented resolve_enum_str: {:?}", tag);
                 unimplemented! {}
@@ -1030,6 +1298,30 @@ impl EnumResolver for KmipEnumResolver {
             }
             Tag::ResultStatus => {
                 let o: ResultStatus = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::NameType => {
+                let o: NameTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::KeyFormatType => {
+                let o: KeyFormatTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::BlockCipherMode => {
+                let o: BlockCipherMode = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::PaddingMethod => {
+                let o: PaddingMethod = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::HashingAlgorithm => {
+                let o: HashingAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::DigitalSignatureAlgorithm => {
+                let o: DigitalSignatureAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
                 return Ok(o.as_static().to_owned());
             }
             _ => {

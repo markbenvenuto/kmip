@@ -137,6 +137,9 @@ where
 
         let bytes = protocol::to_bytes(&request, k.clone()).unwrap();
 
+        let bytes2 = protocol::to_xml_bytes(&request, k.clone()).unwrap();
+        eprint!("xml bytes {:?}", std::str::from_utf8(&bytes2));
+
         self.stream.write_all(bytes.as_slice()).unwrap();
 
         debug!("Waiting for data....");

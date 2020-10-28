@@ -167,31 +167,6 @@ impl<'a> RequestContext<'a> {
     // }
 }
 
-fn create_error_response(
-    msg: Option<String>,
-    clock_source: &dyn ClockSource,
-) -> protocol::ResponseMessage {
-    let r = protocol::ResponseMessage {
-        response_header: protocol::ResponseHeader {
-            protocol_version: protocol::ProtocolVersion {
-                protocol_version_major: 1,
-                protocol_version_minor: 0,
-            },
-            time_stamp: clock_source.now(),
-            batch_count: 1,
-        },
-        batch_item: protocol::ResponseBatchItem {
-            //Operation: None,
-            result_status: protocol::ResultStatus::OperationFailed,
-            result_reason: Some(protocol::ResultReason::GeneralFailure),
-            result_message: msg,
-            response_payload: None,
-            // ResponseOperation: None,
-        },
-    };
-
-    return r;
-}
 
 use std::error::Error;
 use std::fmt;
@@ -268,6 +243,14 @@ fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAtt
                     // TODO - validate
                     ma.activation_date = Some(*a);
                 }
+                protocol::AttributesEnum::Name(a) => {
+                    // TODO - validate
+                    ma.names.push(a.clone());
+                }
+                protocol::AttributesEnum::CryptographicParameters(a) => {
+                    // TODO - validate
+                    ma.cryptographic_parameters = Some(a.clone());
+                }
             }
         }
     }
@@ -281,6 +264,8 @@ fn process_create_request(
         state: ObjectStateEnum::PreActive,
         initial_date: rc.get_server_context().get_clock_source().now(),
 
+        names : Vec::new(),
+
         activation_date: None,
         destroy_date: None,
 
@@ -289,6 +274,7 @@ fn process_create_request(
         cryptographic_length: None,
 
         cryptographic_usage_mask: None,
+        cryptographic_parameters : None,
     };
 
     match req.object_type {
@@ -322,6 +308,7 @@ fn process_create_request(
             };
 
             let d = bson::to_bson(&mo).unwrap();
+eprintln!("BSON {:?}", d);
 
             if let bson::Bson::Document(d1) = d {
                 rc.get_server_context().get_store().add(id.as_ref(), d1);
@@ -344,8 +331,57 @@ fn process_register_request(
     rc: &RequestContext,
     req: &RegisterRequest,
 ) -> std::result::Result<RegisterResponse, KmipResponseError> {
-    unimplemented!()
-    // Err(KmipResponseError::new("Foo"))
+        let mut ma = ManagedAttributes {
+            state: ObjectStateEnum::PreActive,
+            initial_date: rc.get_server_context().get_clock_source().now(),
+    
+        names : Vec::new(),
+            activation_date: None,
+            destroy_date: None,
+    
+            cryptographic_algorithm: None,
+    
+            cryptographic_length: None,
+    
+            cryptographic_usage_mask: None,
+            cryptographic_parameters : None,
+        };
+    
+        match req.object_type {
+            ObjectTypeEnum::SecretData => {
+                            // TODO - validate message
+            merge_to_managed_attributes(&mut ma, &req.template_attribute);
+
+            // TODO - process activation date if set
+
+            // key lengths are in bits
+            let secret_data = req.secret_data.as_ref().unwrap();
+
+            let id = rc.get_server_context().get_store().gen_id();
+            let mo = store::ManagedObject {
+                id: id.to_string(),
+                payload: store::ManagedObjectEnum::SecretData(SecretData {
+                    secret_data_type : secret_data.secret_data_type,
+                    key_block: secret_data.key_block.clone()
+                }),
+                attributes: ma,
+            };
+
+            let d = bson::to_bson(&mo).unwrap();
+
+            if let bson::Bson::Document(d1) = d {
+                rc.get_server_context().get_store().add(id.as_ref(), d1);
+
+                return Ok(RegisterResponse {
+                    unique_identifier: id,
+                    template_attribute : None,
+                });
+            } else {
+                return Err(KmipResponseError::new("Barff"));
+            }
+            }
+            _ => Err(KmipResponseError::new("Foo")),
+        }
 }
 
 fn process_get_request(
@@ -367,11 +403,15 @@ fn process_get_request(
         object_type: ObjectTypeEnum::SymmetricKey,
         unique_identifier: req.unique_identifier,
         symmetric_key: None,
+        secret_data : None,
     };
 
     match mo.payload {
         ManagedObjectEnum::SymmetricKey(x) => {
             resp.symmetric_key = Some(x);
+        }
+        ManagedObjectEnum::SecretData(x) => {
+            resp.secret_data = Some(x);
         }
     }
 
@@ -456,6 +496,28 @@ fn process_destroy_request(
     Ok(resp)
 }
 
+
+fn process_encrypt_request(
+    rc: &RequestContext,
+    req: &EncryptRequest,
+) -> std::result::Result<EncryptResponse, KmipResponseError> {
+    Err(KmipResponseError::new("Barff"))
+}
+
+
+
+fn process_decrypt_request(
+    rc: &RequestContext,
+    req: &DecryptRequest,
+) -> std::result::Result<DecryptResponse, KmipResponseError> {
+    Err(KmipResponseError::new("Barff"))
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 fn create_ok_response(
     op: protocol::ResponseOperationEnum,
     clock_source: &dyn ClockSource,
@@ -474,6 +536,33 @@ fn create_ok_response(
             result_reason: Some(protocol::ResultReason::GeneralFailure),
             result_message: None,
             response_payload: Some(op),
+            // ResponseOperation: None,
+        },
+    };
+
+    return r;
+}
+
+
+fn create_error_response(
+    msg: Option<String>,
+    clock_source: &dyn ClockSource,
+) -> protocol::ResponseMessage {
+    let r = protocol::ResponseMessage {
+        response_header: protocol::ResponseHeader {
+            protocol_version: protocol::ProtocolVersion {
+                protocol_version_major: 1,
+                protocol_version_minor: 0,
+            },
+            time_stamp: clock_source.now(),
+            batch_count: 1,
+        },
+        batch_item: protocol::ResponseBatchItem {
+            //Operation: None,
+            result_status: protocol::ResultStatus::OperationFailed,
+            result_reason: Some(protocol::ResultReason::GeneralFailure),
+            result_message: msg,
+            response_payload: None,
             // ResponseOperation: None,
         },
     };
@@ -527,9 +616,17 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
             info!("Got Destroy Request");
             process_destroy_request(&rc, x).map(|r| ResponseOperationEnum::Destroy(r))
         }
+        RequestBatchItem::Encrypt(x) => {
+            info!("Got Encrypt Request");
+            process_encrypt_request(&rc, &x).map(|r| ResponseOperationEnum::Encrypt(r))
+        }
+        RequestBatchItem::Decrypt(x) => {
+            info!("Got Decrypt Request");
+            process_decrypt_request(&rc, &x).map(|r| ResponseOperationEnum::Decrypt(r))
+        }
     };
 
-    let rm = match result {
+    let mut rm = match result {
         std::result::Result::Ok(t) => {
             create_ok_response(t, rc.get_server_context().get_clock_source())
         }
@@ -538,6 +635,15 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
             create_error_response(Some(msg), rc.get_server_context().get_clock_source())
         }
     };
+
+    rm.response_header.protocol_version.protocol_version_major =     request
+    .request_header
+    .protocol_version
+    .protocol_version_major;
+    rm.response_header.protocol_version.protocol_version_minor =     request
+    .request_header
+    .protocol_version
+    .protocol_version_minor;
 
     let vr = protocol::to_bytes(&rm, k).unwrap();
     info!("Response Message: {:?}", vr.hex_dump());

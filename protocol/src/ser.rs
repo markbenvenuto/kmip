@@ -528,7 +528,7 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     // In Serde, unit means an anonymous value containing no data. Map this to
     // JSON as `null`.
     fn serialize_unit(self) -> Result<()> {
-        // Note, hitting this means that ...
+        // Note, hitting this means likely a Option is not marked with #[serde(skip_serializing_if = "Option::is_none"]
         unimplemented!();
     }
 

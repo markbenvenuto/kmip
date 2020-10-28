@@ -91,6 +91,11 @@ impl<'a> XmlEncodingReader<'a> {
                     None => ItemType::Structure,
                 };
 
+                // Last attribute value is not needed if AttributeValue is actually a structure
+                if name == "AttributeValue" && value.is_none() {
+                    self.last_attribute_tag = None;
+                }
+
                 self.depth += 1;
                 Ok(Some(XmlItem {
                     name: name,
@@ -206,6 +211,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
         self.state = ReaderState::LengthValue;
         let t = self.element.as_ref().unwrap().item_type;
         if t != expected {
+            //panic!();
             return Err(TTLVError::UnexpectedType {
                 actual: t,
                 expected: expected,

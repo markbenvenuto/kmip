@@ -10,12 +10,13 @@ pub use mem::KmipMemoryStore;
 
 use option_datefmt::option_datefmt;
 
-use protocol::ObjectStateEnum;
+use protocol::{CryptographicParameters, NameStruct, ObjectStateEnum, SecretData};
 use protocol::SymmetricKey;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ManagedObjectEnum {
     SymmetricKey(SymmetricKey),
+    SecretData(SecretData),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -23,13 +24,19 @@ pub struct ManagedAttributes {
     //    pub cryptographic_algorithm : Option<CryptographicAlgorithm>,
     // NOTE: do not serialize as an enum because of the Serialize_enum macro breaks
     // the bson serializer.
+    
+    // TODO - we should probably refactor these as not top-level attributes because they are symmetricy key specific
     pub cryptographic_algorithm: Option<i32>,
 
     pub cryptographic_length: Option<i32>,
 
     pub cryptographic_usage_mask: Option<i32>,
 
+    pub cryptographic_parameters: Option<CryptographicParameters>,
+
     pub state: ObjectStateEnum,
+
+    pub names: Vec<NameStruct>,
 
     #[serde(with = "ts_milliseconds")]
     pub initial_date: chrono::DateTime<Utc>,
