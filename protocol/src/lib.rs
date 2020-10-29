@@ -166,7 +166,8 @@ pub enum NameTypeEnum {
     ToPrimitive,
     AsStaticStr,
     Clone,
-    Copy
+    Copy,
+    PartialEq
 )]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
@@ -210,6 +211,9 @@ pub enum CryptographicAlgorithm {
     HMACSHA3512 = 0x00000026,
     SHAKE128 = 0x00000027,
     SHAKE256 = 0x00000028,
+
+    // Extension
+    UNKNOWN = 0x8000000,
 }
 
 #[derive(Debug, Deserialize, Serialize, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,  Clone, Copy)]

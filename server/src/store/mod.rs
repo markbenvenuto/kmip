@@ -19,7 +19,13 @@ use protocol::SymmetricKey;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SymmetricKeyStore {
     pub symmetric_key : SymmetricKey,
+
+    // TODO - this is multi instance per KMIP spec
     pub cryptographic_parameters: Option<CryptographicParameters>,
+
+    pub cryptographic_algorithm: CryptographicAlgorithm,
+
+    pub cryptographic_length: i32,
 }
 
 

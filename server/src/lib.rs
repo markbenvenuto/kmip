@@ -254,22 +254,21 @@ fn merge_to_secret_data(ma: &mut ManagedAttributes, sd: &mut SecretData, tas: &V
 }
 
 
-fn merge_to_symmetric_key(ma: &mut ManagedAttributes, sk: &mut SymmetricKeyStore, tas: &Vec<TemplateAttribute>) -> std::result::Result<(), KmipResponseError>{
+fn merge_to_symmetric_key(ma: &mut ManagedAttributes, sks: &mut SymmetricKeyStore, tas: &Vec<TemplateAttribute>) -> std::result::Result<(), KmipResponseError>{
     for ta in tas {
         for attr in &ta.attribute {
             match attr {
                 protocol::AttributesEnum::CryptographicAlgorithm(a) => {
-                    sk.symmetric_key.key_block.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).ok_or(KmipResponseError::new("Invalid value for CryptographicAlgorithm") )?);
+                    sks.cryptographic_algorithm = num::FromPrimitive::from_i32(*a).ok_or(KmipResponseError::new("Invalid value for CryptographicAlgorithm") )?;
                 }
                 protocol::AttributesEnum::CryptographicLength(a) => {
                     // TODO - validate
-                    sk.symmetric_key.key_block.cryptographic_length = Some(*a);
+                    sks.cryptographic_length = *a
                 }
  
                 protocol::AttributesEnum::CryptographicParameters(a) => {
                     // TODO - validate
-                    //panic!("foo");
-                    sk.cryptographic_parameters = Some(a.clone());
+                    sks.cryptographic_parameters = Some(a.clone());
                 }
                 _ => merge_to_managed_attribute(ma, attr)?
             }
@@ -326,14 +325,27 @@ fn process_create_request(
                     key_wrapping_data : None,
                 }},
                 cryptographic_parameters: None,
+                cryptographic_length: 0,
+                cryptographic_algorithm : CryptographicAlgorithm::UNKNOWN,
             };
 
             merge_to_symmetric_key(&mut ma, &mut sks, &req.template_attribute)?;
 
-            let crypt_len = sks.symmetric_key.key_block.cryptographic_length.ok_or(KmipResponseError::new("Invalid value for cryptographic_length"))?;
+            if sks.cryptographic_algorithm == CryptographicAlgorithm::UNKNOWN {
+                return Err(KmipResponseError::new("Invalid value for cryptographic_algorithm"));
+            }
+
+            if sks.cryptographic_length == 0 {
+                return Err(KmipResponseError::new("Invalid value for cryptographic_length"));
+            }
+
+            //let crypt_len = sks.symmetric_key.key_block.cryptographic_length.ok_or(KmipResponseError::new("Invalid value for cryptographic_length"))?;
+            let crypt_len = sks.cryptographic_length;
             // TODO - validate crypt len
 
             let key = KmipCrypto::gen_rand_bytes((crypt_len / 8) as usize);
+
+            sks.symmetric_key.key_block.key_value.key_material = key;
 
             let id = rc.get_server_context().get_store().gen_id();
             let mo = store::ManagedObject {
@@ -417,11 +429,19 @@ fn process_register_request(
             let mut sks = SymmetricKeyStore {
                 symmetric_key: symmetric_key.clone(),
                 cryptographic_parameters: None,
+                cryptographic_algorithm: CryptographicAlgorithm::UNKNOWN,
+                cryptographic_length: 0,
             };
 
 
             merge_to_symmetric_key(&mut ma, &mut sks, &req.template_attribute)?;
 
+            if sks.cryptographic_algorithm == CryptographicAlgorithm::UNKNOWN {
+                sks.cryptographic_algorithm = sks.symmetric_key.key_block.cryptographic_algorithm.ok_or(KmipResponseError::new("cryptographic_algorithm was not set"))?;
+            }
+            if sks.cryptographic_length == 0 {
+            sks.cryptographic_length = sks.symmetric_key.key_block.cryptographic_length.ok_or(KmipResponseError::new("cryptographic_length was not set"))?;
+            }
 
             let id = rc.get_server_context().get_store().gen_id();
             let mo = store::ManagedObject {
@@ -626,7 +646,7 @@ fn process_encrypt_request<'a>(
 
     let key = &sks.symmetric_key.key_block.key_value.key_material;
 
-    let algo = sks.symmetric_key.key_block.cryptographic_algorithm.expect("cryptographic_algorithm should have already been validated as present");
+    let algo = sks.cryptographic_algorithm;
 
     let mut block_cipher_mode : Option<BlockCipherMode> = None;
     let mut padding_method : Option<PaddingMethod>= None;
@@ -693,7 +713,7 @@ fn process_decrypt_request(
 
     let key = &sks.symmetric_key.key_block.key_value.key_material;
 
-    let algo = sks.symmetric_key.key_block.cryptographic_algorithm.expect("cryptographic_algorithm should have already been validated as present");
+    let algo = sks.cryptographic_algorithm;
 
     let mut block_cipher_mode : Option<BlockCipherMode> = None;
     let mut padding_method : Option<PaddingMethod>= None;
@@ -751,8 +771,19 @@ fn process_mac_request(
 
     let key = &sks.symmetric_key.key_block.key_value.key_material;
 
-    let algo = sks.symmetric_key.key_block.cryptographic_algorithm.expect("cryptographic_algorithm should have already been validated as present");
+    let mut cryptographic_algorithm: Option<CryptographicAlgorithm> = None;
+    // Default to the on disk information
+    if let Some(disk_params) = &sks.cryptographic_parameters {
+        cryptographic_algorithm = disk_params.cryptographic_algorithm;
+    }
 
+    // Defer to the passed in information
+    if let Some(params) = &req.cryptographic_parameters {
+        cryptographic_algorithm = params.cryptographic_algorithm.or(cryptographic_algorithm);
+    }
+
+    let algo = cryptographic_algorithm.ok_or(KmipResponseError::new("Algorithm is required"))?;
+  
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
     //req.iv_counter_nonce.map(|x| x.as_ref()))?;
     let ret = crypto::hmac(algo, key, &req.data)?;
