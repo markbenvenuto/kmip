@@ -889,6 +889,34 @@ pub struct DecryptResponse {
 }
 
 
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
+pub struct MACRequest {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
+    pub cryptographic_parameters: Option<CryptographicParameters>,
+    
+    #[serde(with = "serde_bytes",rename = "Data")]
+    pub data: Vec<u8>,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename = "ResponsePayload")]
+pub struct MACResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+    
+    #[serde(with = "serde_bytes", rename = "MACData")]
+    pub mac_data: Vec<u8>,
+}
+
+
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
 pub enum RequestBatchItem {
@@ -899,6 +927,7 @@ pub enum RequestBatchItem {
     Register(RegisterRequest),
     Encrypt(EncryptRequest),
     Decrypt(DecryptRequest),
+    MAC(MACRequest),
     Revoke(RevokeRequest),
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
@@ -960,6 +989,7 @@ pub enum ResponseOperationEnum {
     Register(RegisterResponse),
     Encrypt(EncryptResponse),
     Decrypt(DecryptResponse),
+    MAC(MACResponse),
     Revoke(RevokeResponse),
     Empty,
     // TODO - add support for: Unique Batch Item ID
@@ -1054,6 +1084,9 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Decrypt(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Decrypt )?;
                 }
+                ResponseOperationEnum::MAC(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::MAC )?;
+                }
                 ResponseOperationEnum::Revoke(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Revoke )?;
                 }
@@ -1094,6 +1127,9 @@ impl Serialize for ResponseBatchItem {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Decrypt(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::MAC(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Revoke(x) => {
@@ -1238,6 +1274,10 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                                     let c: DecryptResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Decrypt(c))
                                 }
+                                Operation::MAC => {
+                                    let c: MACResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::MAC(c))
+                                }
                                 Operation::Revoke => {
                                     let c: RevokeResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Revoke(c))
@@ -1281,13 +1321,17 @@ pub struct KmipEnumResolver;
 
 impl EnumResolver for KmipEnumResolver {
     fn resolve_enum(&self, orig: &str, value: i32) -> std::result::Result<String, TTLVError> {
-        let trimmed = orig.replace(" ", "");
+        let trimmed = orig.replace(" ", "").replace("_", "");
         let name = trimmed.as_ref();
         let tag = Tag::from_str(name).map_err(|_| TTLVError::XmlError)?;
         return self.to_string(tag, value);
     }
 
-    fn resolve_enum_str(&self, tag: Tag, value: &str) -> std::result::Result<i32, TTLVError> {
+    fn resolve_enum_str(&self, tag: Tag, orig: &str) -> std::result::Result<i32, TTLVError> {
+        
+        let trimmed = orig.replace(" ", "").replace("_", "");
+        let value = trimmed.as_ref();
+        
         match tag {
             Tag::CryptographicAlgorithm => {
                 // TODO - go from string to i32 in one pass instead of two

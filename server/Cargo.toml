@@ -61,3 +61,7 @@ tokio = "0.3.0"
 # https://github.com/RustCrypto
 block-modes = "0.7.0"
 aes = "0.6.0"
+
+sha2 = "0.9.1"
+hmac = "0.10.1"
+#sha3 = "0.9.1"

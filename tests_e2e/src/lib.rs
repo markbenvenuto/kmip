@@ -1054,5 +1054,198 @@ fn e2e_test_xml_cs_bc_m_5_14() {
     run_e2e_xml_conversation(conv);
     }
     
+    // Register + MAC
+    #[test]
+    fn e2e_test_xml_cs_ac_m_4_14() {
+        let conv = r#"
+    <KMIP>
+
+    <!--
+         Key Management Interoperability Protocol Profiles Version 1.4
+         OASIS Standard
+         22 November 2017
+         Copyright (c) OASIS Open 2017. All Rights Reserved.
+         Source: http://docs.oasis-open.org/kmip/profiles/v1.4/os/test-cases/kmip-v1.4/mandatory/
+         Latest version of the specification: http://docs.oasis-open.org/kmip/profiles/v1.4/kmip-profiles-v1.4.html
+         TC IPR Statement: https://www.oasis-open.org/committees/kmip/ipr.php
+    -->
+    <RequestMessage>
+      <RequestHeader>
+        <ProtocolVersion>
+          <ProtocolVersionMajor type="Integer" value="1"/>
+          <ProtocolVersionMinor type="Integer" value="4"/>
+        </ProtocolVersion>
+        <BatchCount type="Integer" value="1"/>
+      </RequestHeader>
+      <BatchItem>
+        <Operation type="Enumeration" value="Register"/>
+        <RequestPayload>
+          <ObjectType type="Enumeration" value="SymmetricKey"/>
+          <TemplateAttribute>
+            <Attribute>
+              <AttributeName type="TextString" value="Cryptographic Usage Mask"/>
+              <AttributeValue type="Integer" value="Encrypt Decrypt MACGenerate MACVerify"/>
+            </Attribute>
+            <!--<Attribute>
+              <AttributeName type="TextString" value="x-ID"/>
+              <AttributeValue type="TextString" value="CS-AC-M-4-14"/>
+            </Attribute>-->
+            <Attribute>
+              <AttributeName type="TextString" value="Activation Date"/>
+              <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+            </Attribute>
+            <Attribute>
+              <AttributeName type="TextString" value="Cryptographic Parameters"/>
+              <AttributeValue>
+                <CryptographicAlgorithm type="Enumeration" value="HMAC_SHA256"/>
+              </AttributeValue>
+            </Attribute>
+          </TemplateAttribute>
+          <SymmetricKey>
+            <KeyBlock>
+              <KeyFormatType type="Enumeration" value="Raw"/>
+              <KeyValue>
+                <KeyMaterial type="ByteString" value="0123456789abcdef0123456789abcdef"/>
+              </KeyValue>
+              <CryptographicAlgorithm type="Enumeration" value="AES"/>
+              <CryptographicLength type="Integer" value="128"/>
+            </KeyBlock>
+          </SymmetricKey>
+        </RequestPayload>
+      </BatchItem>
+    </RequestMessage>
+    
+    <ResponseMessage>
+      <ResponseHeader>
+        <ProtocolVersion>
+          <ProtocolVersionMajor type="Integer" value="1"/>
+          <ProtocolVersionMinor type="Integer" value="4"/>
+        </ProtocolVersion>
+        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <BatchCount type="Integer" value="1"/>
+      </ResponseHeader>
+      <BatchItem>
+        <Operation type="Enumeration" value="Register"/>
+        <ResultStatus type="Enumeration" value="Success"/>
+        <ResponsePayload>
+          <UniqueIdentifier type="TextString" value="1"/>
+        </ResponsePayload>
+      </BatchItem>
+    </ResponseMessage>
+    
+    <RequestMessage>
+      <RequestHeader>
+        <ProtocolVersion>
+          <ProtocolVersionMajor type="Integer" value="1"/>
+          <ProtocolVersionMinor type="Integer" value="4"/>
+        </ProtocolVersion>
+        <BatchCount type="Integer" value="1"/>
+      </RequestHeader>
+      <BatchItem>
+        <Operation type="Enumeration" value="MAC"/>
+        <RequestPayload>
+          <UniqueIdentifier type="TextString" value="1"/>
+          <Data type="ByteString" value="01020304050607080910111213141516"/>
+        </RequestPayload>
+      </BatchItem>
+    </RequestMessage>
+    
+    <ResponseMessage>
+      <ResponseHeader>
+        <ProtocolVersion>
+          <ProtocolVersionMajor type="Integer" value="1"/>
+          <ProtocolVersionMinor type="Integer" value="4"/>
+        </ProtocolVersion>
+        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <BatchCount type="Integer" value="1"/>
+      </ResponseHeader>
+      <BatchItem>
+        <Operation type="Enumeration" value="MAC"/>
+        <ResultStatus type="Enumeration" value="Success"/>
+        <ResponsePayload>
+          <UniqueIdentifier type="TextString" value="1"/>
+          <MACData type="ByteString" value="c911e78196d64c30f631bb079ea37b97a95936d4da764d6a171df030c895ecf9"/>
+        </ResponsePayload>
+      </BatchItem>
+    </ResponseMessage>
+    
+    <RequestMessage>
+      <RequestHeader>
+        <ProtocolVersion>
+          <ProtocolVersionMajor type="Integer" value="1"/>
+          <ProtocolVersionMinor type="Integer" value="4"/>
+        </ProtocolVersion>
+        <BatchCount type="Integer" value="1"/>
+      </RequestHeader>
+      <BatchItem>
+        <Operation type="Enumeration" value="Revoke"/>
+        <RequestPayload>
+          <UniqueIdentifier type="TextString" value="1"/>
+          <RevocationReason>
+            <RevocationReasonCode type="Enumeration" value="Unspecified"/>
+          </RevocationReason>
+        </RequestPayload>
+      </BatchItem>
+    </RequestMessage>
+    
+    <ResponseMessage>
+      <ResponseHeader>
+        <ProtocolVersion>
+          <ProtocolVersionMajor type="Integer" value="1"/>
+          <ProtocolVersionMinor type="Integer" value="4"/>
+        </ProtocolVersion>
+        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <BatchCount type="Integer" value="1"/>
+      </ResponseHeader>
+      <BatchItem>
+        <Operation type="Enumeration" value="Revoke"/>
+        <ResultStatus type="Enumeration" value="Success"/>
+        <ResponsePayload>
+          <UniqueIdentifier type="TextString" value="1"/>
+        </ResponsePayload>
+      </BatchItem>
+    </ResponseMessage>
+    
+    <RequestMessage>
+      <RequestHeader>
+        <ProtocolVersion>
+          <ProtocolVersionMajor type="Integer" value="1"/>
+          <ProtocolVersionMinor type="Integer" value="4"/>
+        </ProtocolVersion>
+        <BatchCount type="Integer" value="1"/>
+      </RequestHeader>
+      <BatchItem>
+        <Operation type="Enumeration" value="Destroy"/>
+        <RequestPayload>
+          <UniqueIdentifier type="TextString" value="1"/>
+        </RequestPayload>
+      </BatchItem>
+    </RequestMessage>
+    
+    <ResponseMessage>
+      <ResponseHeader>
+        <ProtocolVersion>
+          <ProtocolVersionMajor type="Integer" value="1"/>
+          <ProtocolVersionMinor type="Integer" value="4"/>
+        </ProtocolVersion>
+        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <BatchCount type="Integer" value="1"/>
+      </ResponseHeader>
+      <BatchItem>
+        <Operation type="Enumeration" value="Destroy"/>
+        <ResultStatus type="Enumeration" value="Success"/>
+        <ResponsePayload>
+          <UniqueIdentifier type="TextString" value="1"/>
+        </ResponsePayload>
+      </BatchItem>
+    </ResponseMessage>
+    
+    </KMIP>
+    "#;
+
+    run_e2e_xml_conversation(conv);
+    }
+    
+
 
   } // mod tests

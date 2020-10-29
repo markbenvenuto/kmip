@@ -246,7 +246,7 @@ fn merge_to_secret_data(ma: &mut ManagedAttributes, sd: &mut SecretData, tas: &V
                     // TODO - validate
                     sd.key_block.cryptographic_length = Some(*a);
                 }
-                _ => merge_to_managed_attributes(ma, tas)?
+                _ => merge_to_managed_attribute(ma, attr)?
             }
         }
     }
@@ -268,35 +268,32 @@ fn merge_to_symmetric_key(ma: &mut ManagedAttributes, sk: &mut SymmetricKeyStore
  
                 protocol::AttributesEnum::CryptographicParameters(a) => {
                     // TODO - validate
+                    //panic!("foo");
                     sk.cryptographic_parameters = Some(a.clone());
                 }
-                _ => merge_to_managed_attributes(ma, tas)?
+                _ => merge_to_managed_attribute(ma, attr)?
             }
         }
     }
     Ok(())
 }
 
-fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAttribute>) -> std::result::Result<(), KmipResponseError>{
-    for ta in tas {
-        for attr in &ta.attribute {
-            match attr {
-                protocol::AttributesEnum::CryptographicUsageMask(a) => {
-                    // TODO - validate
-                    ma.cryptographic_usage_mask = Some(*a);
-                }
-                protocol::AttributesEnum::ActivationDate(a) => {
-                    // TODO - validate
-                    ma.activation_date = Some(*a);
-                }
-                protocol::AttributesEnum::Name(a) => {
-                    // TODO - validate
-                    ma.names.push(a.clone());
-                }
-                _ => {
-                    return Err(KmipResponseError::new(&format!("Attribute {:?} is not supported on object", attr)));
-                }
-            }
+fn merge_to_managed_attribute(ma: &mut ManagedAttributes, attr: &AttributesEnum) -> std::result::Result<(), KmipResponseError>{
+    match attr {
+        protocol::AttributesEnum::CryptographicUsageMask(a) => {
+            // TODO - validate
+            ma.cryptographic_usage_mask = Some(*a);
+        }
+        protocol::AttributesEnum::ActivationDate(a) => {
+            // TODO - validate
+            ma.activation_date = Some(*a);
+        }
+        protocol::AttributesEnum::Name(a) => {
+            // TODO - validate
+            ma.names.push(a.clone());
+        }
+        _ => {
+            return Err(KmipResponseError::new(&format!("Attribute {:?} is not supported on object", attr)));
         }
     }
     Ok(())
@@ -394,6 +391,7 @@ fn process_register_request(
                 attributes: ma,
             };
 
+            eprintln!("Storing Secret Data");
             let d = bson::to_bson(&mo).unwrap();
 
             if let bson::Bson::Document(d1) = d {
@@ -409,7 +407,7 @@ fn process_register_request(
             },
             ObjectTypeEnum::SymmetricKey => {
                 // TODO - validate message
-
+                eprintln!("Storing Symmetric Key");
 
             // TODO - process activation date if set
 
@@ -731,6 +729,42 @@ fn process_decrypt_request(
 
     Ok(resp)
 }
+fn process_mac_request(
+    rc: &RequestContext,
+    req: &MACRequest,
+) -> std::result::Result<MACResponse, KmipResponseError> {
+  
+    // let store = rc.get_server_context().get_store();
+    // let (id, mo) = store.get_managed_object(&req.unique_identifier, rc)?;
+    let id = rc.get_id_placeholder(&req.unique_identifier)?;
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(id);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+     
+    let sks = mo.get_symmetric_key()?;
+
+    let key = &sks.symmetric_key.key_block.key_value.key_material;
+
+    let algo = sks.symmetric_key.key_block.cryptographic_algorithm.expect("cryptographic_algorithm should have already been validated as present");
+
+    // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
+    //req.iv_counter_nonce.map(|x| x.as_ref()))?;
+    let ret = crypto::hmac(algo, key, &req.data)?;
+    
+
+    let resp = MACResponse {
+        unique_identifier: id.to_owned(),
+        mac_data: ret,
+    };
+
+    Ok(resp)
+}
 
 
 
@@ -841,6 +875,10 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         RequestBatchItem::Decrypt(x) => {
             info!("Got Decrypt Request");
             process_decrypt_request(&rc, &x).map(|r| ResponseOperationEnum::Decrypt(r))
+        }
+        RequestBatchItem::MAC(x) => {
+            info!("Got MAC Request");
+            process_mac_request(&rc, &x).map(|r| ResponseOperationEnum::MAC(r))
         }
         RequestBatchItem::Revoke(x) => {
             info!("Got Revoke Request");
