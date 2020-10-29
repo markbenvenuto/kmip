@@ -10,6 +10,7 @@ extern crate pretty_hex;
 extern crate log;
 extern crate env_logger;
 use log::{info};
+use serde_bytes::ByteBuf;
 
 #[macro_use]
 extern crate serde_derive;
@@ -358,11 +359,12 @@ fn process_register_request(
             cryptographic_usage_mask: None,
             cryptographic_parameters : None,
         };
-    
+        merge_to_managed_attributes(&mut ma, &req.template_attribute);
+
         match req.object_type {
             ObjectTypeEnum::SecretData => {
                             // TODO - validate message
-            merge_to_managed_attributes(&mut ma, &req.template_attribute);
+
 
             // TODO - process activation date if set
 
@@ -391,7 +393,38 @@ fn process_register_request(
             } else {
                 return Err(KmipResponseError::new("Barff"));
             }
-            }
+            },
+            ObjectTypeEnum::SymmetricKey => {
+                // TODO - validate message
+
+
+// TODO - process activation date if set
+
+// key lengths are in bits
+let symmetric_key = req.symmetric_key.as_ref().unwrap();
+
+let id = rc.get_server_context().get_store().gen_id();
+let mo = store::ManagedObject {
+    id: id.to_string(),
+    payload: store::ManagedObjectEnum::SymmetricKey(SymmetricKey {
+        key_block : symmetric_key.key_block.clone(),
+    }),
+    attributes: ma,
+};
+
+let d = bson::to_bson(&mo).unwrap();
+
+if let bson::Bson::Document(d1) = d {
+    rc.get_server_context().get_store().add(id.as_ref(), d1);
+
+    return Ok(RegisterResponse {
+        unique_identifier: id,
+        template_attribute : None,
+    });
+} else {
+    return Err(KmipResponseError::new("Barff"));
+}
+}
             _ => Err(KmipResponseError::new("Unsupported type for register")),
         }
 }
@@ -564,7 +597,7 @@ fn process_encrypt_request(
     let resp = EncryptResponse {
         unique_identifier: id.to_owned(),
         data: ret.0,
-        iv_counter_nonce: ret.1,
+        iv_counter_nonce: ret.1.map(|x| ByteBuf::from(x)),
     };
 
     Ok(resp)

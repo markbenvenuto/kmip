@@ -803,8 +803,8 @@ pub struct EncryptResponse {
     #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
         
-    #[serde(skip_serializing_if = "Option::is_none", with = "serde_bytes", rename = "IVCounterNonce")]
-    pub iv_counter_nonce: Option<Vec<u8>>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
+    pub iv_counter_nonce: Option<ByteBuf>,
 }
 
 

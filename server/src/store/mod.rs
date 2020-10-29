@@ -33,7 +33,7 @@ pub struct ManagedAttributes {
 
     pub cryptographic_usage_mask: Option<i32>,
 
-        pub cryptographic_parameters: Option<CryptographicParameters>,
+    pub cryptographic_parameters: Option<CryptographicParameters>,
 
     pub state: ObjectStateEnum,
 
@@ -48,12 +48,16 @@ pub struct ManagedAttributes {
     // #[serde(with = "ts_milliseconds")]
     // pub process_stop_date : Option<chrono::DateTime<Utc>>,
 
-    //#[serde(with = "ts_milliseconds")]
-    #[serde(default, deserialize_with = "option_datefmt")]
+    // //#[serde(with = "ts_milliseconds")]
+    // #[serde(default, deserialize_with = "option_datefmt")]
+    // pub activation_date: Option<chrono::DateTime<Utc>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub activation_date: Option<chrono::DateTime<Utc>>,
-    // #[serde(with = "ts_milliseconds")]
-    // pub deactivation_date : Option<chrono::DateTime<Utc>>,
-    #[serde(default, deserialize_with = "option_datefmt")]
+
+    // // #[serde(with = "ts_milliseconds")]
+    // // pub deactivation_date : Option<chrono::DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destroy_date: Option<chrono::DateTime<Utc>>,
 }
 
