@@ -54,7 +54,7 @@ impl<'a> XmlEncodingReader<'a> {
  
 
     fn is_empty2(&mut self) -> TTLVResult<bool> {
-        eprintln!("is_empty2: ");
+        // eprintln!("is_empty2: ");
         if self.end_document {
             return Ok(true);
         }
@@ -104,7 +104,7 @@ impl<'a> XmlEncodingReader<'a> {
                 }))
             }
             XmlEvent::EndElement { name } => {
-                eprintln!("Read End Element");
+                // eprintln!("Read End Element");
                 if name.local_name == "AttributeValue" {
                     self.last_attribute_tag = None;
                 }
@@ -148,7 +148,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
     }
 
     fn begin_inner_or_more(&mut self) -> TTLVResult<()> {
-        eprintln!("begin_inner_or_more");
+        // eprintln!("begin_inner_or_more");
         if self.state == ReaderState::Tag {
             self.element = None;
             self.read_one_element()?;
@@ -166,7 +166,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
     }
 
     fn begin_inner_skip(&mut self) -> TTLVResult<()> {
-        eprintln!("begin_inner_skip");
+        // eprintln!("begin_inner_skip");
         assert_eq!(self.state, ReaderState::LengthValue);
 
         let t =
@@ -187,11 +187,11 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
 
     fn is_empty(&mut self) -> TTLVResult<bool> {
         let e = self.is_empty2();
-        eprintln!("is_empty {:?} ({:?},{:?}) == {:?}",e , 
-            self.depth, self.tag, 
-            (self.cur_depths.last().unwrap_or(&(1, Tag::ReplacedUniqueIdentifier)))
-        );
-        eprintln!("is_empty {:?} {:?}",e , self.depth);
+        // eprintln!("is_empty {:?} ({:?},{:?}) == {:?}",e , 
+        //     self.depth, self.tag, 
+        //     (self.cur_depths.last().unwrap_or(&(1, Tag::ReplacedUniqueIdentifier)))
+        // );
+        // eprintln!("is_empty {:?} {:?}",e , self.depth);
         e
     }
 

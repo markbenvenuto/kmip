@@ -58,6 +58,10 @@ impl EncodedWriter for NestedWriter {
         return self.writer.into_inner();
     }
 
+    fn get_tag(&self) -> Option<Tag> {
+        self.tag
+    }
+    
     fn set_tag(&mut self, tag: Tag) {
         self.tag = Some(tag)
     }
@@ -301,7 +305,7 @@ mod tests {
         let v = to_xml_bytes(&a, r).unwrap();
         print!("Dump of bytes {:?}", std::str::from_utf8(&v));
 
-        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader><ObjectType><UniqueIdentifier type=\"TextString\" value=\"\" /></ObjectType><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
+        let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestHeader><ProtocolVersionMinor><UniqueIdentifier type=\"TextString\" value=\"\" /></ProtocolVersionMinor><BatchCount type=\"Integer\" value=\"3\" /></RequestHeader>";
 
         assert_eq!(std::str::from_utf8(&v).unwrap(), good);
     }

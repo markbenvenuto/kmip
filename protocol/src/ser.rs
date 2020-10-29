@@ -245,6 +245,7 @@ pub trait EncodedWriter {
 
     fn get_vector(self) -> Vec<u8>;
 
+    fn get_tag(&self) -> Option<Tag>;
     fn set_tag(&mut self, tag: Tag);
 
     fn write_optional_tag(&mut self) -> TTLVResult<()>;
@@ -288,6 +289,10 @@ impl EncodedWriter for NestedWriter {
         return self.vec;
     }
 
+    fn get_tag(&self) -> Option<Tag> {
+        self.tag
+    }
+
     fn set_tag(&mut self, tag: Tag) {
         self.tag = Some(tag)
     }
@@ -309,15 +314,19 @@ impl EncodedWriter for NestedWriter {
 
     fn begin_inner(&mut self) -> TTLVResult<()> {
         //println!("write_innter");
+        // println!(" begin inner");
         let pos = self.vec.len();
         self.vec
             .write_u32::<BigEndian>(0)
             .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
         self.start_positions.push(pos);
+
+        self.tag = None;
         Ok(())
     }
 
     fn close_inner(&mut self) -> TTLVResult<()> {
+        // println!(" close inner");
         let current_pos = self.vec.len();
         let start_pos = self.start_positions.pop().unwrap();
         // offset by 4
@@ -330,7 +339,8 @@ impl EncodedWriter for NestedWriter {
         for i in 0..4 {
             self.vec[start_pos + i] = v1[i];
         }
-
+        self.tag = None;
+        
         Ok(())
     }
 
@@ -361,6 +371,7 @@ impl EncodedWriter for NestedWriter {
     }
 
     fn write_tag_enum(&mut self, t: Tag) -> TTLVResult<()> {
+        self.tag = None;
         write_tag_enum(&mut self.vec, t)
     }
 
@@ -649,10 +660,15 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         println!("serializing: {:?}", name);
-        let tag = Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
-            name: name.to_owned(),
-        })?;
-        self.output.write_tag_enum(tag)?;
+
+        self.output.write_tag_enum(
+           match self.output.get_tag() {
+               Some(t) => t,
+               None => Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
+                name: name.to_owned(),
+            })?
+           }
+        )?;
 
         self.serialize_map(Some(len))
     }
@@ -1801,7 +1817,7 @@ mod tests {
         to_print(v.as_slice());
 
         let good = vec![
-            66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 87, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66, 0,
+            66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 107, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66, 0,
             13, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0,
         ];
 

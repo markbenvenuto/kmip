@@ -52,7 +52,7 @@ mod crypto;
 
 use protocol::*;
 
-use store::KmipStore;
+use store::{KmipStore, SymmetricKeyStore};
 use store::ManagedAttributes;
 use store::ManagedObject;
 use store::ManagedObjectEnum;
@@ -114,7 +114,7 @@ impl ServerContext {
         }
     }
 
-    fn get_store(&self) -> &dyn KmipStore {
+    fn get_store<'a>(&'a self) -> &'a dyn KmipStore {
         return self.store.as_ref();
     }
 
@@ -158,7 +158,7 @@ impl<'a> RequestContext<'a> {
         }
     }
 
-    fn get_server_context(&self) -> &ServerContext {
+    fn get_server_context(&self) -> &'a ServerContext {
         return self.server_context;
     }
 
@@ -235,19 +235,52 @@ impl Error for KmipResponseError {
 //     return None;
 // }
 
-fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAttribute>) {
+fn merge_to_secret_data(ma: &mut ManagedAttributes, sd: &mut SecretData, tas: &Vec<TemplateAttribute>) -> std::result::Result<(), KmipResponseError>{
     for ta in tas {
         for attr in &ta.attribute {
             match attr {
                 protocol::AttributesEnum::CryptographicAlgorithm(a) => {
-                    // TODO - validate
-                    ma.cryptographic_algorithm = Some(*a);
+                    sd.key_block.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).ok_or(KmipResponseError::new("Invalid value for CryptographicAlgorithm") )?);
                 }
                 protocol::AttributesEnum::CryptographicLength(a) => {
                     // TODO - validate
-                    ma.cryptographic_length = Some(*a);
-                    //                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
+                    sd.key_block.cryptographic_length = Some(*a);
                 }
+                _ => merge_to_managed_attributes(ma, tas)?
+            }
+        }
+    }
+    Ok(())
+}
+
+
+fn merge_to_symmetric_key(ma: &mut ManagedAttributes, sk: &mut SymmetricKeyStore, tas: &Vec<TemplateAttribute>) -> std::result::Result<(), KmipResponseError>{
+    for ta in tas {
+        for attr in &ta.attribute {
+            match attr {
+                protocol::AttributesEnum::CryptographicAlgorithm(a) => {
+                    sk.symmetric_key.key_block.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).ok_or(KmipResponseError::new("Invalid value for CryptographicAlgorithm") )?);
+                }
+                protocol::AttributesEnum::CryptographicLength(a) => {
+                    // TODO - validate
+                    sk.symmetric_key.key_block.cryptographic_length = Some(*a);
+                }
+ 
+                protocol::AttributesEnum::CryptographicParameters(a) => {
+                    // TODO - validate
+                    sk.cryptographic_parameters = Some(a.clone());
+                }
+                _ => merge_to_managed_attributes(ma, tas)?
+            }
+        }
+    }
+    Ok(())
+}
+
+fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAttribute>) -> std::result::Result<(), KmipResponseError>{
+    for ta in tas {
+        for attr in &ta.attribute {
+            match attr {
                 protocol::AttributesEnum::CryptographicUsageMask(a) => {
                     // TODO - validate
                     ma.cryptographic_usage_mask = Some(*a);
@@ -260,63 +293,55 @@ fn merge_to_managed_attributes(ma: &mut ManagedAttributes, tas: &Vec<TemplateAtt
                     // TODO - validate
                     ma.names.push(a.clone());
                 }
-                protocol::AttributesEnum::CryptographicParameters(a) => {
-                    // TODO - validate
-                    ma.cryptographic_parameters = Some(a.clone());
+                _ => {
+                    return Err(KmipResponseError::new(&format!("Attribute {:?} is not supported on object", attr)));
                 }
             }
         }
     }
+    Ok(())
 }
 
 fn process_create_request(
     rc: &RequestContext,
     req: &CreateRequest,
 ) -> std::result::Result<CreateResponse, KmipResponseError> {
-    let mut ma = ManagedAttributes {
-        state: ObjectStateEnum::PreActive,
-        initial_date: rc.get_server_context().get_clock_source().now(),
-
-        names : Vec::new(),
-
-        activation_date: None,
-        destroy_date: None,
-
-        cryptographic_algorithm: None,
-
-        cryptographic_length: None,
-
-        cryptographic_usage_mask: None,
-        cryptographic_parameters : None,
-    };
+    let mut ma = ManagedAttributes::new(rc.get_server_context().get_clock_source());
 
     match req.object_type {
         ObjectTypeEnum::SymmetricKey => {
-            // TODO - validate message
-            merge_to_managed_attributes(&mut ma, &req.template_attribute);
-
-            let crypt_len = ma.cryptographic_length.unwrap();
-            let algo = num::FromPrimitive::from_i32(ma.cryptographic_algorithm.unwrap()).unwrap();
-            //                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
+            // let crypt_len = ma.cryptographic_length.unwrap();
+            // let algo = num::FromPrimitive::from_i32(ma.cryptographic_algorithm.unwrap()).unwrap();
+            // //                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
 
             // TODO - process activation date if set
 
             // key lengths are in bits
+
+            let mut sks = SymmetricKeyStore {
+                symmetric_key: SymmetricKey {
+                key_block: KeyBlock {
+                    key_format_type: KeyFormatTypeEnum::Raw,
+                    key_value: KeyValue { key_material: Vec::new() },
+                    key_compression_type: None,
+                    cryptographic_algorithm: None,
+                    cryptographic_length: None,
+                    key_wrapping_data : None,
+                }},
+                cryptographic_parameters: None,
+            };
+
+            merge_to_symmetric_key(&mut ma, &mut sks, &req.template_attribute)?;
+
+            let crypt_len = sks.symmetric_key.key_block.cryptographic_length.ok_or(KmipResponseError::new("Invalid value for cryptographic_length"))?;
+            // TODO - validate crypt len
+
             let key = KmipCrypto::gen_rand_bytes((crypt_len / 8) as usize);
 
             let id = rc.get_server_context().get_store().gen_id();
             let mo = store::ManagedObject {
                 id: id.to_string(),
-                payload: store::ManagedObjectEnum::SymmetricKey(SymmetricKey {
-                    key_block: KeyBlock {
-                        key_format_type: KeyFormatTypeEnum::Raw,
-                        key_value: KeyValue { key_material: key },
-                        key_compression_type: None,
-                        cryptographic_algorithm: Some(algo),
-                        cryptographic_length: Some(crypt_len),
-                        key_wrapping_data : None,
-                    },
-                }),
+                payload: store::ManagedObjectEnum::SymmetricKey(sks),
                 attributes: ma,
             };
 
@@ -344,33 +369,21 @@ fn process_register_request(
     rc: &RequestContext,
     req: &RegisterRequest,
 ) -> std::result::Result<RegisterResponse, KmipResponseError> {
-        let mut ma = ManagedAttributes {
-            state: ObjectStateEnum::PreActive,
-            initial_date: rc.get_server_context().get_clock_source().now(),
-    
-        names : Vec::new(),
-            activation_date: None,
-            destroy_date: None,
-    
-            cryptographic_algorithm: None,
-    
-            cryptographic_length: None,
-    
-            cryptographic_usage_mask: None,
-            cryptographic_parameters : None,
-        };
-        merge_to_managed_attributes(&mut ma, &req.template_attribute);
+        let mut ma = ManagedAttributes::new(rc.get_server_context().get_clock_source());
 
         match req.object_type {
             ObjectTypeEnum::SecretData => {
+                let mut secret_data = req.secret_data.as_ref().ok_or(KmipResponseError::new("Missing secret_data"))?.clone();
+
+                merge_to_secret_data(&mut ma, &mut secret_data, &req.template_attribute)?;
+
                             // TODO - validate message
 
 
             // TODO - process activation date if set
 
             // key lengths are in bits
-            let secret_data = req.secret_data.as_ref().unwrap();
-
+    
             let id = rc.get_server_context().get_store().gen_id();
             let mo = store::ManagedObject {
                 id: id.to_string(),
@@ -398,32 +411,40 @@ fn process_register_request(
                 // TODO - validate message
 
 
-// TODO - process activation date if set
+            // TODO - process activation date if set
 
-// key lengths are in bits
-let symmetric_key = req.symmetric_key.as_ref().unwrap();
+            // key lengths are in bits
+            let symmetric_key = req.symmetric_key.as_ref().ok_or(KmipResponseError::new("Missing symmetric_key"))?;
 
-let id = rc.get_server_context().get_store().gen_id();
-let mo = store::ManagedObject {
-    id: id.to_string(),
-    payload: store::ManagedObjectEnum::SymmetricKey(SymmetricKey {
-        key_block : symmetric_key.key_block.clone(),
-    }),
-    attributes: ma,
-};
+            let mut sks = SymmetricKeyStore {
+                symmetric_key: symmetric_key.clone(),
+                cryptographic_parameters: None,
+            };
 
-let d = bson::to_bson(&mo).unwrap();
 
-if let bson::Bson::Document(d1) = d {
-    rc.get_server_context().get_store().add(id.as_ref(), d1);
+            merge_to_symmetric_key(&mut ma, &mut sks, &req.template_attribute)?;
 
-    return Ok(RegisterResponse {
-        unique_identifier: id,
-        template_attribute : None,
-    });
-} else {
-    return Err(KmipResponseError::new("Barff"));
-}
+
+            let id = rc.get_server_context().get_store().gen_id();
+            let mo = store::ManagedObject {
+                id: id.to_string(),
+                payload: store::ManagedObjectEnum::SymmetricKey(sks),
+                attributes: ma,
+            };
+
+            println!("MO: {:?}", mo);
+            let d = bson::to_bson(&mo).unwrap();
+            eprintln!("BSON {:?}", d);
+            if let bson::Bson::Document(d1) = d {
+                rc.get_server_context().get_store().add(id.as_ref(), d1);
+
+                return Ok(RegisterResponse {
+                    unique_identifier: id,
+                    template_attribute : None,
+                });
+            } else {
+                return Err(KmipResponseError::new("Barff"));
+            }
 }
             _ => Err(KmipResponseError::new("Unsupported type for register")),
         }
@@ -453,7 +474,7 @@ fn process_get_request(
 
     match mo.payload {
         ManagedObjectEnum::SymmetricKey(x) => {
-            resp.symmetric_key = Some(x);
+            resp.symmetric_key = Some(x.symmetric_key);
         }
         ManagedObjectEnum::SecretData(x) => {
             resp.secret_data = Some(x);
@@ -500,6 +521,49 @@ fn process_activate_request(
     Ok(resp)
 }
 
+
+fn process_revoke_request(
+    rc: &RequestContext,
+    req: RevokeRequest,
+) -> std::result::Result<RevokeResponse, KmipResponseError> {
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(&req.unique_identifier);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+
+    let mut mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    // TODO - record revocation code and reason text
+    if req.revocation_reason.revocation_reason_code == RevocationReasonCode::KeyCompromise {
+        mo.attributes.state = ObjectStateEnum::Compromised;
+        //mo.attributes.compromise_date =  req.compromise_occurrence_date.or(Some(rc.get_server_context().get_clock_source().now()));
+    } else {
+        mo.attributes.state = ObjectStateEnum::Deactivated;
+        mo.attributes.deactivation_date = Some(rc.get_server_context().get_clock_source().now());
+    }
+
+    let d = bson::to_bson(&mo).unwrap();
+
+    if let bson::Bson::Document(d1) = d {
+        rc.get_server_context()
+            .get_store()
+            .update(&req.unique_identifier, d1);
+    } else {
+        return Err(KmipResponseError::new("Barff"));
+    }
+
+    let resp = RevokeResponse {
+        unique_identifier: req.unique_identifier,
+    };
+
+    Ok(resp)
+}
+
+
 fn process_destroy_request(
     rc: &RequestContext,
     req: DestroyRequest,
@@ -542,11 +606,13 @@ fn process_destroy_request(
 }
 
 
-fn process_encrypt_request(
-    rc: &RequestContext,
+fn process_encrypt_request<'a>(
+    rc: &'a RequestContext,
     req: &EncryptRequest,
 ) -> std::result::Result<EncryptResponse, KmipResponseError> {
 
+    // let store = rc.get_server_context().get_store();
+    // let (id, mo) = store.get_managed_object(&req.unique_identifier, rc)?;
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
     let doc_maybe = rc
         .get_server_context()
@@ -556,20 +622,20 @@ fn process_encrypt_request(
         return Err(KmipResponseError::new("Thing not found"));
     }
     let doc = doc_maybe.unwrap();
-
     let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+     
+    let sks = mo.get_symmetric_key()?;
 
-    let sk = mo.get_symmetric_key()?;
+    let key = &sks.symmetric_key.key_block.key_value.key_material;
 
-    let key = &sk.key_block.key_value.key_material;
-    let algo = mo.attributes.get_cryptographic_algorithm()?;
+    let algo = sks.symmetric_key.key_block.cryptographic_algorithm.expect("cryptographic_algorithm should have already been validated as present");
 
     let mut block_cipher_mode : Option<BlockCipherMode> = None;
     let mut padding_method : Option<PaddingMethod>= None;
     let mut random_iv : Option<bool>= None;
 
     // Default to the on disk information
-    if let Some(disk_params) = &mo.attributes.cryptographic_parameters {
+    if let Some(disk_params) = &sks.cryptographic_parameters {
         block_cipher_mode = disk_params.block_cipher_mode;
         padding_method = disk_params.padding_method;
         random_iv = disk_params.random_iv;
@@ -611,9 +677,60 @@ fn process_decrypt_request(
     rc: &RequestContext,
     req: &DecryptRequest,
 ) -> std::result::Result<DecryptResponse, KmipResponseError> {
-    Err(KmipResponseError::new("Barff"))
-}
+  
+    // let store = rc.get_server_context().get_store();
+    // let (id, mo) = store.get_managed_object(&req.unique_identifier, rc)?;
+    let id = rc.get_id_placeholder(&req.unique_identifier)?;
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(id);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+     
+    let sks = mo.get_symmetric_key()?;
 
+    let key = &sks.symmetric_key.key_block.key_value.key_material;
+
+    let algo = sks.symmetric_key.key_block.cryptographic_algorithm.expect("cryptographic_algorithm should have already been validated as present");
+
+    let mut block_cipher_mode : Option<BlockCipherMode> = None;
+    let mut padding_method : Option<PaddingMethod>= None;
+
+    // Default to the on disk information
+    if let Some(disk_params) = &sks.cryptographic_parameters {
+        block_cipher_mode = disk_params.block_cipher_mode;
+        padding_method = disk_params.padding_method;
+    }
+
+    // Defer to the passed in information
+    if let Some(params) = &req.cryptographic_parameters {
+        block_cipher_mode = params.block_cipher_mode.or(block_cipher_mode);
+        padding_method = params.padding_method.or(padding_method);
+    }
+
+    // TODO
+    // We only support block ciphers for now, if we support streaming ciphers we will have to do something
+    let block_cipher_mode = block_cipher_mode.ok_or(KmipResponseError::new("Block Cipher Mode is required"))?;
+    // let padding_method = padding_method.ok_or(KmipResponseError::new("Padding Method Mode is required"))?;
+    let padding_method = padding_method.unwrap_or(PaddingMethod::None);
+
+
+    // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
+    //req.iv_counter_nonce.map(|x| x.as_ref()))?;
+    let ret = crypto::decrypt_block_cipher(algo, block_cipher_mode, padding_method, key, &req.data, &req.iv_counter_nonce)?;
+    
+
+    let resp = DecryptResponse {
+        unique_identifier: id.to_owned(),
+        data: ret,
+    };
+
+    Ok(resp)
+}
 
 
 
@@ -724,6 +841,10 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         RequestBatchItem::Decrypt(x) => {
             info!("Got Decrypt Request");
             process_decrypt_request(&rc, &x).map(|r| ResponseOperationEnum::Decrypt(r))
+        }
+        RequestBatchItem::Revoke(x) => {
+            info!("Got Revoke Request");
+            process_revoke_request(&rc, x).map(|r| ResponseOperationEnum::Revoke(r))
         }
     };
 

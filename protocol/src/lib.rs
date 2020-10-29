@@ -26,6 +26,7 @@ mod error;
 mod failures;
 mod kmip_enums;
 mod my_date_format;
+mod my_opt_date_format;
 mod ser;
 mod ser_xml;
 
@@ -165,6 +166,7 @@ pub enum NameTypeEnum {
     ToPrimitive,
     AsStaticStr,
     Clone,
+    Copy
 )]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
@@ -425,6 +427,20 @@ ECDSAwithSHA512=0x00000010,
 }
 
 
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy, PartialEq
+)]
+#[repr(i32)]
+pub enum RevocationReasonCode{
+    Unspecified = 0x00000001, 
+KeyCompromise = 0x00000002, 
+CACompromise = 0x00000003, 
+AffiliationChanged = 0x00000004, 
+Superseded = 0x00000005, 
+CessationofOperation = 0x00000006, 
+PrivilegeWithdrawn = 0x00000007, 
+}
+
 #[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
 #[repr(i32)]
 pub enum ResultStatus {
@@ -539,7 +555,8 @@ pub struct KeyBlock {
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename (serialize = "AttributeValue", deserialize = "Cryptographic Parameters"))]
+//#[serde(rename (serialize = "AttributeValue", deserialize = "CryptographicParameters"))]
+#[serde(rename= "CryptographicParameters")]
 pub struct CryptographicParameters {
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "BlockCipherMode")]
@@ -583,13 +600,13 @@ pub struct CryptographicParameters {
 }
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SymmetricKey {
     #[serde(rename = "KeyBlock")]
     pub key_block: KeyBlock,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SecretData {
     #[serde(rename = "SecretDataType")]
     pub secret_data_type: SecretDataType,
@@ -609,13 +626,23 @@ pub struct SecretData {
 // }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename (serialize = "AttributeValue", deserialize = "Name"))]
+#[serde(rename = "Name")]
 pub struct NameStruct {
     #[serde(rename = "NameValue")]
     pub name_value: String,
 
     #[serde(rename = "NameType")]
     pub name_type: NameTypeEnum,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RevocationReason {
+    #[serde(rename = "RevocationReasonCode")]
+    pub revocation_reason_code: RevocationReasonCode,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "RevocationMessage")]
+    pub revocation_message: Option<String>,
 }
 
 // #[derive(Serialize, Deserialize, Debug)]
@@ -764,6 +791,31 @@ pub struct ActivateResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+pub struct RevokeRequest {
+    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+
+    #[serde(rename = "RevocationReason")]
+    pub revocation_reason : RevocationReason,
+    
+    // TODO - the option datetime is messing with Serde
+    // Serde thinks the field is required for deserialization even thought it is not
+    // ByteBuf works - so look into how it work
+    // #[serde(skip_serializing_if = "Option::is_none", with = "my_opt_date_format", rename = "CompromiseOccurrenceDate")]
+    // pub compromise_occurrence_date: Option<DateTime<Utc>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "ResponsePayload")]
+pub struct RevokeResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct DestroyRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -821,8 +873,8 @@ pub struct DecryptRequest {
     #[serde(with = "serde_bytes",rename = "Data")]
     pub data: Vec<u8>,
 
-    #[serde(skip_serializing_if = "Option::is_none", with = "serde_bytes",rename = "IVCounterNonce")]
-    pub iv_counter_nonce: Option<Vec<u8>>,
+    #[serde(skip_serializing_if = "Option::is_none",rename = "IVCounterNonce")]
+    pub iv_counter_nonce: Option<ByteBuf>,
 }
 
 
@@ -847,6 +899,7 @@ pub enum RequestBatchItem {
     Register(RegisterRequest),
     Encrypt(EncryptRequest),
     Decrypt(DecryptRequest),
+    Revoke(RevokeRequest),
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
 
@@ -907,6 +960,7 @@ pub enum ResponseOperationEnum {
     Register(RegisterResponse),
     Encrypt(EncryptResponse),
     Decrypt(DecryptResponse),
+    Revoke(RevokeResponse),
     Empty,
     // TODO - add support for: Unique Batch Item ID
 }
@@ -1000,6 +1054,9 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Decrypt(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Decrypt )?;
                 }
+                ResponseOperationEnum::Revoke(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::Revoke )?;
+                }
                 ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
@@ -1037,6 +1094,9 @@ impl Serialize for ResponseBatchItem {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Decrypt(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::Revoke(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Empty => unimplemented!(),
@@ -1178,6 +1238,10 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                                     let c: DecryptResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Decrypt(c))
                                 }
+                                Operation::Revoke => {
+                                    let c: RevokeResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::Revoke(c))
+                                }
                                 _ => {
                                     unimplemented!();
                                 }
@@ -1276,6 +1340,11 @@ impl EnumResolver for KmipEnumResolver {
                 Ok(num::ToPrimitive::to_i32(&DigitalSignatureAlgorithm::from_str(value).unwrap()).unwrap())
             }
 
+            Tag::RevocationReasonCode => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32(&RevocationReasonCode::from_str(value).unwrap()).unwrap())
+            }
+
             _ => {
                 println!("Not implemented resolve_enum_str: {:?}", tag);
                 unimplemented! {}
@@ -1327,6 +1396,10 @@ impl EnumResolver for KmipEnumResolver {
             }
             Tag::SecretDataType => {
                 let o: SecretDataType = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::RevocationReasonCode => {
+                let o: RevocationReasonCode = num::FromPrimitive::from_i32(value).unwrap();
                 return Ok(o.as_static().to_owned());
             }
             _ => {
