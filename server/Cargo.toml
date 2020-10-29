@@ -55,3 +55,9 @@ tokio = "0.3.0"
 # TODO - consider https://github.com/rust-cli/human-panic
 
 # TODO - https://github.com/RustCrypto/block-ciphers?
+
+
+# Crypto
+# https://github.com/RustCrypto
+block-modes = "0.7.0"
+aes = "0.6.0"

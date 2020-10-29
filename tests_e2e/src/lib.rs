@@ -706,13 +706,13 @@ fn e2e_test_xml_cs_bc_m_4_14() {
           <AttributeName type="TextString" value="Cryptographic Usage Mask"/>
           <AttributeValue type="Integer" value="Encrypt Decrypt"/>
         </Attribute>
-        <Attribute>
+        <!-- <Attribute>
           <AttributeName type="TextString" value="x-ID"/>
           <AttributeValue type="TextString" value="CS-BC-M-4-14"/>
-        </Attribute>
+        </Attribute> -->
         <Attribute>
           <AttributeName type="TextString" value="Activation Date"/>
-          <AttributeValue type="DateTime" value="$NOW-3600"/>
+          <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
         </Attribute>
       </TemplateAttribute>
       <SymmetricKey>
@@ -735,14 +735,14 @@ fn e2e_test_xml_cs_bc_m_4_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="$NOW"/>
+    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
     <Operation type="Enumeration" value="Register"/>
     <ResultStatus type="Enumeration" value="Success"/>
     <ResponsePayload>
-      <UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </ResponsePayload>
   </BatchItem>
 </ResponseMessage>
@@ -758,7 +758,7 @@ fn e2e_test_xml_cs_bc_m_4_14() {
   <BatchItem>
     <Operation type="Enumeration" value="Encrypt"/>
     <RequestPayload>
-      <UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>
+      <UniqueIdentifier type="TextString" value="1"/>
       <CryptographicParameters>
         <BlockCipherMode type="Enumeration" value="ECB"/>
       </CryptographicParameters>
@@ -773,14 +773,14 @@ fn e2e_test_xml_cs_bc_m_4_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="$NOW"/>
+    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
     <Operation type="Enumeration" value="Encrypt"/>
     <ResultStatus type="Enumeration" value="Success"/>
     <ResponsePayload>
-      <UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>
+      <UniqueIdentifier type="TextString" value="1"/>
       <Data type="ByteString" value="d9bcce11b0b437b90239552df3a360c9"/>
     </ResponsePayload>
   </BatchItem>
@@ -797,7 +797,7 @@ fn e2e_test_xml_cs_bc_m_4_14() {
   <BatchItem>
     <Operation type="Enumeration" value="Revoke"/>
     <RequestPayload>
-      <UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>
+      <UniqueIdentifier type="TextString" value="1"/>
       <RevocationReason>
         <RevocationReasonCode type="Enumeration" value="Unspecified"/>
       </RevocationReason>
@@ -811,14 +811,14 @@ fn e2e_test_xml_cs_bc_m_4_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="$NOW"/>
+    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
     <Operation type="Enumeration" value="Revoke"/>
     <ResultStatus type="Enumeration" value="Success"/>
     <ResponsePayload>
-      <UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </ResponsePayload>
   </BatchItem>
 </ResponseMessage>
@@ -834,7 +834,7 @@ fn e2e_test_xml_cs_bc_m_4_14() {
   <BatchItem>
     <Operation type="Enumeration" value="Destroy"/>
     <RequestPayload>
-      <UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </RequestPayload>
   </BatchItem>
 </RequestMessage>
@@ -845,14 +845,14 @@ fn e2e_test_xml_cs_bc_m_4_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="$NOW"/>
+    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
     <Operation type="Enumeration" value="Destroy"/>
     <ResultStatus type="Enumeration" value="Success"/>
     <ResponsePayload>
-      <UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </ResponsePayload>
   </BatchItem>
 </ResponseMessage>

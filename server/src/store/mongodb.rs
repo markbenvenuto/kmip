@@ -56,7 +56,7 @@ impl KmipStore for KmipMongoDBStore {
         return c.to_string();
     }
 
-    fn get(&self, id: &String) -> Option<bson::Document> {
+    fn get(&self, id: &str) -> Option<bson::Document> {
         let collection = self.make_connection();
 
         let filter = doc! {
@@ -78,7 +78,7 @@ impl KmipStore for KmipMongoDBStore {
         return Some(results.remove(0).unwrap());
     }
 
-    fn update(&self, id: &String, doc: bson::Document) {
+    fn update(&self, id: &str, doc: bson::Document) {
         let collection = self.make_connection();
 
         let filter = doc! {

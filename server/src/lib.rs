@@ -47,6 +47,7 @@ extern crate ring;
 use ring::rand::*;
 
 pub mod store;
+mod crypto;
 
 use protocol::*;
 
@@ -144,6 +145,8 @@ pub struct RequestContext<'a> {
     //store: &'a mut KmipStore,
     peer_addr: Option<SocketAddr>,
     server_context: &'a ServerContext,
+
+    // TODO - add support for  ID Placeholder value when processing batches of requests
 }
 
 impl<'a> RequestContext<'a> {
@@ -162,6 +165,15 @@ impl<'a> RequestContext<'a> {
         self.peer_addr = Some(addr);
     }
 
+    fn get_id_placeholder<'b>(&self, id : &'b Option<String>) -> std::result::Result<&'b str, KmipResponseError>{
+        match id {
+            Some(s) => {
+                Ok(s)
+            }
+            None => Err(KmipResponseError::new("No support for ID Placeholder value"))
+        }
+    }
+
     // fn get_store() -> std::sync::MutexGuard<KmipStore> + 'static {
     //     return GLOBAL_STORE.lock().unwrap();
     // }
@@ -172,7 +184,7 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Debug)]
-struct KmipResponseError {
+pub struct KmipResponseError {
     msg: String,
 }
 
@@ -321,7 +333,7 @@ eprintln!("BSON {:?}", d);
                 return Err(KmipResponseError::new("Barff"));
             }
         }
-        _ => Err(KmipResponseError::new("Foo")),
+        _ => Err(KmipResponseError::new("Unsupported type for create")),
     }
 }
 
@@ -380,7 +392,7 @@ fn process_register_request(
                 return Err(KmipResponseError::new("Barff"));
             }
             }
-            _ => Err(KmipResponseError::new("Foo")),
+            _ => Err(KmipResponseError::new("Unsupported type for register")),
         }
 }
 
@@ -501,7 +513,63 @@ fn process_encrypt_request(
     rc: &RequestContext,
     req: &EncryptRequest,
 ) -> std::result::Result<EncryptResponse, KmipResponseError> {
-    Err(KmipResponseError::new("Barff"))
+
+    let id = rc.get_id_placeholder(&req.unique_identifier)?;
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(id);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+
+    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    let sk = mo.get_symmetric_key()?;
+
+    let key = &sk.key_block.key_value.key_material;
+    let algo = mo.attributes.get_cryptographic_algorithm()?;
+
+    let mut block_cipher_mode : Option<BlockCipherMode> = None;
+    let mut padding_method : Option<PaddingMethod>= None;
+    let mut random_iv : Option<bool>= None;
+
+    // Default to the on disk information
+    if let Some(disk_params) = &mo.attributes.cryptographic_parameters {
+        block_cipher_mode = disk_params.block_cipher_mode;
+        padding_method = disk_params.padding_method;
+        random_iv = disk_params.random_iv;
+    }
+
+    // Defer to the passed in information
+    if let Some(params) = &req.cryptographic_parameters {
+        block_cipher_mode = params.block_cipher_mode.or(block_cipher_mode);
+        padding_method = params.padding_method.or(padding_method);
+        random_iv = params.random_iv.or(random_iv);
+    }
+
+    // TODO
+    // We only support block ciphers for now, if we support streaming ciphers we will have to do something
+    let block_cipher_mode = block_cipher_mode.ok_or(KmipResponseError::new("Block Cipher Mode is required"))?;
+    // let padding_method = padding_method.ok_or(KmipResponseError::new("Padding Method Mode is required"))?;
+    let padding_method = padding_method.unwrap_or(PaddingMethod::None);
+
+
+    // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
+    //req.iv_counter_nonce.map(|x| x.as_ref()))?;
+    let ret = crypto::encrypt_block_cipher(algo, block_cipher_mode, padding_method, key, &req.data, &req.iv_counter_nonce)?;
+    
+
+    let resp = EncryptResponse {
+        unique_identifier: id.to_owned(),
+        data: ret.0,
+        iv_counter_nonce: ret.1,
+    };
+
+    Ok(resp)
+
+
 }
 
 

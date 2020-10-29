@@ -1012,6 +1012,8 @@ impl<'de, 'a, R: EncodingReader<'de>> de::Deserializer<'de> for &'a mut Deserial
     where
         V: Visitor<'de>,
     {
+        // If you hit this, you may have to   #[serde(rename = "Key Block")]
+        // NOTE: Make sure there are no spaces in the names
         println!("EVIL IGNORED TAG: {:?} ", self.input.get_tag().as_ref());
         unreachable!();
         //self.deserialize_any(visitor)

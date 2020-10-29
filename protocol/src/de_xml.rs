@@ -103,8 +103,12 @@ impl<'a> XmlEncodingReader<'a> {
                     value: value,
                 }))
             }
-            XmlEvent::EndElement { .. } => {
+            XmlEvent::EndElement { name } => {
                 eprintln!("Read End Element");
+                if name.local_name == "AttributeValue" {
+                    self.last_attribute_tag = None;
+                }
+
                 self.depth -= 1;
                 Ok(None)
             }

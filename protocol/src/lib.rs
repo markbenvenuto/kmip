@@ -585,7 +585,7 @@ pub struct CryptographicParameters {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SymmetricKey {
-    #[serde(rename = "Key Block")]
+    #[serde(rename = "KeyBlock")]
     pub key_block: KeyBlock,
 }
 
@@ -880,6 +880,7 @@ pub struct RequestMessage {
     #[serde(rename = "RequestHeader")]
     pub request_header: RequestHeader,
 
+    // TODO - this should be a vector of batch items
     #[serde(rename = "BatchItem")]
     pub batch_item: RequestBatchItem,
 }
@@ -1322,6 +1323,10 @@ impl EnumResolver for KmipEnumResolver {
             }
             Tag::DigitalSignatureAlgorithm => {
                 let o: DigitalSignatureAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::SecretDataType => {
+                let o: SecretDataType = num::FromPrimitive::from_i32(value).unwrap();
                 return Ok(o.as_static().to_owned());
             }
             _ => {

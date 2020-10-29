@@ -5,12 +5,13 @@ mod option_datefmt;
 use chrono::serde::ts_milliseconds;
 use chrono::Utc;
 
+use crate::KmipResponseError;
 pub use crate::store::mongodb::KmipMongoDBStore;
 pub use mem::KmipMemoryStore;
 
 use option_datefmt::option_datefmt;
 
-use protocol::{CryptographicParameters, NameStruct, ObjectStateEnum, SecretData};
+use protocol::{CryptographicAlgorithm, CryptographicParameters, NameStruct, ObjectStateEnum, SecretData};
 use protocol::SymmetricKey;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,7 +33,7 @@ pub struct ManagedAttributes {
 
     pub cryptographic_usage_mask: Option<i32>,
 
-    pub cryptographic_parameters: Option<CryptographicParameters>,
+        pub cryptographic_parameters: Option<CryptographicParameters>,
 
     pub state: ObjectStateEnum,
 
@@ -56,6 +57,22 @@ pub struct ManagedAttributes {
     pub destroy_date: Option<chrono::DateTime<Utc>>,
 }
 
+impl ManagedAttributes {
+    pub fn get_cryptographic_algorithm(&self) -> std::result::Result<CryptographicAlgorithm, KmipResponseError> {
+        match self.cryptographic_algorithm {
+            Some(i) => {
+                Ok(num::FromPrimitive::from_i32(i).ok_or(KmipResponseError::new("Corupption in cryptographic_algorithm"))?)
+            }
+            _ => Err(KmipResponseError::new("Wrong object type"))
+        }
+    }
+
+    
+}
+
+
+
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ManagedObject {
     #[serde(rename = "_id")]
@@ -66,6 +83,15 @@ pub struct ManagedObject {
     pub attributes: ManagedAttributes,
 }
 
+impl ManagedObject {
+    pub fn get_symmetric_key<'a>(&'a self) -> std::result::Result<&'a SymmetricKey, KmipResponseError> {
+        match &self.payload {
+            ManagedObjectEnum::SymmetricKey(s) => Ok(s),
+            _ => Err(KmipResponseError::new("Wrong object type"))
+        }
+    }
+}
+
 ////////////////////////////////////
 
 // TODO - add helper methods for ManagedOject
@@ -74,7 +100,7 @@ pub trait KmipStore {
 
     fn gen_id(&self) -> String;
 
-    fn get(&self, id: &String) -> Option<bson::Document>;
+    fn get(&self, id: &str) -> Option<bson::Document>;
 
-    fn update(&self, id: &String, doc: bson::Document);
+    fn update(&self, id: &str, doc: bson::Document);
 }

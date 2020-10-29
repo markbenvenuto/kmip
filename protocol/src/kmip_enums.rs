@@ -313,4 +313,9 @@ pub enum Tag {
     Extractable = 0x420122,
     NeverExtractable = 0x420123,
     ReplaceExisting = 0x420124,
+
+    // Used by tests, named x-ID, just takes a string
+    // Could not find it documented in Tag list
+    // TODO
+    XID = 0x540000,
 }
