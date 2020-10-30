@@ -65,9 +65,9 @@ enum Command {
     /// Create a symmetric key
     CreateSymmetricKey {
         // TODO
-        /// Remote Directory
-        #[structopt(name = "remote_path", long = "remote-path", value_name = "PATH")]
-        remote_path: String,
+        /// TODO
+        #[structopt(name = "algo", long = "algo", value_name = "algo")]
+        algo: String,
     },
     #[structopt(name = "get")]
     /// Get an item by id
