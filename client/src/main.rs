@@ -64,19 +64,20 @@ enum Command {
     #[structopt(name = "createsymmetrickey")]
     /// Create a symmetric key
     CreateSymmetricKey {
+        // TODO
         /// Remote Directory
         #[structopt(name = "remote_path", long = "remote-path", value_name = "PATH")]
         remote_path: String,
     },
     #[structopt(name = "get")]
-    /// Do a remote build of a project
+    /// Get an item by id
     Get {
         /// ID of thing to get
         //#[structopt(short = "p")]
         id: String,
     },
     #[structopt(name = "xml")]
-    /// Do a remote build of a project
+    /// Run an xml file against the server for testing purposes
     RunXml {
         /// Path to XML file to run
         #[structopt(parse(from_os_str), name = "file", long = "file")]
@@ -84,51 +85,7 @@ enum Command {
     },
 }
 
-// fn load_certs(filename: &str) -> Vec<rustls::Certificate> {
-//     let certfile = fs::File::open(filename).expect("cannot open certificate file");
-//     let mut reader = BufReader::new(certfile);
-//     rustls::internal::pemfile::certs(&mut reader).unwrap()
-// }
 
-// fn load_private_key(filename: &str) -> rustls::PrivateKey {
-//     let rsa_keys = {
-//         let keyfile = fs::File::open(filename).expect("cannot open private key file");
-//         let mut reader = BufReader::new(keyfile);
-//         rustls::internal::pemfile::rsa_private_keys(&mut reader)
-//             .expect("file contains invalid rsa private key")
-//     };
-
-//     let pkcs8_keys = {
-//         let keyfile = fs::File::open(filename).expect("cannot open private key file");
-//         let mut reader = BufReader::new(keyfile);
-//         rustls::internal::pemfile::pkcs8_private_keys(&mut reader)
-//             .expect("file contains invalid pkcs8 private key (encrypted keys not supported)")
-//     };
-
-//     // prefer to load pkcs8 keys
-//     if !pkcs8_keys.is_empty() {
-//         pkcs8_keys[0].clone()
-//     } else {
-//         assert!(!rsa_keys.is_empty());
-//         rsa_keys[0].clone()
-//     }
-// }
-
-// struct StreamAdapter<'a> {
-//     stream : &'a mut rustls::Stream<'a>,
-// }
-
-// impl<'a> StreamAdapter<'a> {
-//     fn new(stream : &'a mut rustls::Stream)  -> StreamAdapter<'a> {
-//         return StreamAdapter {
-//             stream : stream,
-//         }
-//     }
-// }
-
-// impl<'a> kmip_client::Stream  for StreamAdapter<'a>  {
-
-// }
 extern crate minidom;
 //extern crate quick_xml;
 use minidom::Element;
@@ -199,14 +156,6 @@ fn main() {
     //let kmip_stream = StreamAdapter::new(&mut tls);
     let mut client = Client::create_from_stream(&mut tls);
 
-    // tls.write(concat!("GET / HTTP/1.1\r\n",
-    //                   "Host: google.com\r\n",
-    //                   "Connection: close\r\n",
-    //                   "Accept-Encoding: identity\r\n",
-    //                   "\r\n")
-    //           .as_bytes())
-    //     .unwrap();
-
     match args.cmd {
         Command::CreateSymmetricKey { remote_path } => {
             let response = client.create_symmetric_key(CryptographicAlgorithm::AES, 256);
@@ -233,16 +182,4 @@ fn main() {
     )
     .unwrap();
 
-    // tls.write(&bytes).unwrap();
-    // info!("Waiting for data....");
-
-    // let mut plaintext : Vec<u8> = Vec::new();
-    // let msg = read_msg(&mut tls);
-    // info!("Response Message: {:?}", msg.hex_dump());
-
-    // to_print(&msg);
-
-    //tls.read_to_end(&mut plaintext).unwrap();
-
-    //stdout().write_all(&plaintext).unwrap();
 }

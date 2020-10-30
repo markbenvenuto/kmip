@@ -18,7 +18,7 @@ extern crate confy;
 
 extern crate chrono;
 
-use std::sync::Arc;
+use std::{net::Ipv4Addr, sync::Arc, net::IpAddr};
 
 use rustls;
 
@@ -147,7 +147,7 @@ fn main() {
 
     // confy::store("qrb", cfg).expect("foooooo3124123");
 
-    let addr: net::SocketAddr = "0.0.0.0:5696".parse().unwrap();
+    let addr: net::SocketAddr = net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), args.port);
     //TODO addr.set_port(args.flag_port.unwrap_or(5696));
 
     let listener = TcpListener::bind(&addr).expect("cannot listen on port");

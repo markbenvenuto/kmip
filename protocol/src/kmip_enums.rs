@@ -9,7 +9,7 @@ extern crate num_traits;
 pub enum ItemType {
     Structure = 0x01,
     Integer = 0x02,
-    LongInteger = 0x03,
+LongInteger = 0x03,
     BigInteger = 0x04,
     Enumeration = 0x05,
     Boolean = 0x06,
