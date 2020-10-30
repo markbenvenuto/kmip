@@ -8,7 +8,10 @@ use serde::{self, Deserialize, Deserializer, Serializer};
 //        S: Serializer
 //
 // although it may also be generic over the input types T.
-pub fn serialize<S>(date: &Option<chrono::DateTime<chrono::Utc>>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(
+    date: &Option<chrono::DateTime<chrono::Utc>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -24,7 +27,9 @@ where
 //        D: Deserializer<'de>
 //
 // although it may also be generic over the output types T.
-pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<chrono::DateTime<chrono::Utc>>, D::Error>
+pub fn deserialize<'de, D>(
+    deserializer: D,
+) -> Result<Option<chrono::DateTime<chrono::Utc>>, D::Error>
 where
     D: Deserializer<'de>,
 {

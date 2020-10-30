@@ -1,13 +1,13 @@
-extern crate log;
 extern crate env_logger;
+extern crate log;
 use log::{info, warn};
 
 #[macro_use]
 extern crate serde_derive;
 
-extern crate structopt;
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
+extern crate structopt;
 use structopt::StructOpt;
 
 extern crate strum;
@@ -18,13 +18,11 @@ extern crate confy;
 
 extern crate chrono;
 
-use std::{net::Ipv4Addr, sync::Arc, net::IpAddr};
+use std::{net::IpAddr, net::Ipv4Addr, sync::Arc};
 
 use rustls;
 
-use rustls::{
-     NoClientAuth
-};
+use rustls::NoClientAuth;
 
 use std::fs;
 use std::io::BufReader;
@@ -147,7 +145,8 @@ fn main() {
 
     // confy::store("qrb", cfg).expect("foooooo3124123");
 
-    let addr: net::SocketAddr = net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), args.port);
+    let addr: net::SocketAddr =
+        net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), args.port);
     //TODO addr.set_port(args.flag_port.unwrap_or(5696));
 
     let listener = TcpListener::bind(&addr).expect("cannot listen on port");
@@ -160,7 +159,9 @@ fn main() {
 
     server_certs.append(&mut ca_certs);
 
-    server_config.set_single_cert(server_certs, privkey).expect("Failed to set certificate");
+    server_config
+        .set_single_cert(server_certs, privkey)
+        .expect("Failed to set certificate");
 
     let store: Arc<dyn KmipStore + Send + Sync> = match args.store {
         StoreType::Memory => {

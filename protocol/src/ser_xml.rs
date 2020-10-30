@@ -61,7 +61,7 @@ impl EncodedWriter for NestedWriter {
     fn get_tag(&self) -> Option<Tag> {
         self.tag
     }
-    
+
     fn set_tag(&mut self, tag: Tag) {
         self.tag = Some(tag)
     }

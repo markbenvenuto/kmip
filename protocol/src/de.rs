@@ -459,7 +459,7 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         // );
         Ok(self.is_level_empty())
     }
-    
+
     fn is_level_empty(&self) -> bool {
         *(self.end_positions.last().unwrap()) == self.cur.position()
     }
@@ -1187,7 +1187,7 @@ mod tests {
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
-    use crate::{Tag, de::to_print};
+    use crate::{de::to_print, Tag};
 
     use crate::de::from_bytes;
     use crate::my_date_format;

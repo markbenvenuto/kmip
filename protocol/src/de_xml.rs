@@ -50,9 +50,6 @@ struct XmlEncodingReader<'a> {
 }
 
 impl<'a> XmlEncodingReader<'a> {
-
- 
-
     fn is_empty2(&mut self) -> TTLVResult<bool> {
         // eprintln!("is_empty2: ");
         if self.end_document {
@@ -170,7 +167,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
         assert_eq!(self.state, ReaderState::LengthValue);
 
         let t =
-        Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
+            Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
         self.tag = Some(t);
 
         //println!(" read_inner_skip: {:?} - {:?}", len, self.cur.position());
@@ -187,8 +184,8 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
 
     fn is_empty(&mut self) -> TTLVResult<bool> {
         let e = self.is_empty2();
-        // eprintln!("is_empty {:?} ({:?},{:?}) == {:?}",e , 
-        //     self.depth, self.tag, 
+        // eprintln!("is_empty {:?} ({:?},{:?}) == {:?}",e ,
+        //     self.depth, self.tag,
         //     (self.cur_depths.last().unwrap_or(&(1, Tag::ReplacedUniqueIdentifier)))
         // );
         // eprintln!("is_empty {:?} {:?}",e , self.depth);

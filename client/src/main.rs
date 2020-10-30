@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use std::fs;
 use std::io::BufReader;
@@ -6,9 +6,9 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::PathBuf;
 
-extern crate structopt;
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
+extern crate structopt;
 use structopt::StructOpt;
 
 #[macro_use]
@@ -85,7 +85,6 @@ enum Command {
     },
 }
 
-
 extern crate minidom;
 //extern crate quick_xml;
 use minidom::Element;
@@ -158,7 +157,7 @@ fn main() {
 
     match args.cmd {
         Command::CreateSymmetricKey { remote_path } => {
-            let response = client.create_symmetric_key(CryptographicAlgorithm::AES, 256);
+            let response = client.create_symmetric_key(CryptographicAlgorithm::AES, 128);
 
             println!("Response: {:#?} ", response);
         }
@@ -181,5 +180,4 @@ fn main() {
         ciphersuite.suite
     )
     .unwrap();
-
 }

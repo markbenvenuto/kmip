@@ -5,20 +5,21 @@ mod option_datefmt;
 use chrono::serde::ts_milliseconds;
 use chrono::Utc;
 
-use crate::{ClockSource, KmipResponseError, RequestContext};
 pub use crate::store::mongodb::KmipMongoDBStore;
+use crate::{ClockSource, KmipResponseError, RequestContext};
 pub use mem::KmipMemoryStore;
 
 use option_datefmt::option_datefmt;
 
-use protocol::{CryptographicAlgorithm, CryptographicParameters, NameStruct, ObjectStateEnum, SecretData};
 use protocol::SymmetricKey;
-
+use protocol::{
+    CryptographicAlgorithm, CryptographicParameters, NameStruct, ObjectStateEnum, SecretData,
+};
 
 // TODO - the storage format for SymmetricKey should be different from the wire format
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SymmetricKeyStore {
-    pub symmetric_key : SymmetricKey,
+    pub symmetric_key: SymmetricKey,
 
     // TODO - this is multi instance per KMIP spec
     pub cryptographic_parameters: Option<CryptographicParameters>,
@@ -27,7 +28,6 @@ pub struct SymmetricKeyStore {
 
     pub cryptographic_length: i32,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ManagedObjectEnum {
@@ -43,7 +43,6 @@ pub struct ManagedAttributes {
     pub cryptographic_usage_mask: Option<i32>,
 
     // pub cryptographic_parameters: Option<CryptographicParameters>,
-
     pub state: ObjectStateEnum,
 
     pub names: Vec<NameStruct>,
@@ -60,7 +59,6 @@ pub struct ManagedAttributes {
     // //#[serde(with = "ts_milliseconds")]
     // #[serde(default, deserialize_with = "option_datefmt")]
     // pub activation_date: Option<chrono::DateTime<Utc>>,
-
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub activation_date: Option<chrono::DateTime<Utc>>,
 
@@ -86,29 +84,23 @@ pub struct ManagedAttributes {
 //         }
 //     }
 
-    
 // }
 
 impl ManagedAttributes {
-
     pub fn new(clock: &dyn ClockSource) -> ManagedAttributes {
         ManagedAttributes {
             state: ObjectStateEnum::PreActive,
-            initial_date:clock.now(),
-    
-        names : Vec::new(),
+            initial_date: clock.now(),
+
+            names: Vec::new(),
             activation_date: None,
-            compromise_date : None,
-            deactivation_date : None,
+            compromise_date: None,
+            deactivation_date: None,
             destroy_date: None,
             cryptographic_usage_mask: None,
+        }
     }
-    }
-
 }
-
-
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ManagedObject {
@@ -121,10 +113,12 @@ pub struct ManagedObject {
 }
 
 impl ManagedObject {
-    pub fn get_symmetric_key<'a>(&'a self) -> std::result::Result<&'a SymmetricKeyStore, KmipResponseError> {
+    pub fn get_symmetric_key<'a>(
+        &'a self,
+    ) -> std::result::Result<&'a SymmetricKeyStore, KmipResponseError> {
         match &self.payload {
             ManagedObjectEnum::SymmetricKey(s) => Ok(s),
-            _ => Err(KmipResponseError::new("Wrong stored object type"))
+            _ => Err(KmipResponseError::new("Wrong stored object type")),
         }
     }
 }
@@ -142,25 +136,23 @@ pub trait KmipStore {
     fn update(&self, id: &str, doc: bson::Document);
 }
 
-
 impl<'b> dyn KmipStore {
-
-    pub fn get_managed_object<'a : 'b>(&self,  id: &Option<String>, rc: &'a RequestContext) -> std::result::Result<(String, ManagedObject), KmipResponseError> {
+    pub fn get_managed_object<'a: 'b>(
+        &self,
+        id: &Option<String>,
+        rc: &'a RequestContext,
+    ) -> std::result::Result<(String, ManagedObject), KmipResponseError> {
         let id = rc.get_id_placeholder(id)?;
-        let doc_maybe = rc
-            .get_server_context()
-            .get_store()
-            .get(id);
+        let doc_maybe = rc.get_server_context().get_store().get(id);
         if doc_maybe.is_none() {
             return Err(KmipResponseError::new("Thing not found"));
         }
         let doc = doc_maybe.unwrap();
-    
+
         println!("BSON: {:?}", doc);
         let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
         println!("MO: {:?}", mo);
 
         Ok((id.to_string(), mo))
     }
-
 }

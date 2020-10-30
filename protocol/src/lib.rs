@@ -149,7 +149,15 @@ pub enum ObjectStateEnum {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Copy, Clone
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Copy,
+    Clone,
 )]
 #[repr(i32)]
 pub enum NameTypeEnum {
@@ -167,7 +175,7 @@ pub enum NameTypeEnum {
     AsStaticStr,
     Clone,
     Copy,
-    PartialEq
+    PartialEq,
 )]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
@@ -216,7 +224,9 @@ pub enum CryptographicAlgorithm {
     UNKNOWN = 0x8000000,
 }
 
-#[derive(Debug, Deserialize, Serialize, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,  Clone, Copy)]
+#[derive(
+    Debug, Deserialize, Serialize, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy,
+)]
 #[repr(i32)]
 pub enum CryptographicUsageMask {
     Sign = 0x00000001,
@@ -242,7 +252,15 @@ pub enum CryptographicUsageMask {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum KeyFormatTypeEnum {
@@ -270,9 +288,16 @@ pub enum KeyFormatTypeEnum {
     PKCS12 = 0x00000016,
 }
 
-
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum KeyCompressionType {
@@ -282,67 +307,102 @@ pub enum KeyCompressionType {
     ECPublicKeyTypeX962Hybrid = 0x00000004,
 }
 
-
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum SecretDataType {
-    Password =0x00000001,
+    Password = 0x00000001,
     Seed = 0x00000002,
 }
 
-
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum EncodingOption {
-    NoEncoding=0x00000001,
-    TTLVEncoding= 0x00000002,
+    NoEncoding = 0x00000001,
+    TTLVEncoding = 0x00000002,
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum WrappingMethod {
-    Encrypt=0x00000001,
-    MACsign=0x00000002,
-    EncryptThenMACsign=0x00000003,
-    MACsignThenEncrypt=0x00000004,
-    TR31= 0x00000005,
+    Encrypt = 0x00000001,
+    MACsign = 0x00000002,
+    EncryptThenMACsign = 0x00000003,
+    MACsignThenEncrypt = 0x00000004,
+    TR31 = 0x00000005,
 }
 
-
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum BlockCipherMode {
-    CBC = 0x00000001, 
-    ECB = 0x00000002, 
-    PCBC = 0x00000003, 
-    CFB = 0x00000004, 
-    OFB = 0x00000005, 
-    CTR = 0x00000006, 
-    CMAC = 0x00000007, 
-    CCM = 0x00000008, 
-    GCM = 0x00000009, 
-    CBCMAC = 0x0000000A, 
-    XTS = 0x0000000B, 
-    AESKeyWrapPadding = 0x0000000C, 
-    NISTKeyWrap = 0x0000000D, 
-    X9102AESKW = 0x0000000E, 
-    X9102TDKW = 0x0000000F, 
-    X9102AKW1 = 0x00000010, 
-    X9102AKW2 = 0x00000011, 
+    CBC = 0x00000001,
+    ECB = 0x00000002,
+    PCBC = 0x00000003,
+    CFB = 0x00000004,
+    OFB = 0x00000005,
+    CTR = 0x00000006,
+    CMAC = 0x00000007,
+    CCM = 0x00000008,
+    GCM = 0x00000009,
+    CBCMAC = 0x0000000A,
+    XTS = 0x0000000B,
+    AESKeyWrapPadding = 0x0000000C,
+    NISTKeyWrap = 0x0000000D,
+    X9102AESKW = 0x0000000E,
+    X9102TDKW = 0x0000000F,
+    X9102AKW1 = 0x00000010,
+    X9102AKW2 = 0x00000011,
 }
 
-
-
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum PaddingMethod {
@@ -358,101 +418,140 @@ pub enum PaddingMethod {
     PSS = 0x0000000A,
 }
 
-
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum HashingAlgorithm {
-MD2 = 0x00000001,
-MD4 = 0x00000002,
-MD5 = 0x00000003,
-SHA1 = 0x00000004,
-SHA224 = 0x00000005,
-SHA256 = 0x00000006,
-SHA384 = 0x00000007,
-SHA512 = 0x00000008,
-RIPEMD160 = 0x00000009,
-Tiger = 0x0000000A,
-Whirlpool = 0x0000000B,
-SHA512224 = 0x0000000C,
-SHA512256 = 0x0000000D,
+    MD2 = 0x00000001,
+    MD4 = 0x00000002,
+    MD5 = 0x00000003,
+    SHA1 = 0x00000004,
+    SHA224 = 0x00000005,
+    SHA256 = 0x00000006,
+    SHA384 = 0x00000007,
+    SHA512 = 0x00000008,
+    RIPEMD160 = 0x00000009,
+    Tiger = 0x0000000A,
+    Whirlpool = 0x0000000B,
+    SHA512224 = 0x0000000C,
+    SHA512256 = 0x0000000D,
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum KeyRoleType {
-BDK = 0x00000001,
-CVK = 0x00000002,
-DEK = 0x00000003,
-MKAC = 0x00000004,
-MKSMC = 0x00000005,
-MKSMI = 0x00000006,
-MKDAC = 0x00000007,
-MKDN = 0x00000008,
-MKCP = 0x00000009,
-MKOTH = 0x0000000A,
-KEK = 0x0000000B,
-MAC16609 = 0x0000000C,
-MAC97971 = 0x0000000D,
-MAC97972 = 0x0000000E,
-MAC97973 = 0x0000000F,
-MAC97974 = 0x00000010,
-MAC97975 = 0x00000011,
-ZPK = 0x00000012,
-PVKIBM = 0x00000013,
-PVKPVV = 0x00000014,
-PVKOTH = 0x00000015,
+    BDK = 0x00000001,
+    CVK = 0x00000002,
+    DEK = 0x00000003,
+    MKAC = 0x00000004,
+    MKSMC = 0x00000005,
+    MKSMI = 0x00000006,
+    MKDAC = 0x00000007,
+    MKDN = 0x00000008,
+    MKCP = 0x00000009,
+    MKOTH = 0x0000000A,
+    KEK = 0x0000000B,
+    MAC16609 = 0x0000000C,
+    MAC97971 = 0x0000000D,
+    MAC97972 = 0x0000000E,
+    MAC97973 = 0x0000000F,
+    MAC97974 = 0x00000010,
+    MAC97975 = 0x00000011,
+    ZPK = 0x00000012,
+    PVKIBM = 0x00000013,
+    PVKPVV = 0x00000014,
+    PVKOTH = 0x00000015,
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum DigitalSignatureAlgorithm {
-MD2withRSAEncryptionPKCS1v15=0x00000001,
-MD5withRSAEncryptionPKCS1v15=0x00000002,
-SHA1withRSAEncryptionPKCS1v15=0x00000003,
-SHA224withRSAEncryptionPKCS1v15=0x00000004,
-SHA256withRSAEncryptionPKCS1v15=0x00000005,
-SHA384withRSAEncryptionPKCS1v15=0x00000006,
-SHA512withRSAEncryptionPKCS1v15=0x00000007,
-RSASSAPSSPKCS1v21=0x00000008,
-DSAwithSHA1=0x00000009,
-DSAwithSHA224=0x0000000A,
-DSAwithSHA256=0x0000000B,
-ECDSAwithSHA1=0x0000000C,
-ECDSAwithSHA224=0x0000000D,
-ECDSAwithSHA256=0x0000000E,
-ECDSAwithSHA384=0x0000000F,
-ECDSAwithSHA512=0x00000010,
+    MD2withRSAEncryptionPKCS1v15 = 0x00000001,
+    MD5withRSAEncryptionPKCS1v15 = 0x00000002,
+    SHA1withRSAEncryptionPKCS1v15 = 0x00000003,
+    SHA224withRSAEncryptionPKCS1v15 = 0x00000004,
+    SHA256withRSAEncryptionPKCS1v15 = 0x00000005,
+    SHA384withRSAEncryptionPKCS1v15 = 0x00000006,
+    SHA512withRSAEncryptionPKCS1v15 = 0x00000007,
+    RSASSAPSSPKCS1v21 = 0x00000008,
+    DSAwithSHA1 = 0x00000009,
+    DSAwithSHA224 = 0x0000000A,
+    DSAwithSHA256 = 0x0000000B,
+    ECDSAwithSHA1 = 0x0000000C,
+    ECDSAwithSHA224 = 0x0000000D,
+    ECDSAwithSHA256 = 0x0000000E,
+    ECDSAwithSHA384 = 0x0000000F,
+    ECDSAwithSHA512 = 0x00000010,
 }
 
-
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
-pub enum ValidityIndicator{
+pub enum ValidityIndicator {
     Valid = 0x00000001,
-Invalid = 0x00000002,
-Unknown = 0x00000003,
+    Invalid = 0x00000002,
+    Unknown = 0x00000003,
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy, PartialEq
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
+    PartialEq,
 )]
 #[repr(i32)]
-pub enum RevocationReasonCode{
-    Unspecified = 0x00000001, 
-KeyCompromise = 0x00000002, 
-CACompromise = 0x00000003, 
-AffiliationChanged = 0x00000004, 
-Superseded = 0x00000005, 
-CessationofOperation = 0x00000006, 
-PrivilegeWithdrawn = 0x00000007, 
+pub enum RevocationReasonCode {
+    Unspecified = 0x00000001,
+    KeyCompromise = 0x00000002,
+    CACompromise = 0x00000003,
+    AffiliationChanged = 0x00000004,
+    Superseded = 0x00000005,
+    CessationofOperation = 0x00000006,
+    PrivilegeWithdrawn = 0x00000007,
 }
 
 #[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, PartialEq)]
@@ -500,48 +599,56 @@ pub struct KeyValue {
     pub key_material: Vec<u8>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EncryptionKeyInformation {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-
     //#[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MACSignatureKeyInformation {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-
-   // #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
+    // #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyWrappingData {
     #[serde(rename = "Wrapping Method")]
     pub wrapping_method: WrappingMethod,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "EncryptionKeyInformation")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "EncryptionKeyInformation"
+    )]
     pub encryption_key_information: Option<EncryptionKeyInformation>,
-    
-    #[serde(skip_serializing_if = "Option::is_none", rename = "MACSignatureKeyInformation")]
+
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "MACSignatureKeyInformation"
+    )]
     pub mac_signature_key_information: Option<MACSignatureKeyInformation>,
 
-    #[serde(with = "serde_bytes", skip_serializing_if = "Option::is_none", rename = "MACSignature")]
+    #[serde(
+        with = "serde_bytes",
+        skip_serializing_if = "Option::is_none",
+        rename = "MACSignature"
+    )]
     pub mac_signature: Option<Vec<u8>>,
-    
-    #[serde(with = "serde_bytes", skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
+
+    #[serde(
+        with = "serde_bytes",
+        skip_serializing_if = "Option::is_none",
+        rename = "IVCounterNonce"
+    )]
     pub iv_counter_nonce: Option<Vec<u8>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none", rename = "EncodingOption")]
     pub encoding_option: Option<EncodingOption>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyBlock {
@@ -556,39 +663,52 @@ pub struct KeyBlock {
     pub key_value: KeyValue,
 
     // omitted in for SecretData and other cases
-    #[serde(skip_serializing_if = "Option::is_none",rename = "CryptographicAlgorithm")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "CryptographicAlgorithm"
+    )]
     pub cryptographic_algorithm: Option<CryptographicAlgorithm>,
 
-    #[serde(skip_serializing_if = "Option::is_none",rename = "CryptographicLength")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "CryptographicLength"
+    )]
     pub cryptographic_length: Option<i32>,
 
     // TODO
-    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicLength")]
-    pub key_wrapping_data  : Option<KeyWrappingData>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "CryptographicLength"
+    )]
+    pub key_wrapping_data: Option<KeyWrappingData>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 //#[serde(rename (serialize = "AttributeValue", deserialize = "CryptographicParameters"))]
-#[serde(rename= "CryptographicParameters")]
+#[serde(rename = "CryptographicParameters")]
 pub struct CryptographicParameters {
-
     #[serde(skip_serializing_if = "Option::is_none", rename = "BlockCipherMode")]
     pub block_cipher_mode: Option<BlockCipherMode>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none", rename = "PaddingMethod")]
     pub padding_method: Option<PaddingMethod>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none", rename = "HashingAlgorithm")]
     pub hashing_algorithm: Option<HashingAlgorithm>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "KeyRoleType")]
     pub key_role_type: Option<KeyRoleType>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "DigitalSignatureAlgorithm")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "DigitalSignatureAlgorithm"
+    )]
     pub digital_signature_algorigthm: Option<DigitalSignatureAlgorithm>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicAlgorithm")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "CryptographicAlgorithm"
+    )]
     pub cryptographic_algorithm: Option<CryptographicAlgorithm>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "RandomIV")]
@@ -596,23 +716,28 @@ pub struct CryptographicParameters {
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "IVLength")]
     pub iv_length: Option<i32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none", rename = "TagLength")]
     pub tag_length: Option<i32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none", rename = "FixedFieldLength")]
     pub fixed_field_length: Option<i32>,
-    
-    #[serde(skip_serializing_if = "Option::is_none", rename = "InvocationFieldLength")]
+
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "InvocationFieldLength"
+    )]
     pub invocation_field_length: Option<i32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none", rename = "CounterLength")]
     pub counter_length: Option<i32>,
-    
-    #[serde(skip_serializing_if = "Option::is_none", rename = "InitialCounterValue")]
+
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "InitialCounterValue"
+    )]
     pub initial_counter_value: Option<i32>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SymmetricKey {
@@ -648,7 +773,6 @@ pub struct NameStruct {
     #[serde(rename = "NameType")]
     pub name_type: NameTypeEnum,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RevocationReason {
@@ -690,7 +814,7 @@ pub enum AttributesEnum {
     Name(NameStruct),
 
     #[serde(rename = "Cryptographic Parameters")]
-    CryptographicParameters(CryptographicParameters)
+    CryptographicParameters(CryptographicParameters),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -733,26 +857,22 @@ pub struct RegisterRequest {
     #[serde(rename = "TemplateAttribute")]
     pub template_attribute: Vec<TemplateAttribute>,
 
-
     #[serde(rename = "SecretData", skip_serializing_if = "Option::is_none")]
-    pub secret_data : Option<SecretData>,
-    
-    #[serde(rename = "SymmetricKey", skip_serializing_if = "Option::is_none")]
-    pub symmetric_key : Option<SymmetricKey>,
-}
+    pub secret_data: Option<SecretData>,
 
+    #[serde(rename = "SymmetricKey", skip_serializing_if = "Option::is_none")]
+    pub symmetric_key: Option<SymmetricKey>,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "ResponsePayload")]
 pub struct RegisterResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none", rename = "TemplateAttribute")]
     pub template_attribute: Option<Vec<TemplateAttribute>>,
-
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
@@ -811,8 +931,7 @@ pub struct RevokeRequest {
     pub unique_identifier: String,
 
     #[serde(rename = "RevocationReason")]
-    pub revocation_reason : RevocationReason,
-    
+    pub revocation_reason: RevocationReason,
     // TODO - the option datetime is messing with Serde
     // Serde thinks the field is required for deserialization even thought it is not
     // ByteBuf works - so look into how it work
@@ -826,7 +945,6 @@ pub struct RevokeResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
@@ -849,31 +967,31 @@ pub struct EncryptRequest {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "CryptographicParameters"
+    )]
     pub cryptographic_parameters: Option<CryptographicParameters>,
-    
-    #[serde(with = "serde_bytes",rename = "Data")]
+
+    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
     pub iv_counter_nonce: Option<ByteBuf>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "ResponsePayload")]
 pub struct EncryptResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-    
+
     #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
-        
+
     #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
     pub iv_counter_nonce: Option<ByteBuf>,
 }
-
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
@@ -881,81 +999,85 @@ pub struct DecryptRequest {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none",rename = "CryptographicParameters")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "CryptographicParameters"
+    )]
     pub cryptographic_parameters: Option<CryptographicParameters>,
-    
-    #[serde(with = "serde_bytes",rename = "Data")]
+
+    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 
-    #[serde(skip_serializing_if = "Option::is_none",rename = "IVCounterNonce")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
     pub iv_counter_nonce: Option<ByteBuf>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "ResponsePayload")]
 pub struct DecryptResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-    
-    #[serde(with = "serde_bytes",rename = "Data")]
+
+    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct MACRequest {
-        // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "CryptographicParameters"
+    )]
     pub cryptographic_parameters: Option<CryptographicParameters>,
-    
-    #[serde(with = "serde_bytes",rename = "Data")]
+
+    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "ResponsePayload")]
 pub struct MACResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-    
+
     #[serde(with = "serde_bytes", rename = "MACData")]
     pub mac_data: Vec<u8>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct MACVerifyRequest {
-        // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "CryptographicParameters"
+    )]
     pub cryptographic_parameters: Option<CryptographicParameters>,
-    
-    #[serde(with = "serde_bytes",rename = "Data")]
+
+    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 
     #[serde(with = "serde_bytes", rename = "MACData")]
     pub mac_data: Vec<u8>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "ResponsePayload")]
 pub struct MACVerifyResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-    
+
     #[serde(rename = "ValidityIndicator")]
     pub validity_indicator: ValidityIndicator,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
@@ -1124,16 +1246,16 @@ impl Serialize for ResponseBatchItem {
                     ser_struct.serialize_field("Operation", &Operation::Encrypt)?;
                 }
                 ResponseOperationEnum::Decrypt(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Decrypt )?;
+                    ser_struct.serialize_field("Operation", &Operation::Decrypt)?;
                 }
                 ResponseOperationEnum::MAC(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::MAC )?;
+                    ser_struct.serialize_field("Operation", &Operation::MAC)?;
                 }
                 ResponseOperationEnum::MACVerify(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::MACVerify )?;
+                    ser_struct.serialize_field("Operation", &Operation::MACVerify)?;
                 }
                 ResponseOperationEnum::Revoke(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Revoke )?;
+                    ser_struct.serialize_field("Operation", &Operation::Revoke)?;
                 }
                 ResponseOperationEnum::Empty => unimplemented!(),
             }
@@ -1380,10 +1502,9 @@ impl EnumResolver for KmipEnumResolver {
     }
 
     fn resolve_enum_str(&self, tag: Tag, orig: &str) -> std::result::Result<i32, TTLVError> {
-        
         let trimmed = orig.replace(" ", "").replace("_", "");
         let value = trimmed.as_ref();
-        
+
         match tag {
             Tag::CryptographicAlgorithm => {
                 // TODO - go from string to i32 in one pass instead of two
@@ -1433,18 +1554,23 @@ impl EnumResolver for KmipEnumResolver {
             }
             Tag::DigitalSignatureAlgorithm => {
                 // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_i32(&DigitalSignatureAlgorithm::from_str(value).unwrap()).unwrap())
+                Ok(
+                    num::ToPrimitive::to_i32(&DigitalSignatureAlgorithm::from_str(value).unwrap())
+                        .unwrap(),
+                )
             }
 
             Tag::RevocationReasonCode => {
                 // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_i32(&RevocationReasonCode::from_str(value).unwrap()).unwrap())
+                Ok(
+                    num::ToPrimitive::to_i32(&RevocationReasonCode::from_str(value).unwrap())
+                        .unwrap(),
+                )
             }
             Tag::ValidityIndicator => {
                 // TODO - go from string to i32 in one pass instead of two
                 Ok(num::ToPrimitive::to_i32(&ValidityIndicator::from_str(value).unwrap()).unwrap())
             }
-            
 
             _ => {
                 println!("Not implemented resolve_enum_str: {:?}", tag);

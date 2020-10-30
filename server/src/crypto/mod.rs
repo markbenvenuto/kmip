@@ -29,7 +29,6 @@ use block_modes::{BlockMode, Cbc, Ecb};
 //     Ok((cipher.encrypt_vec(data), None))
 // // }
 
-
 // macro_rules! define_aes_impl {
 //     (
 //         $name:ident,
@@ -70,18 +69,18 @@ pub fn encrypt_block_cipher(
                     BlockCipherMode::ECB => {
                         match padding_method {
                             PaddingMethod::None => {
-                                type Aes128Ecb = Ecb<Aes128, NoPadding >;
+                                type Aes128Ecb = Ecb<Aes128, NoPadding>;
                                 // ECB has no nonce
-                                let cipher = Aes128Ecb::new_var(key, Default::default()).expect("Wrong key size");
+                                let cipher = Aes128Ecb::new_var(key, Default::default())
+                                    .expect("Wrong key size");
                                 Ok((cipher.encrypt_vec(data), None))
-                            },
+                            }
                             _ => Err(KmipResponseError::new("Ecb and padding is not supported")),
                         }
-                    },
-                                       
+                    }
+
                     _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
-                }
-                
+                };
             } else if key.len() == 24 { // AES 192
             } else if key.len() == 32 { // AES 256
             }
@@ -104,7 +103,6 @@ pub fn encrypt_block_cipher(
     }
 }
 
-
 pub fn decrypt_block_cipher(
     algo: CryptographicAlgorithm,
     block_cipher_mode: BlockCipherMode,
@@ -121,18 +119,18 @@ pub fn decrypt_block_cipher(
                     BlockCipherMode::ECB => {
                         match padding_method {
                             PaddingMethod::None => {
-                                type Aes128Ecb = Ecb<Aes128, NoPadding >;
+                                type Aes128Ecb = Ecb<Aes128, NoPadding>;
                                 // ECB has no nonce
-                                let cipher = Aes128Ecb::new_var(key, Default::default()).expect("Wrong key size");
+                                let cipher = Aes128Ecb::new_var(key, Default::default())
+                                    .expect("Wrong key size");
                                 Ok(cipher.decrypt_vec(data).expect("TODO - add eerror"))
-                            },
+                            }
                             _ => Err(KmipResponseError::new("Ecb and padding is not supported")),
                         }
-                    },
-                                       
+                    }
+
                     _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
-                }
-                
+                };
             } else if key.len() == 24 { // AES 192
             } else if key.len() == 32 { // AES 256
             }
@@ -155,23 +153,23 @@ pub fn decrypt_block_cipher(
     }
 }
 
-use sha2::Sha256;
 use hmac::{Hmac, Mac, NewMac};
+use sha2::Sha256;
 
-pub fn hmac(    algo: CryptographicAlgorithm,
+pub fn hmac(
+    algo: CryptographicAlgorithm,
     key: &[u8],
-    data: &[u8]) -> Result<Vec<u8>, KmipResponseError>  {
-
+    data: &[u8],
+) -> Result<Vec<u8>, KmipResponseError> {
     match algo {
         CryptographicAlgorithm::HMACSHA256 => {
             // Create alias for HMAC-SHA256
             type HmacSha256 = Hmac<Sha256>;
-            
+
             // Create HMAC-SHA256 instance which implements `Mac` trait
-            let mut mac = HmacSha256::new_varkey(key)
-                .expect("HMAC can take key of any size");
+            let mut mac = HmacSha256::new_varkey(key).expect("HMAC can take key of any size");
             mac.update(data);
-            
+
             // `result` has type `Output` which is a thin wrapper around array of
             // bytes for providing constant time equality check
             let result = mac.finalize();
@@ -182,31 +180,36 @@ pub fn hmac(    algo: CryptographicAlgorithm,
             // Ok(Vec::new())
         }
 
-        _ => Err(KmipResponseError::new(&format!("Algorithm {:?} is not supported", algo))),
+        _ => Err(KmipResponseError::new(&format!(
+            "Algorithm {:?} is not supported",
+            algo
+        ))),
     }
-
 }
 
-
-pub fn hmac_verify(    algo: CryptographicAlgorithm,
+pub fn hmac_verify(
+    algo: CryptographicAlgorithm,
     key: &[u8],
     data: &[u8],
-    mac_data: &[u8]) -> Result<ValidityIndicator, KmipResponseError>  {
-
+    mac_data: &[u8],
+) -> Result<ValidityIndicator, KmipResponseError> {
     match algo {
         CryptographicAlgorithm::HMACSHA256 => {
             // Create alias for HMAC-SHA256
             type HmacSha256 = Hmac<Sha256>;
-            
+
             // Create HMAC-SHA256 instance which implements `Mac` trait
-            let mut mac = HmacSha256::new_varkey(key)
-                .expect("HMAC can take key of any size");
+            let mut mac = HmacSha256::new_varkey(key).expect("HMAC can take key of any size");
             mac.update(data);
-            
-            Ok(mac.verify(mac_data).map_or(ValidityIndicator::Invalid, |x| ValidityIndicator::Valid))
+
+            Ok(mac
+                .verify(mac_data)
+                .map_or(ValidityIndicator::Invalid, |x| ValidityIndicator::Valid))
         }
 
-        _ => Err(KmipResponseError::new(&format!("Algorithm {:?} is not supported", algo))),
+        _ => Err(KmipResponseError::new(&format!(
+            "Algorithm {:?} is not supported",
+            algo
+        ))),
     }
-
 }

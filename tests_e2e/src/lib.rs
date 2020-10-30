@@ -3,52 +3,56 @@
 #[macro_use]
 extern crate lazy_static;
 
-  
 #[cfg(test)]
 mod tests {
 
-    use std::{fs, io::BufReader, net, net::TcpListener, net::{IpAddr, Ipv4Addr, TcpStream}, path::PathBuf, sync::Arc, sync::Barrier, sync::Mutex, thread};
+    use std::{
+        fs,
+        io::BufReader,
+        net,
+        net::TcpListener,
+        net::{IpAddr, Ipv4Addr, TcpStream},
+        path::PathBuf,
+        sync::Arc,
+        sync::Barrier,
+        sync::Mutex,
+        thread,
+    };
 
-        use std::env;
-use kmip_client::Client;
+    use kmip_client::Client;
     use kmip_server::{
         handle_client, process_kmip_request, store::KmipMemoryStore, RequestContext, ServerContext,
         TestClockSource,
     };
     use minidom::Element;
     use rustls::{ClientSession, NoClientAuth, Stream};
+    use std::env;
 
     extern crate kmip_client;
     extern crate kmip_server;
 
-
     struct PortAllocator {
-      start: u16,
+        start: u16,
     }
-    
+
     impl PortAllocator {
-    
-      fn new() -> Self {
-        PortAllocator{
-          start: 6000,
+        fn new() -> Self {
+            PortAllocator { start: 6000 }
         }
-      }
-    
-      fn allocate(&mut self) -> u16 {
-        let port = self.start;
-        self.start+=1;
-        port
-      }
+
+        fn allocate(&mut self) -> u16 {
+            let port = self.start;
+            self.start += 1;
+            port
+        }
     }
-          
-      lazy_static! {
+
+    lazy_static! {
         static ref GLOBAL_PORT_ALLOCATOR: Mutex<PortAllocator> = Mutex::new(PortAllocator::new());
-      }
-    
+    }
 
     #[test]
     fn test_10_create() {
-
         let clock_source = Arc::new(TestClockSource::new());
 
         let store = Arc::new(KmipMemoryStore::new());
@@ -97,25 +101,29 @@ use kmip_client::Client;
         }
     }
 
-      fn get_test_data_dir() -> PathBuf {
+    fn get_test_data_dir() -> PathBuf {
         let path = env::current_dir().unwrap();
         eprintln!("The current directory is {}", path.display());
         let mut root_dir = PathBuf::from(&path.parent().unwrap());
         root_dir.push("test_data");
         root_dir
-      }
-
+    }
 
     // TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write it
-    fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port  : u16, count: i32) {
-
+    fn run_server_count(
+        start_barrier: Arc<Barrier>,
+        end_barrier: Arc<Barrier>,
+        port: u16,
+        count: i32,
+    ) {
         let root_dir = get_test_data_dir();
         let server_cert_file = root_dir.join("server.pem");
         let server_key_file = root_dir.join("server.key");
         let ca_cert_file = root_dir.join("ca.pem");
 
         // TODO - dynamically allocate port
-        let addr: net::SocketAddr = net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+        let addr: net::SocketAddr =
+            net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
 
         let listener = TcpListener::bind(&addr).expect("cannot listen on port");
         let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
@@ -166,13 +174,12 @@ use kmip_client::Client;
         end_barrier.wait();
     }
 
-    fn run_with_client<F>(port : u16, mut func: F)
+    fn run_with_client<F>(port: u16, mut func: F)
     where
         F: FnMut(Client<Stream<ClientSession, TcpStream>>),
     {
         let mut config = rustls::ClientConfig::new();
 
-        
         let root_dir = get_test_data_dir();
         let ca_cert_file = root_dir.join("ca.pem");
         let certfile = fs::File::open(ca_cert_file).expect("Cannot open CA file");
@@ -478,12 +485,12 @@ use kmip_client::Client;
   </BatchItem>
 </ResponseMessage>"#;
 
-run_e2e_xml_conversation(conv);
-}
+        run_e2e_xml_conversation(conv);
+    }
 
-#[test]
-fn e2e_test_xml_cs_bc_m_1_14() {
-    let conv = r#"
+    #[test]
+    fn e2e_test_xml_cs_bc_m_1_14() {
+        let conv = r#"
 <KMIP>
 
 <!--
@@ -671,14 +678,13 @@ fn e2e_test_xml_cs_bc_m_1_14() {
 </KMIP>
 "#;
 
-run_e2e_xml_conversation(conv);
-}
+        run_e2e_xml_conversation(conv);
+    }
 
-
-// Tests Register + Encryption
-#[test]
-fn e2e_test_xml_cs_bc_m_4_14() {
-    let conv = r#"
+    // Tests Register + Encryption
+    #[test]
+    fn e2e_test_xml_cs_bc_m_4_14() {
+        let conv = r#"
     <KMIP>
 
 <!--
@@ -861,14 +867,13 @@ fn e2e_test_xml_cs_bc_m_4_14() {
 </KMIP>
     "#;
 
-    run_e2e_xml_conversation(conv);
+        run_e2e_xml_conversation(conv);
     }
-    
 
     // Tests Register + Decryption
-#[test]
-fn e2e_test_xml_cs_bc_m_5_14() {
-    let conv = r#"
+    #[test]
+    fn e2e_test_xml_cs_bc_m_5_14() {
+        let conv = r#"
     <KMIP>
 
     <!--
@@ -1051,9 +1056,9 @@ fn e2e_test_xml_cs_bc_m_5_14() {
     </KMIP>
     "#;
 
-    run_e2e_xml_conversation(conv);
+        run_e2e_xml_conversation(conv);
     }
-    
+
     // Register + MAC
     #[test]
     fn e2e_test_xml_cs_ac_m_4_14() {
@@ -1243,9 +1248,9 @@ fn e2e_test_xml_cs_bc_m_5_14() {
     </KMIP>
     "#;
 
-    run_e2e_xml_conversation(conv);
+        run_e2e_xml_conversation(conv);
     }
-    
+
     // Register + MAC Verfiy
     #[test]
     fn e2e_test_xml_cs_ac_m_5_14() {
@@ -1437,7 +1442,6 @@ fn e2e_test_xml_cs_bc_m_5_14() {
 
     "#;
 
-    run_e2e_xml_conversation(conv);
+        run_e2e_xml_conversation(conv);
     }
-    
-  } // mod tests
+} // mod tests

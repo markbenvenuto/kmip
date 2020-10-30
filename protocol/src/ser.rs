@@ -340,7 +340,7 @@ impl EncodedWriter for NestedWriter {
             self.vec[start_pos + i] = v1[i];
         }
         self.tag = None;
-        
+
         Ok(())
     }
 
@@ -661,14 +661,12 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         println!("serializing: {:?}", name);
 
-        self.output.write_tag_enum(
-           match self.output.get_tag() {
-               Some(t) => t,
-               None => Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
+        self.output.write_tag_enum(match self.output.get_tag() {
+            Some(t) => t,
+            None => Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
                 name: name.to_owned(),
-            })?
-           }
-        )?;
+            })?,
+        })?;
 
         self.serialize_map(Some(len))
     }
@@ -1667,7 +1665,7 @@ impl<'a, W: EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSeriali
 mod tests {
     use std::rc::Rc;
 
-    use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
+    use crate::{chrono::TimeZone, EnumResolver, TTLVError, Tag};
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
@@ -1817,8 +1815,8 @@ mod tests {
         to_print(v.as_slice());
 
         let good = vec![
-            66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 107, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66, 0,
-            13, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0,
+            66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 107, 1, 0, 0, 0, 8, 66, 0, 148, 7, 0, 0, 0, 0, 66,
+            0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0, 0,
         ];
 
         assert_eq!(v.len(), 40);
