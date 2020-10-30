@@ -749,6 +749,8 @@ fn process_decrypt_request(
 
     Ok(resp)
 }
+
+
 fn process_mac_request(
     rc: &RequestContext,
     req: &MACRequest,
@@ -798,6 +800,53 @@ fn process_mac_request(
 }
 
 
+fn process_mac_verify_request(
+    rc: &RequestContext,
+    req: &MACVerifyRequest,
+) -> std::result::Result<MACVerifyResponse, KmipResponseError> {
+  
+    // let store = rc.get_server_context().get_store();
+    // let (id, mo) = store.get_managed_object(&req.unique_identifier, rc)?;
+    let id = rc.get_id_placeholder(&req.unique_identifier)?;
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(id);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+     
+    let sks = mo.get_symmetric_key()?;
+
+    let key = &sks.symmetric_key.key_block.key_value.key_material;
+
+    let mut cryptographic_algorithm: Option<CryptographicAlgorithm> = None;
+    // Default to the on disk information
+    if let Some(disk_params) = &sks.cryptographic_parameters {
+        cryptographic_algorithm = disk_params.cryptographic_algorithm;
+    }
+
+    // Defer to the passed in information
+    if let Some(params) = &req.cryptographic_parameters {
+        cryptographic_algorithm = params.cryptographic_algorithm.or(cryptographic_algorithm);
+    }
+
+    let algo = cryptographic_algorithm.ok_or(KmipResponseError::new("Algorithm is required"))?;
+  
+    // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
+    //req.iv_counter_nonce.map(|x| x.as_ref()))?;
+    let ret = crypto::hmac_verify(algo, key, &req.data, &req.mac_data)?;
+    
+
+    let resp = MACVerifyResponse {
+        unique_identifier: id.to_owned(),
+        validity_indicator: ret,
+    };
+
+    Ok(resp)
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -910,6 +959,10 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         RequestBatchItem::MAC(x) => {
             info!("Got MAC Request");
             process_mac_request(&rc, &x).map(|r| ResponseOperationEnum::MAC(r))
+        }
+        RequestBatchItem::MACVerify(x) => {
+            info!("Got MACVerify Request");
+            process_mac_verify_request(&rc, &x).map(|r| ResponseOperationEnum::MACVerify(r))
         }
         RequestBatchItem::Revoke(x) => {
             info!("Got Revoke Request");

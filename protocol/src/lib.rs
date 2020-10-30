@@ -432,6 +432,16 @@ ECDSAwithSHA512=0x00000010,
 
 
 #[derive(
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+)]
+#[repr(i32)]
+pub enum ValidityIndicator{
+    Valid = 0x00000001,
+Invalid = 0x00000002,
+Unknown = 0x00000003,
+}
+
+#[derive(
     Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy, PartialEq
 )]
 #[repr(i32)]
@@ -892,12 +902,10 @@ pub struct DecryptResponse {
     pub data: Vec<u8>,
 }
 
-
-
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct MACRequest {
+        // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
@@ -920,6 +928,34 @@ pub struct MACResponse {
 }
 
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
+pub struct MACVerifyRequest {
+        // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
+    pub cryptographic_parameters: Option<CryptographicParameters>,
+    
+    #[serde(with = "serde_bytes",rename = "Data")]
+    pub data: Vec<u8>,
+
+    #[serde(with = "serde_bytes", rename = "MACData")]
+    pub mac_data: Vec<u8>,
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename = "ResponsePayload")]
+pub struct MACVerifyResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+    
+    #[serde(rename = "ValidityIndicator")]
+    pub validity_indicator: ValidityIndicator,
+}
+
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
@@ -932,6 +968,7 @@ pub enum RequestBatchItem {
     Encrypt(EncryptRequest),
     Decrypt(DecryptRequest),
     MAC(MACRequest),
+    MACVerify(MACVerifyRequest),
     Revoke(RevokeRequest),
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
@@ -994,6 +1031,7 @@ pub enum ResponseOperationEnum {
     Encrypt(EncryptResponse),
     Decrypt(DecryptResponse),
     MAC(MACResponse),
+    MACVerify(MACVerifyResponse),
     Revoke(RevokeResponse),
     Empty,
     // TODO - add support for: Unique Batch Item ID
@@ -1091,6 +1129,9 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::MAC(_) => {
                     ser_struct.serialize_field("Operation", &Operation::MAC )?;
                 }
+                ResponseOperationEnum::MACVerify(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::MACVerify )?;
+                }
                 ResponseOperationEnum::Revoke(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Revoke )?;
                 }
@@ -1134,6 +1175,9 @@ impl Serialize for ResponseBatchItem {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::MAC(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::MACVerify(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Revoke(x) => {
@@ -1282,6 +1326,10 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                                     let c: MACResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::MAC(c))
                                 }
+                                Operation::MACVerify => {
+                                    let c: MACVerifyResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::MACVerify(c))
+                                }
                                 Operation::Revoke => {
                                     let c: RevokeResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Revoke(c))
@@ -1392,6 +1440,11 @@ impl EnumResolver for KmipEnumResolver {
                 // TODO - go from string to i32 in one pass instead of two
                 Ok(num::ToPrimitive::to_i32(&RevocationReasonCode::from_str(value).unwrap()).unwrap())
             }
+            Tag::ValidityIndicator => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32(&ValidityIndicator::from_str(value).unwrap()).unwrap())
+            }
+            
 
             _ => {
                 println!("Not implemented resolve_enum_str: {:?}", tag);
@@ -1448,6 +1501,10 @@ impl EnumResolver for KmipEnumResolver {
             }
             Tag::RevocationReasonCode => {
                 let o: RevocationReasonCode = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::ValidityIndicator => {
+                let o: ValidityIndicator = num::FromPrimitive::from_i32(value).unwrap();
                 return Ok(o.as_static().to_owned());
             }
             _ => {

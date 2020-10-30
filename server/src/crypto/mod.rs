@@ -1,4 +1,4 @@
-use protocol::{BlockCipherMode, CryptographicAlgorithm, PaddingMethod};
+use protocol::{BlockCipherMode, CryptographicAlgorithm, PaddingMethod, ValidityIndicator};
 use serde_bytes::ByteBuf;
 
 use crate::KmipResponseError;
@@ -180,6 +180,30 @@ pub fn hmac(    algo: CryptographicAlgorithm,
             // the security provided by the `Output`
             Ok(result.into_bytes().as_slice().to_vec())
             // Ok(Vec::new())
+        }
+
+        _ => Err(KmipResponseError::new(&format!("Algorithm {:?} is not supported", algo))),
+    }
+
+}
+
+
+pub fn hmac_verify(    algo: CryptographicAlgorithm,
+    key: &[u8],
+    data: &[u8],
+    mac_data: &[u8]) -> Result<ValidityIndicator, KmipResponseError>  {
+
+    match algo {
+        CryptographicAlgorithm::HMACSHA256 => {
+            // Create alias for HMAC-SHA256
+            type HmacSha256 = Hmac<Sha256>;
+            
+            // Create HMAC-SHA256 instance which implements `Mac` trait
+            let mut mac = HmacSha256::new_varkey(key)
+                .expect("HMAC can take key of any size");
+            mac.update(data);
+            
+            Ok(mac.verify(mac_data).map_or(ValidityIndicator::Invalid, |x| ValidityIndicator::Valid))
         }
 
         _ => Err(KmipResponseError::new(&format!("Algorithm {:?} is not supported", algo))),
