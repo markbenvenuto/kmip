@@ -11,20 +11,20 @@ kmip_client = {path="../kmip_client"}
 kmip_server = {path="../server"}
 protocol = {path="../protocol"}
 
-log= "0.4.11"
+log= "0.4.14"
 
-hex = "0.4.2"
+hex = "0.4.3"
 # pretty-hex = "0.1.1"
 
 # num = "0.2.0"
 # num-traits = "0.2"
 # num-derive = "0.3.0"
 
-rustls = "0.18.1"
+rustls = "0.19.0"
 
 webpki = "0.21.3"
 
-minidom = "0.12.0"
+minidom = "0.13.0"
 
 # crossbeam-channel="0.5.0"
 lazy_static = "1.4.0"
