@@ -310,6 +310,10 @@ fn merge_to_managed_attribute(
             // TODO - validate
             ma.names.push(a.clone());
         }
+        protocol::AttributesEnum::State(a) => {
+            return Err(KmipResponseError::new(
+                "Cannot set 'State' via a client request"));
+        }
         _ => {
             return Err(KmipResponseError::new(&format!(
                 "Attribute {:?} is not supported on object",
@@ -531,12 +535,82 @@ fn process_get_request(
 
     match mo.payload {
         ManagedObjectEnum::SymmetricKey(x) => {
+            resp.object_type = ObjectTypeEnum::SymmetricKey;
             resp.symmetric_key = Some(x.symmetric_key);
         }
         ManagedObjectEnum::SecretData(x) => {
+            resp.object_type = ObjectTypeEnum::SecretData;
             resp.secret_data = Some(x);
         }
     }
+
+    Ok(resp)
+}
+
+fn process_get_attributes_request(
+    rc: &RequestContext,
+    req: GetAttributesRequest,
+) -> std::result::Result<GetAttributesResponse, KmipResponseError> {
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(&req.unique_identifier);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+
+    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+
+    let attributes = if req.attribute.len()  == 0 {
+        // Get all the attributes
+        mo.attributes.get_all_attributes()
+    } else {
+        let mut attrs : Vec<AttributesEnum>  = Vec::new();
+        for name in req.attribute {
+            let ga = mo.attributes.get_attribute(&name);
+            if let Some(attr1) = ga {
+                attrs.push(attr1);
+            }
+        }
+
+        attrs
+    };
+
+
+    let mut resp = GetAttributesResponse {
+        unique_identifier : req.unique_identifier,
+        attribute : attributes,
+    };
+
+
+    Ok(resp)
+}
+
+
+fn process_get_attribute_list_request(
+    rc: &RequestContext,
+    req: GetAttributeListRequest,
+) -> std::result::Result<GetAttributeListResponse, KmipResponseError> {
+    let doc_maybe = rc
+        .get_server_context()
+        .get_store()
+        .get(&req.unique_identifier);
+    if doc_maybe.is_none() {
+        return Err(KmipResponseError::new("Thing not found"));
+    }
+    let doc = doc_maybe.unwrap();
+
+    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    let attribute_names = mo.attributes.get_attribute_list();
+
+    let mut resp = GetAttributeListResponse {
+        unique_identifier : req.unique_identifier,
+        attribute : attribute_names,
+    };
+
 
     Ok(resp)
 }
@@ -962,6 +1036,14 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         RequestBatchItem::Get(x) => {
             info!("Got Get Request");
             process_get_request(&rc, x).map(|r| ResponseOperationEnum::Get(r))
+        }
+        RequestBatchItem::GetAttributes(x) => {
+            info!("Got Get Request");
+            process_get_attributes_request(&rc, x).map(|r| ResponseOperationEnum::GetAttributes(r))
+        }
+        RequestBatchItem::GetAttributeList(x) => {
+            info!("Got Get Request");
+            process_get_attribute_list_request(&rc, x).map(|r| ResponseOperationEnum::GetAttributeList(r))
         }
         RequestBatchItem::Activate(x) => {
             info!("Got Activate Request");

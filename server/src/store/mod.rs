@@ -11,7 +11,7 @@ pub use mem::KmipMemoryStore;
 
 use option_datefmt::option_datefmt;
 
-use protocol::SymmetricKey;
+use protocol::{AttributesEnum, SymmetricKey};
 use protocol::{
     CryptographicAlgorithm, CryptographicParameters, NameStruct, ObjectStateEnum, SecretData,
 };
@@ -37,12 +37,10 @@ pub enum ManagedObjectEnum {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ManagedAttributes {
-    //    pub cryptographic_algorithm : Option<CryptographicAlgorithm>,
     // NOTE: do not serialize as an enum because of the Serialize_enum macro breaks
     // the bson serializer.
     pub cryptographic_usage_mask: Option<i32>,
 
-    // pub cryptographic_parameters: Option<CryptographicParameters>,
     pub state: ObjectStateEnum,
 
     pub names: Vec<NameStruct>,
@@ -100,6 +98,67 @@ impl ManagedAttributes {
             cryptographic_usage_mask: None,
         }
     }
+
+    // TODO - find a way to generate this function from an attribute?
+    pub fn get_attribute_list(&self) -> Vec<String> {
+        let mut attribute_names: Vec<String> = Vec::new();
+
+        attribute_names.push("State".to_owned());
+        attribute_names.push("Initial Date".to_owned());
+
+        if self.cryptographic_usage_mask.is_some() {
+            attribute_names.push("Cryptographic Usage Mask".to_owned());
+        }
+
+        if self.activation_date.is_some() {
+            attribute_names.push("Activation Date".to_owned());
+        }
+
+        if self.deactivation_date.is_some() {
+            attribute_names.push("Deactivation Date".to_owned());
+        }
+
+        if self.compromise_date.is_some() {
+            attribute_names.push("Compromise Date".to_owned());
+        }
+
+        if self.destroy_date.is_some() {
+            attribute_names.push("Destroy Date".to_owned());
+        }
+
+        attribute_names
+    }
+
+
+    pub fn get_all_attributes(&self) -> Vec<AttributesEnum> {
+        let mut attribute_names: Vec<AttributesEnum> = Vec::new();
+
+        attribute_names.push(AttributesEnum::State(self.state));
+
+        if let Some(mask)  =  self.cryptographic_usage_mask {
+            attribute_names.push(AttributesEnum::CryptographicUsageMask(mask));
+        }
+
+        if let Some(date) = self.activation_date {
+            attribute_names.push(AttributesEnum::ActivationDate(date));
+        }
+
+        attribute_names
+    }
+
+    pub fn get_attribute(&self, name: &str) -> Option<AttributesEnum> {
+
+        if name == "State" {
+            return Some(AttributesEnum::State(self.state));
+        }
+        else if name == "Activation Date"{
+            if let Some(date) = self.activation_date {
+                return Some(AttributesEnum::ActivationDate(date));
+            }
+        }
+
+        None
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -126,6 +185,7 @@ impl ManagedObject {
 ////////////////////////////////////
 
 // TODO - add helper methods for ManagedOject
+
 pub trait KmipStore {
     fn add(&self, id: &str, doc: bson::Document);
 
@@ -133,6 +193,7 @@ pub trait KmipStore {
 
     fn get(&self, id: &str) -> Option<bson::Document>;
 
+    // TODO - store ManagedObject instead of bson::Document to support Last Change Date
     fn update(&self, id: &str, doc: bson::Document);
 }
 

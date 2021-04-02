@@ -137,6 +137,8 @@ pub enum ObjectTypeEnum {
     ToPrimitive,
     AsStaticStr,
     PartialEq,
+    Clone,
+    Copy
 )]
 #[repr(i32)]
 pub enum ObjectStateEnum {
@@ -815,6 +817,9 @@ pub enum AttributesEnum {
 
     #[serde(rename = "Cryptographic Parameters")]
     CryptographicParameters(CryptographicParameters),
+
+    #[serde(rename = "State")]
+    State(ObjectStateEnum),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -906,6 +911,47 @@ pub struct GetResponse {
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "SecretData")]
     pub secret_data: Option<SecretData>,
+}
+
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
+pub struct GetAttributesRequest {
+    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+
+    #[serde(rename = "AttributeName")]
+    pub attribute: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename = "ResponsePayload")]
+pub struct GetAttributesResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+
+    #[serde(rename = "Attribute")]
+    pub attribute: Vec<AttributesEnum>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(deny_unknown_fields, rename = "RequestPayload")]
+pub struct GetAttributeListRequest {
+    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename = "ResponsePayload")]
+pub struct GetAttributeListResponse {
+    #[serde(rename = "UniqueIdentifier")]
+    pub unique_identifier: String,
+
+    #[serde(rename = "AttributeName")]
+    pub attribute: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1084,6 +1130,8 @@ pub struct MACVerifyResponse {
 pub enum RequestBatchItem {
     Create(CreateRequest),
     Get(GetRequest),
+    GetAttributes(GetAttributesRequest),
+    GetAttributeList(GetAttributeListRequest),
     Activate(ActivateRequest),
     Destroy(DestroyRequest),
     Register(RegisterRequest),
@@ -1147,6 +1195,8 @@ pub struct ResponseHeader {
 pub enum ResponseOperationEnum {
     Create(CreateResponse),
     Get(GetResponse),
+    GetAttributes(GetAttributesResponse),
+    GetAttributeList(GetAttributeListResponse),
     Activate(ActivateResponse),
     Destroy(DestroyResponse),
     Register(RegisterResponse),
@@ -1233,6 +1283,12 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Get(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Get)?;
                 }
+                ResponseOperationEnum::GetAttributes(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::GetAttributes)?;
+                }
+                ResponseOperationEnum::GetAttributeList(_) => {
+                    ser_struct.serialize_field("Operation", &Operation::GetAttributeList)?;
+                }
                 ResponseOperationEnum::Activate(_) => {
                     ser_struct.serialize_field("Operation", &Operation::Activate)?;
                 }
@@ -1279,6 +1335,12 @@ impl Serialize for ResponseBatchItem {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Get(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::GetAttributes(x) => {
+                    ser_struct.serialize_field("ResponsePayload", x)?;
+                }
+                ResponseOperationEnum::GetAttributeList(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
                 ResponseOperationEnum::Activate(x) => {
@@ -1423,6 +1485,14 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                                 Operation::Get => {
                                     let c: GetResponse = map.next_value()?;
                                     Some(ResponseOperationEnum::Get(c))
+                                }
+                                Operation::GetAttributes => {
+                                    let c: GetAttributesResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::GetAttributes(c))
+                                }
+                                Operation::GetAttributeList => {
+                                    let c: GetAttributeListResponse = map.next_value()?;
+                                    Some(ResponseOperationEnum::GetAttributeList(c))
                                 }
                                 Operation::Activate => {
                                     let c: ActivateResponse = map.next_value()?;

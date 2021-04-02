@@ -156,7 +156,7 @@ fn main() {
     let mut client = Client::create_from_stream(&mut tls);
 
     match args.cmd {
-        Command::CreateSymmetricKey { remote_path } => {
+        Command::CreateSymmetricKey { algo } => {
             let response = client.create_symmetric_key(CryptographicAlgorithm::AES, 128);
 
             println!("Response: {:#?} ", response);

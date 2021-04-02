@@ -308,7 +308,9 @@ mod tests {
 
                 resp = resp.replace("<?xml version=\"1.0\" encoding=\"utf-8\"?>", "");
                 resp = resp.replace(" />", "/>");
-                assert_eq! {resp, resps[i]};
+                let mut expected_resp = resps[i].to_owned();
+                expected_resp = expected_resp.replace(" xmlns=\"ignore\"", "");
+                assert_eq! {resp, expected_resp };
             }
         });
     }
@@ -418,7 +420,7 @@ mod tests {
       <ObjectType type="Enumeration" value="SecretData"/>
       <TemplateAttribute>
         <Attribute>
-          <AttributeName type="TextString" value="Cryptographic Usage Mask"/>       
+          <AttributeName type="TextString" value="Cryptographic Usage Mask"/>
           <AttributeValue type="Integer" value="Verify"/>
         </Attribute>
       </TemplateAttribute>
@@ -469,7 +471,7 @@ mod tests {
 <ResponseMessage>
   <ResponseHeader>
     <ProtocolVersion>
-      <ProtocolVersionMajor type="Integer" value="1"/> 
+      <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="0"/>
     </ProtocolVersion>
     <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
@@ -488,6 +490,8 @@ mod tests {
         run_e2e_xml_conversation(conv);
     }
 
+
+    // TODO - create key generates a random key and therefore this test never passes
     #[test]
     fn e2e_test_xml_cs_bc_m_1_14() {
         let conv = r#"
@@ -924,7 +928,7 @@ mod tests {
         </RequestPayload>
       </BatchItem>
     </RequestMessage>
-    
+
     <ResponseMessage>
       <ResponseHeader>
         <ProtocolVersion>
@@ -942,7 +946,7 @@ mod tests {
         </ResponsePayload>
       </BatchItem>
     </ResponseMessage>
-    
+
     <RequestMessage>
       <RequestHeader>
         <ProtocolVersion>
@@ -962,7 +966,7 @@ mod tests {
         </RequestPayload>
       </BatchItem>
     </RequestMessage>
-    
+
     <ResponseMessage>
       <ResponseHeader>
         <ProtocolVersion>
@@ -981,7 +985,7 @@ mod tests {
         </ResponsePayload>
       </BatchItem>
     </ResponseMessage>
-    
+
     <RequestMessage>
       <RequestHeader>
         <ProtocolVersion>
@@ -1000,7 +1004,7 @@ mod tests {
         </RequestPayload>
       </BatchItem>
     </RequestMessage>
-    
+
     <ResponseMessage>
       <ResponseHeader>
         <ProtocolVersion>
@@ -1018,7 +1022,7 @@ mod tests {
         </ResponsePayload>
       </BatchItem>
     </ResponseMessage>
-    
+
     <RequestMessage>
       <RequestHeader>
         <ProtocolVersion>
@@ -1034,7 +1038,7 @@ mod tests {
         </RequestPayload>
       </BatchItem>
     </RequestMessage>
-    
+
     <ResponseMessage>
       <ResponseHeader>
         <ProtocolVersion>
@@ -1052,7 +1056,7 @@ mod tests {
         </ResponsePayload>
       </BatchItem>
     </ResponseMessage>
-    
+
     </KMIP>
     "#;
 
@@ -1119,7 +1123,7 @@ mod tests {
         </RequestPayload>
       </BatchItem>
     </RequestMessage>
-    
+
     <ResponseMessage>
       <ResponseHeader>
         <ProtocolVersion>
@@ -1137,7 +1141,7 @@ mod tests {
         </ResponsePayload>
       </BatchItem>
     </ResponseMessage>
-    
+
     <RequestMessage>
       <RequestHeader>
         <ProtocolVersion>
@@ -1154,7 +1158,7 @@ mod tests {
         </RequestPayload>
       </BatchItem>
     </RequestMessage>
-    
+
     <ResponseMessage>
       <ResponseHeader>
         <ProtocolVersion>
@@ -1173,7 +1177,7 @@ mod tests {
         </ResponsePayload>
       </BatchItem>
     </ResponseMessage>
-    
+
     <RequestMessage>
       <RequestHeader>
         <ProtocolVersion>
@@ -1192,7 +1196,7 @@ mod tests {
         </RequestPayload>
       </BatchItem>
     </RequestMessage>
-    
+
     <ResponseMessage>
       <ResponseHeader>
         <ProtocolVersion>
@@ -1210,7 +1214,7 @@ mod tests {
         </ResponsePayload>
       </BatchItem>
     </ResponseMessage>
-    
+
     <RequestMessage>
       <RequestHeader>
         <ProtocolVersion>
@@ -1226,7 +1230,7 @@ mod tests {
         </RequestPayload>
       </BatchItem>
     </RequestMessage>
-    
+
     <ResponseMessage>
       <ResponseHeader>
         <ProtocolVersion>
@@ -1244,7 +1248,7 @@ mod tests {
         </ResponsePayload>
       </BatchItem>
     </ResponseMessage>
-    
+
     </KMIP>
     "#;
 
