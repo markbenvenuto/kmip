@@ -98,13 +98,13 @@ struct ServerContextInner {
 #[derive(Clone)]
 pub struct ServerContext {
     inner: Arc<Mutex<ServerContextInner>>,
-    store: Arc<dyn KmipStore + Send + Sync>,
+    store: Arc<KmipStore>,
     clock_source: Arc<dyn ClockSource + Send + Sync>,
 }
 
 impl ServerContext {
     pub fn new(
-        store: Arc<dyn KmipStore + Send + Sync>,
+        store: Arc<KmipStore>,
         clock_source: Arc<dyn ClockSource + Send + Sync>,
     ) -> ServerContext {
         ServerContext {
@@ -114,7 +114,7 @@ impl ServerContext {
         }
     }
 
-    fn get_store<'a>(&'a self) -> &'a dyn KmipStore {
+    fn get_store<'a>(&'a self) -> &'a KmipStore {
         return self.store.as_ref();
     }
 
@@ -615,8 +615,8 @@ fn process_get_attribute_list_request(
     Ok(resp)
 }
 
-fn process_activate_request(
-    rc: &RequestContext,
+fn process_activate_request<'a>(
+    rc: &'a RequestContext<'a>,
     req: ActivateRequest,
 ) -> std::result::Result<ActivateResponse, KmipResponseError> {
     let doc_maybe = rc
@@ -634,15 +634,7 @@ fn process_activate_request(
     if mo.attributes.state == ObjectStateEnum::PreActive {
         mo.attributes.state = ObjectStateEnum::Active;
 
-        let d = bson::to_bson(&mo).unwrap();
-
-        if let bson::Bson::Document(d1) = d {
-            rc.get_server_context()
-                .get_store()
-                .update(&req.unique_identifier, d1);
-        } else {
-            return Err(KmipResponseError::new("Barff"));
-        }
+        rc.get_server_context().get_store().update(&req.unique_identifier, &mo)?;
     }
 
     let resp = ActivateResponse {
@@ -652,8 +644,8 @@ fn process_activate_request(
     Ok(resp)
 }
 
-fn process_revoke_request(
-    rc: &RequestContext,
+fn process_revoke_request<'a>(
+    rc: &'a RequestContext,
     req: RevokeRequest,
 ) -> std::result::Result<RevokeResponse, KmipResponseError> {
     let doc_maybe = rc
@@ -676,15 +668,7 @@ fn process_revoke_request(
         mo.attributes.deactivation_date = Some(rc.get_server_context().get_clock_source().now());
     }
 
-    let d = bson::to_bson(&mo).unwrap();
-
-    if let bson::Bson::Document(d1) = d {
-        rc.get_server_context()
-            .get_store()
-            .update(&req.unique_identifier, d1);
-    } else {
-        return Err(KmipResponseError::new("Barff"));
-    }
+    rc.get_server_context().get_store().update(&req.unique_identifier, &mo)?;
 
     let resp = RevokeResponse {
         unique_identifier: req.unique_identifier,
@@ -693,8 +677,8 @@ fn process_revoke_request(
     Ok(resp)
 }
 
-fn process_destroy_request(
-    rc: &RequestContext,
+fn process_destroy_request<'a>(
+    rc: &'a RequestContext,
     req: DestroyRequest,
 ) -> std::result::Result<DestroyResponse, KmipResponseError> {
     let doc_maybe = rc
@@ -718,13 +702,7 @@ fn process_destroy_request(
 
         let d = bson::to_bson(&mo).unwrap();
 
-        if let bson::Bson::Document(d1) = d {
-            rc.get_server_context()
-                .get_store()
-                .update(&req.unique_identifier, d1);
-        } else {
-            return Err(KmipResponseError::new("Barff"));
-        }
+        rc.get_server_context().get_store().update(&req.unique_identifier, &mo)?;
     }
 
     let resp = DestroyResponse {
@@ -1108,7 +1086,7 @@ mod tests {
     use protocol::{KmipEnumResolver, RequestMessage};
 
     use crate::{
-        process_kmip_request, store::KmipMemoryStore, RequestContext, ServerContext,
+        process_kmip_request, store::KmipStore, RequestContext, ServerContext,
         TestClockSource,
     };
 
@@ -1173,7 +1151,7 @@ mod tests {
             0x00, 0x00,
         ];
 
-        let store = Arc::new(KmipMemoryStore::new());
+        let store = Arc::new(KmipStore::new_mem());
         let clock_source = Arc::new(TestClockSource::new());
         let server_context = ServerContext::new(store, clock_source);
 
@@ -1210,7 +1188,7 @@ mod tests {
             0x00, 0x00,
         ];
 
-        let store = Arc::new(KmipMemoryStore::new());
+        let store = Arc::new(KmipStore::new_mem());
 
         let clock_source = Arc::new(TestClockSource::new());
         let server_context = ServerContext::new(store, clock_source);

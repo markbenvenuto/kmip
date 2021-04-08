@@ -2,6 +2,8 @@ mod mem;
 mod mongodb;
 mod option_datefmt;
 
+use std::sync::Arc;
+
 use chrono::serde::ts_milliseconds;
 use chrono::Utc;
 
@@ -186,34 +188,93 @@ impl ManagedObject {
 
 // TODO - add helper methods for ManagedOject
 
-pub trait KmipStore {
+
+
+
+pub trait KmipStoreProvider {
     fn add(&self, id: &str, doc: bson::Document);
 
     fn gen_id(&self) -> String;
 
     fn get(&self, id: &str) -> Option<bson::Document>;
 
-    // TODO - store ManagedObject instead of bson::Document to support Last Change Date
-    fn update(&self, id: &str, doc: bson::Document);
+    fn update_bson(&self, id: &str, doc: bson::Document) ;
 }
 
-impl<'b> dyn KmipStore {
-    pub fn get_managed_object<'a: 'b>(
-        &self,
-        id: &Option<String>,
-        rc: &'a RequestContext,
-    ) -> std::result::Result<(String, ManagedObject), KmipResponseError> {
-        let id = rc.get_id_placeholder(id)?;
-        let doc_maybe = rc.get_server_context().get_store().get(id);
-        if doc_maybe.is_none() {
-            return Err(KmipResponseError::new("Thing not found"));
+// impl<'b> dyn KmipStore {
+
+//     // pub fn update(&self, id: &str, mo: &'static ManagedObject) {
+//         // pub fn update<'a:'b>(&self) {
+//             //-> std::result::Result<(), KmipResponseError> {
+//         // let d = bson::to_bson(&mo).unwrap();
+
+//         // if let bson::Bson::Document(d1) = d {
+//         //    self.update_bson(id, d1);
+//         // } else {
+//         //     return Err(KmipResponseError::new("Barff"));
+//         // }
+
+//         //Ok(())
+//     // }
+
+//     pub fn get_managed_object<'a: 'b>(
+//         &self,
+//         id: &Option<String>,
+//         rc: &'a RequestContext,
+//     ) -> std::result::Result<(String, ManagedObject), KmipResponseError> {
+//         let id = rc.get_id_placeholder(id)?;
+//         let doc_maybe = rc.get_server_context().get_store().get(id);
+//         if doc_maybe.is_none() {
+//             return Err(KmipResponseError::new("Thing not found"));
+//         }
+//         let doc = doc_maybe.unwrap();
+
+//         println!("BSON: {:?}", doc);
+//         let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+//         println!("MO: {:?}", mo);
+
+//         Ok((id.to_string(), mo))
+//     }
+// }
+pub struct KmipStore {
+    store: Arc<dyn KmipStoreProvider + Send + Sync> ,
+}
+
+impl KmipStore {
+    pub fn new_mem() -> KmipStore {
+        KmipStore {
+            store: Arc::new(KmipMemoryStore::new())
         }
-        let doc = doc_maybe.unwrap();
+    }
 
-        println!("BSON: {:?}", doc);
-        let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
-        println!("MO: {:?}", mo);
+    pub fn new_mongodb(uri: &str) -> KmipStore {
+        KmipStore {
+            store: Arc::new(KmipMongoDBStore::new(uri))
+        }
+    }
 
-        Ok((id.to_string(), mo))
+    pub fn add(&self, id: &str, doc: bson::Document) {
+        self.store.add(id, doc);
+    }
+
+    pub fn gen_id(&self) -> String {
+        self.store.gen_id()
+    }
+
+    pub fn get(&self, id: &str) -> Option<bson::Document> {
+        self.store.get(id)
+    }
+
+    pub fn update(&self, id: &str, mo: &ManagedObject) -> std::result::Result<(), KmipResponseError> {
+
+        let d = bson::to_bson(&mo).unwrap();
+
+        if let bson::Bson::Document(d1) = d {
+           self.store.update_bson(id, d1);
+        } else {
+            return Err(KmipResponseError::new("Barff"));
+        }
+
+        Ok(())
     }
 }

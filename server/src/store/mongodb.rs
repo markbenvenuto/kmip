@@ -4,7 +4,7 @@ use bson::Document;
 use futures::StreamExt;
 use mongodb::*;
 
-use crate::store::KmipStore;
+use crate::store::KmipStoreProvider;
 
 struct KmipMongoDBStoreInner {
     counter: i32,
@@ -38,7 +38,7 @@ impl KmipMongoDBStore {
     }
 }
 
-impl KmipStore for KmipMongoDBStore {
+impl KmipStoreProvider for KmipMongoDBStore {
     fn add(&self, _id: &str, doc: bson::Document) {
         let collection = self.make_connection();
 
@@ -78,7 +78,7 @@ impl KmipStore for KmipMongoDBStore {
         return Some(results.remove(0).unwrap());
     }
 
-    fn update(&self, id: &str, doc: bson::Document) {
+    fn update_bson(&self, id: &str, doc: bson::Document) {
         let collection = self.make_connection();
 
         let filter = doc! {

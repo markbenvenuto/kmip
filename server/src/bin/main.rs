@@ -33,8 +33,6 @@ use std::string::ToString;
 use std::thread;
 
 use kmip_server::handle_client;
-use kmip_server::store::KmipMemoryStore;
-use kmip_server::store::KmipMongoDBStore;
 use kmip_server::ServerContext;
 use kmip_server::{store::KmipStore, TestClockSource};
 
@@ -163,15 +161,15 @@ fn main() {
         .set_single_cert(server_certs, privkey)
         .expect("Failed to set certificate");
 
-    let store: Arc<dyn KmipStore + Send + Sync> = match args.store {
+    let store: Arc<KmipStore> = match args.store {
         StoreType::Memory => {
             info!("Using Memory Store");
-            Arc::new(KmipMemoryStore::new())
+            Arc::new(KmipStore::new_mem())
         }
         StoreType::MongoDB => {
             info!("Using MongoDB Store");
             let uri = "mongodb://localhost:27017/";
-            Arc::new(KmipMongoDBStore::new(uri))
+            Arc::new(KmipStore::new_mongodb(uri))
         }
     };
 

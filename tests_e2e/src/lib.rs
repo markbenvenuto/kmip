@@ -21,7 +21,7 @@ mod tests {
 
     use kmip_client::Client;
     use kmip_server::{
-        handle_client, process_kmip_request, store::KmipMemoryStore, RequestContext, ServerContext,
+        handle_client, process_kmip_request, store::KmipStore, RequestContext, ServerContext,
         TestClockSource,
     };
     use minidom::Element;
@@ -55,7 +55,7 @@ mod tests {
     fn test_10_create() {
         let clock_source = Arc::new(TestClockSource::new());
 
-        let store = Arc::new(KmipMemoryStore::new());
+        let store = Arc::new(KmipStore::new_mem());
 
         let server_context = ServerContext::new(store, clock_source);
 
@@ -139,7 +139,7 @@ mod tests {
             .set_single_cert(server_certs, privkey)
             .unwrap();
 
-        let store = Arc::new(KmipMemoryStore::new());
+        let store = Arc::new(KmipStore::new_mem());
         let clock_source = Arc::new(TestClockSource::new());
         let server_context = Arc::new(ServerContext::new(store, clock_source));
         let sc = Arc::new(server_config);

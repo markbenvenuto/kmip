@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use crate::store::KmipStore;
+use crate::store::KmipStoreProvider;
 
 struct KmipMemoryStoreInner {
     documents: HashMap<String, bson::Document>,
@@ -23,7 +23,7 @@ impl KmipMemoryStore {
     }
 }
 
-impl KmipStore for KmipMemoryStore {
+impl KmipStoreProvider for KmipMemoryStore {
     fn add(&self, id: &str, doc: bson::Document) {
         let r = self
             .inner
@@ -54,7 +54,7 @@ impl KmipStore for KmipMemoryStore {
         return None;
     }
 
-    fn update(&self, id: &str, doc: bson::Document) {
+    fn update_bson(&self, id: &str, doc: bson::Document) {
         {
             let mut lock = self.inner.lock().unwrap();
             if let Some(d) = lock.documents.get_mut(id) {
