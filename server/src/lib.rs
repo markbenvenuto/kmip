@@ -53,7 +53,6 @@ pub mod store;
 use protocol::*;
 
 use store::ManagedAttributes;
-use store::ManagedObject;
 use store::ManagedObjectEnum;
 use store::{KmipStore, SymmetricKeyStore};
 
@@ -211,6 +210,13 @@ impl Error for KmipResponseError {
         "KMIP Response error"
     }
 }
+
+impl From<bson::de::Error> for KmipResponseError {
+    fn from(e: bson::de::Error) -> Self {
+        KmipResponseError::new(&format!("BSON error: {}", e))
+    }
+}
+
 
 // fn find_one<T,S>(vec : Vec<T>) -> Option<S> {
 //     for x in vec {
@@ -515,16 +521,10 @@ fn process_get_request(
     rc: &RequestContext,
     req: GetRequest,
 ) -> std::result::Result<GetResponse, KmipResponseError> {
-    let doc_maybe = rc
+    let mo = rc
         .get_server_context()
         .get_store()
-        .get(&req.unique_identifier);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-
-    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+        .get(&req.unique_identifier)?;
 
     let mut resp = GetResponse {
         object_type: ObjectTypeEnum::SymmetricKey,
@@ -551,17 +551,10 @@ fn process_get_attributes_request(
     rc: &RequestContext,
     req: GetAttributesRequest,
 ) -> std::result::Result<GetAttributesResponse, KmipResponseError> {
-    let doc_maybe = rc
+    let mo = rc
         .get_server_context()
         .get_store()
-        .get(&req.unique_identifier);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-
-    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
-
+        .get(&req.unique_identifier)?;
 
     let attributes = if req.attribute.len()  == 0 {
         // Get all the attributes
@@ -579,11 +572,10 @@ fn process_get_attributes_request(
     };
 
 
-    let mut resp = GetAttributesResponse {
+    let resp = GetAttributesResponse {
         unique_identifier : req.unique_identifier,
         attribute : attributes,
     };
-
 
     Ok(resp)
 }
@@ -593,24 +585,17 @@ fn process_get_attribute_list_request(
     rc: &RequestContext,
     req: GetAttributeListRequest,
 ) -> std::result::Result<GetAttributeListResponse, KmipResponseError> {
-    let doc_maybe = rc
+    let mo = rc
         .get_server_context()
         .get_store()
-        .get(&req.unique_identifier);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-
-    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+        .get(&req.unique_identifier)?;
 
     let attribute_names = mo.attributes.get_attribute_list();
 
-    let mut resp = GetAttributeListResponse {
+    let resp = GetAttributeListResponse {
         unique_identifier : req.unique_identifier,
         attribute : attribute_names,
     };
-
 
     Ok(resp)
 }
@@ -619,16 +604,10 @@ fn process_activate_request<'a>(
     rc: &'a RequestContext<'a>,
     req: ActivateRequest,
 ) -> std::result::Result<ActivateResponse, KmipResponseError> {
-    let doc_maybe = rc
+    let mut mo = rc
         .get_server_context()
         .get_store()
-        .get(&req.unique_identifier);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-
-    let mut mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+        .get(&req.unique_identifier)?;
 
     // TODO - throw an error on illegal state transition??
     if mo.attributes.state == ObjectStateEnum::PreActive {
@@ -648,16 +627,10 @@ fn process_revoke_request<'a>(
     rc: &'a RequestContext,
     req: RevokeRequest,
 ) -> std::result::Result<RevokeResponse, KmipResponseError> {
-    let doc_maybe = rc
+    let mut mo = rc
         .get_server_context()
         .get_store()
-        .get(&req.unique_identifier);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-
-    let mut mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+        .get(&req.unique_identifier)?;
 
     // TODO - record revocation code and reason text
     if req.revocation_reason.revocation_reason_code == RevocationReasonCode::KeyCompromise {
@@ -681,16 +654,10 @@ fn process_destroy_request<'a>(
     rc: &'a RequestContext,
     req: DestroyRequest,
 ) -> std::result::Result<DestroyResponse, KmipResponseError> {
-    let doc_maybe = rc
+    let mut mo = rc
         .get_server_context()
         .get_store()
-        .get(&req.unique_identifier);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-
-    let mut mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+        .get(&req.unique_identifier)?;
 
     // TODO - throw an error on illegal state transition??
     if mo.attributes.state == ObjectStateEnum::PreActive
@@ -699,8 +666,6 @@ fn process_destroy_request<'a>(
         mo.attributes.state = ObjectStateEnum::Destroyed;
 
         mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());
-
-        let d = bson::to_bson(&mo).unwrap();
 
         rc.get_server_context().get_store().update(&req.unique_identifier, &mo)?;
     }
@@ -716,15 +681,12 @@ fn process_encrypt_request<'a>(
     rc: &'a RequestContext,
     req: &EncryptRequest,
 ) -> std::result::Result<EncryptResponse, KmipResponseError> {
-    // let store = rc.get_server_context().get_store();
-    // let (id, mo) = store.get_managed_object(&req.unique_identifier, rc)?;
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
-    let doc_maybe = rc.get_server_context().get_store().get(id);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    let mo = rc
+        .get_server_context()
+        .get_store()
+        .get(id)?;
 
     let sks = mo.get_symmetric_key()?;
 
@@ -781,15 +743,12 @@ fn process_decrypt_request(
     rc: &RequestContext,
     req: &DecryptRequest,
 ) -> std::result::Result<DecryptResponse, KmipResponseError> {
-    // let store = rc.get_server_context().get_store();
-    // let (id, mo) = store.get_managed_object(&req.unique_identifier, rc)?;
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
-    let doc_maybe = rc.get_server_context().get_store().get(id);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    let mo = rc
+        .get_server_context()
+        .get_store()
+        .get(id)?;
 
     let sks = mo.get_symmetric_key()?;
 
@@ -842,15 +801,12 @@ fn process_mac_request(
     rc: &RequestContext,
     req: &MACRequest,
 ) -> std::result::Result<MACResponse, KmipResponseError> {
-    // let store = rc.get_server_context().get_store();
-    // let (id, mo) = store.get_managed_object(&req.unique_identifier, rc)?;
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
-    let doc_maybe = rc.get_server_context().get_store().get(id);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    let mo = rc
+        .get_server_context()
+        .get_store()
+        .get(id)?;
 
     let sks = mo.get_symmetric_key()?;
 
@@ -885,15 +841,12 @@ fn process_mac_verify_request(
     rc: &RequestContext,
     req: &MACVerifyRequest,
 ) -> std::result::Result<MACVerifyResponse, KmipResponseError> {
-    // let store = rc.get_server_context().get_store();
-    // let (id, mo) = store.get_managed_object(&req.unique_identifier, rc)?;
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
-    let doc_maybe = rc.get_server_context().get_store().get(id);
-    if doc_maybe.is_none() {
-        return Err(KmipResponseError::new("Thing not found"));
-    }
-    let doc = doc_maybe.unwrap();
-    let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc)).unwrap();
+
+    let mo = rc
+        .get_server_context()
+        .get_store()
+        .get(id)?;
 
     let sks = mo.get_symmetric_key()?;
 
