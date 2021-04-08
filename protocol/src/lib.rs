@@ -138,7 +138,7 @@ pub enum ObjectTypeEnum {
     AsStaticStr,
     PartialEq,
     Clone,
-    Copy
+    Copy,
 )]
 #[repr(i32)]
 pub enum ObjectStateEnum {
@@ -801,7 +801,7 @@ pub enum AttributesEnum {
     #[serde(rename = "Cryptographic Algorithm")]
     // TODO - use CryptographicAlgorithm as the type but serde calls deserialize_identifier
     // and we do not have enough context to realize it is CryptographicAlgorithm, we think it is AttributeValue
-    CryptographicAlgorithm(i32),
+    CryptographicAlgorithm(CryptographicAlgorithm),
 
     #[serde(rename = "Cryptographic Length")]
     CryptographicLength(i32),
@@ -820,6 +820,14 @@ pub enum AttributesEnum {
 
     #[serde(rename = "State")]
     State(ObjectStateEnum),
+
+    // TODO - cannot be set by client
+    #[serde(with = "my_date_format", rename = "Initial Date")]
+    InitialDate(DateTime<Utc>),
+
+    // TODO - cannot be set by client
+    #[serde(with = "my_date_format", rename = "Last Change Date")]
+    LastChangeDate(DateTime<Utc>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -912,8 +920,6 @@ pub struct GetResponse {
     #[serde(skip_serializing_if = "Option::is_none", rename = "SecretData")]
     pub secret_data: Option<SecretData>,
 }
-
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
@@ -1386,7 +1392,7 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
             ResultReason,
             ResultMessage,
             ResponsePayload,
-        };
+        }
 
         impl<'de> Deserialize<'de> for Field {
             fn deserialize<D>(deserializer: D) -> std::result::Result<Field, D::Error>
@@ -1561,6 +1567,72 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
     }
 }
 
+// impl Serialize for AttributesEnum {
+//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         let mut state = serializer.serialize_struct("Attribute", 2)?;
+
+
+//         match &*self {
+//             AttributesEnum::CryptographicAlgorithm(i) => {
+//                 state.serialize_field(
+//                     "AttributeName",
+//                     &"Cryptographic Algorithm"
+//                 )?;
+//                 state.serialize_field("AttributeValue", &i)?;
+//             }
+//             AttributesEnum::CryptographicLength(i) => {
+//                 state.serialize_field(
+//                     "AttributeName",
+//                     &"Cryptographic Length"
+//                 )?;
+//                 state.serialize_field("AttributeValue", &i)?;
+//             }
+//             AttributesEnum::CryptographicUsageMask(i) => {
+//                 // TODO - serialize as mask
+//                 state.serialize_field(
+//                     "AttributeName",
+//                     &"Cryptographic Usage Mask"
+//                 )?;
+//                 state.serialize_field("AttributeValue", &i)?;
+//             }
+//             AttributesEnum::ActivationDate(date) => {
+//                 state.serialize_field(
+//                     "AttributeName",
+//                     &"Activation Date"
+//                 )?;
+//                 state.serialize_field("AttributeValue", &date)?;
+//             }
+//             AttributesEnum::Name(i) => {
+//                 state.serialize_field(
+//                     "AttributeName",
+//                     &"Name"
+//                 )?;
+//                 state.serialize_field("AttributeValue", &i)?;
+//             }
+//             AttributesEnum::CryptographicParameters(i) => {
+//                 state.serialize_field(
+//                     "AttributeName",
+//                     &"Cryptographic Parameters"
+//                 )?;
+//                 state.serialize_field("AttributeValue", &i)?;
+//             }
+//             AttributesEnum::State(i) => {
+//                 state.serialize_field(
+//                     "AttributeName",
+//                     &"State"
+//                 )?;
+//                 state.serialize_field("AttributeValue", &i)?;
+//             }
+
+//         }
+
+//         state.end()
+//     }
+// }
+
 pub struct KmipEnumResolver;
 
 impl EnumResolver for KmipEnumResolver {
@@ -1641,7 +1713,10 @@ impl EnumResolver for KmipEnumResolver {
                 // TODO - go from string to i32 in one pass instead of two
                 Ok(num::ToPrimitive::to_i32(&ValidityIndicator::from_str(value).unwrap()).unwrap())
             }
-
+            Tag::State => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_i32(&ObjectStateEnum::from_str(value).unwrap()).unwrap())
+            }
             _ => {
                 println!("Not implemented resolve_enum_str: {:?}", tag);
                 unimplemented! {}
@@ -1701,6 +1776,10 @@ impl EnumResolver for KmipEnumResolver {
             }
             Tag::ValidityIndicator => {
                 let o: ValidityIndicator = num::FromPrimitive::from_i32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::State => {
+                let o: ObjectStateEnum = num::FromPrimitive::from_i32(value).unwrap();
                 return Ok(o.as_static().to_owned());
             }
             _ => {

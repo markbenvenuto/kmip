@@ -6,7 +6,7 @@ use crate::{
     ser::{EncodedWriter, Serializer},
     EnumResolver,
 };
-use std::{rc::Rc, str};
+use std::{rc::Rc, str::{self, FromStr}};
 
 extern crate num;
 //#[macro_use]
@@ -78,17 +78,33 @@ impl EncodedWriter for NestedWriter {
 
     fn write_i32_enumeration(
         &mut self,
+        enum_name: &str,
         v: i32,
         enum_resolver: &dyn EnumResolver,
     ) -> TTLVResult<()> {
         // TODO - write as hex string or camelCase per 5.4.1.6.7
 
-        let tag = self.tag.unwrap();
+        let tag_result =
+            Tag::from_str(enum_name);
+
+        if tag_result.is_err() {
+            eprintln!("XML Serializer - could not conver tag {}", enum_name);
+
+            return Err(TTLVError::XmlError);
+        }
+        let tag = tag_result.expect("already checked");
+        // let tag = self.tag.unwrap();
+        // if( tag == Tag::AttributeValue) {
+        //     self.write_element(self.tag.unwrap().as_ref(), "Integer", &v.to_string())
+        // }
+        // else
+        {
         self.write_element(
             tag.as_ref(),
             "Enumeration",
             &enum_resolver.to_string(tag, v)?,
         )
+    }
     }
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
         self.write_element(self.tag.unwrap().as_ref(), "LongInteger", &v.to_string())

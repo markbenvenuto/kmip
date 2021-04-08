@@ -53,6 +53,7 @@ pub fn derive_serialize(input: TokenStream) -> TokenStream {
         }
     });
 
+    let enum_name = format!("my_enum|{}", ident);
     TokenStream::from(quote! {
         impl serde::Serialize for #ident {
             fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
@@ -62,7 +63,7 @@ pub fn derive_serialize(input: TokenStream) -> TokenStream {
                 let value: #repr = match *self {
                     #(#match_variants)*
                 };
-                serializer.serialize_newtype_struct("my_enum", &value)
+                serializer.serialize_newtype_struct(#enum_name, &value)
                 //serde::Serialize::serialize(&value, serializer)
             }
         }

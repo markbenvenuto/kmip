@@ -64,7 +64,7 @@ impl std::error::Error for Error {
             Error::Message(ref msg) => msg,
             Error::Eof => "unexpected end of input",
             Error::UnsupportedType => "unsupported type",
-            Error::TTLVError(ref err) => "ttlv error",
+            Error::TTLVError(ref _err) => "ttlv error",
             //format!("ttlv error: {}", err.to_string()),
             /* and so forth */
         }

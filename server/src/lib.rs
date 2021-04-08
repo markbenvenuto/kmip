@@ -253,11 +253,7 @@ fn merge_to_secret_data(
         for attr in &ta.attribute {
             match attr {
                 protocol::AttributesEnum::CryptographicAlgorithm(a) => {
-                    sd.key_block.cryptographic_algorithm = Some(
-                        num::FromPrimitive::from_i32(*a).ok_or(KmipResponseError::new(
-                            "Invalid value for CryptographicAlgorithm",
-                        ))?,
-                    );
+                    sd.key_block.cryptographic_algorithm = Some(*a);
                 }
                 protocol::AttributesEnum::CryptographicLength(a) => {
                     // TODO - validate
@@ -279,9 +275,7 @@ fn merge_to_symmetric_key(
         for attr in &ta.attribute {
             match attr {
                 protocol::AttributesEnum::CryptographicAlgorithm(a) => {
-                    sks.cryptographic_algorithm = num::FromPrimitive::from_i32(*a).ok_or(
-                        KmipResponseError::new("Invalid value for CryptographicAlgorithm"),
-                    )?;
+                    sks.cryptographic_algorithm = *a;
                 }
                 protocol::AttributesEnum::CryptographicLength(a) => {
                     // TODO - validate
@@ -562,7 +556,7 @@ fn process_get_attributes_request(
     } else {
         let mut attrs : Vec<AttributesEnum>  = Vec::new();
         for name in req.attribute {
-            let ga = mo.attributes.get_attribute(&name);
+            let ga = mo.get_attribute(&name);
             if let Some(attr1) = ga {
                 attrs.push(attr1);
             }
@@ -590,7 +584,7 @@ fn process_get_attribute_list_request(
         .get_store()
         .get(&req.unique_identifier)?;
 
-    let attribute_names = mo.attributes.get_attribute_list();
+    let attribute_names = mo.get_attribute_list();
 
     let resp = GetAttributeListResponse {
         unique_identifier : req.unique_identifier,
@@ -613,7 +607,7 @@ fn process_activate_request<'a>(
     if mo.attributes.state == ObjectStateEnum::PreActive {
         mo.attributes.state = ObjectStateEnum::Active;
 
-        rc.get_server_context().get_store().update(&req.unique_identifier, &mo)?;
+        rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
     }
 
     let resp = ActivateResponse {
@@ -641,7 +635,7 @@ fn process_revoke_request<'a>(
         mo.attributes.deactivation_date = Some(rc.get_server_context().get_clock_source().now());
     }
 
-    rc.get_server_context().get_store().update(&req.unique_identifier, &mo)?;
+    rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
 
     let resp = RevokeResponse {
         unique_identifier: req.unique_identifier,
@@ -667,7 +661,7 @@ fn process_destroy_request<'a>(
 
         mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());
 
-        rc.get_server_context().get_store().update(&req.unique_identifier, &mo)?;
+        rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
     }
 
     let resp = DestroyResponse {
@@ -1104,8 +1098,8 @@ mod tests {
             0x00, 0x00,
         ];
 
-        let store = Arc::new(KmipStore::new_mem());
         let clock_source = Arc::new(TestClockSource::new());
+        let store = Arc::new(KmipStore::new_mem(clock_source.clone()));
         let server_context = ServerContext::new(store, clock_source);
 
         let mut rc = RequestContext::new(&server_context);
@@ -1141,9 +1135,8 @@ mod tests {
             0x00, 0x00,
         ];
 
-        let store = Arc::new(KmipStore::new_mem());
-
         let clock_source = Arc::new(TestClockSource::new());
+        let store = Arc::new(KmipStore::new_mem(clock_source.clone()));
         let server_context = ServerContext::new(store, clock_source);
 
         let mut rc = RequestContext::new(&server_context);

@@ -47,10 +47,8 @@ where
         algo: CryptographicAlgorithm,
         len: i32,
     ) -> CreateResponse {
-        let algo2 = num::ToPrimitive::to_i32(&algo).unwrap();
-
         let attributes = vec![
-            AttributesEnum::CryptographicAlgorithm(algo2),
+            AttributesEnum::CryptographicAlgorithm(algo),
             AttributesEnum::CryptographicLength(len),
         ];
 

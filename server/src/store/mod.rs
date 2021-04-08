@@ -50,6 +50,9 @@ pub struct ManagedAttributes {
     #[serde(with = "ts_milliseconds")]
     pub initial_date: chrono::DateTime<Utc>,
 
+    #[serde(with = "ts_milliseconds")]
+    pub last_change_date: chrono::DateTime<Utc>,
+
     // #[serde(with = "ts_milliseconds")]
     // pub process_start_date : Option<chrono::DateTime<Utc>>,
 
@@ -72,6 +75,7 @@ pub struct ManagedAttributes {
     // // pub deactivation_date : Option<chrono::DateTime<Utc>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destroy_date: Option<chrono::DateTime<Utc>>,
+
 }
 
 // impl ManagedAttributes {
@@ -91,6 +95,7 @@ impl ManagedAttributes {
         ManagedAttributes {
             state: ObjectStateEnum::PreActive,
             initial_date: clock.now(),
+            last_change_date: clock.now(),
 
             names: Vec::new(),
             activation_date: None,
@@ -107,6 +112,7 @@ impl ManagedAttributes {
 
         attribute_names.push("State".to_owned());
         attribute_names.push("Initial Date".to_owned());
+        attribute_names.push("Last Change Date".to_owned());
 
         if self.cryptographic_usage_mask.is_some() {
             attribute_names.push("Cryptographic Usage Mask".to_owned());
@@ -132,19 +138,23 @@ impl ManagedAttributes {
     }
 
     pub fn get_all_attributes(&self) -> Vec<AttributesEnum> {
-        let mut attribute_names: Vec<AttributesEnum> = Vec::new();
+        let mut attributes: Vec<AttributesEnum> = Vec::new();
 
-        attribute_names.push(AttributesEnum::State(self.state));
+        attributes.push(AttributesEnum::State(self.state));
 
         if let Some(mask) = self.cryptographic_usage_mask {
-            attribute_names.push(AttributesEnum::CryptographicUsageMask(mask));
+            attributes.push(AttributesEnum::CryptographicUsageMask(mask));
         }
 
         if let Some(date) = self.activation_date {
-            attribute_names.push(AttributesEnum::ActivationDate(date));
+            attributes.push(AttributesEnum::ActivationDate(date));
         }
 
-        attribute_names
+
+        attributes.push(AttributesEnum::InitialDate(self.initial_date));
+        attributes.push(AttributesEnum::LastChangeDate(self.last_change_date));
+
+        attributes
     }
 
     pub fn get_attribute(&self, name: &str) -> Option<AttributesEnum> {
@@ -154,8 +164,11 @@ impl ManagedAttributes {
             if let Some(date) = self.activation_date {
                 return Some(AttributesEnum::ActivationDate(date));
             }
-        }
-
+        } else if name == "Initial Date" {
+                return Some(AttributesEnum::InitialDate(self.initial_date));
+    } else if name == "Last Change Date" {
+        return Some(AttributesEnum::LastChangeDate(self.last_change_date));
+}
         None
     }
 }
@@ -179,11 +192,66 @@ impl ManagedObject {
             _ => Err(KmipResponseError::new("Wrong stored object type")),
         }
     }
+
+    // TODO - find a way to generate this function from an attribute?
+    pub fn get_attribute_list(&self) -> Vec<String> {
+        let mut attribute_names = self.attributes.get_attribute_list();
+
+        attribute_names.push("Unique Identifier".to_owned());
+        attribute_names.push("Object Type".to_owned());
+
+        match &self.payload {
+            ManagedObjectEnum::SymmetricKey(s) => {
+                attribute_names.push("Cryptographic Parameters".to_owned());
+                attribute_names.push("Cryptographic Algorithm".to_owned());
+                attribute_names.push("Cryptographic Length".to_owned());
+            }
+            ManagedObjectEnum::SecretData(s) => {}
+        }
+
+        attribute_names
+    }
+
+    pub fn get_all_attributes(&self) -> Vec<AttributesEnum> {
+        let mut attributes = self.attributes.get_all_attributes();
+
+        match &self.payload {
+            ManagedObjectEnum::SymmetricKey(s) => {
+                // if let Some(params) = s.cryptographic_parameters {
+                //     // attributes.push(AttributesEnum::CryptographicUsageMask(params));
+                // }
+
+                // TODO - make real enum
+                // attributes.push(AttributesEnum::CryptographicAlgorithm(s.cryptographic_algorithm));
+
+                attributes.push(AttributesEnum::CryptographicLength(s.cryptographic_length));
+            }
+            ManagedObjectEnum::SecretData(s) => {}
+        }
+
+        attributes
+    }
+
+    pub fn get_attribute(&self, name: &str) -> Option<AttributesEnum> {
+        let attr = self.attributes.get_attribute(name);
+        if attr.is_some() {
+            return attr;
+        }
+
+        match &self.payload {
+            ManagedObjectEnum::SymmetricKey(s) => {
+                if name == "Cryptographic Length" {
+                    return Some(AttributesEnum::CryptographicLength(s.cryptographic_length));
+                }
+            }
+            ManagedObjectEnum::SecretData(s) => {}
+        }
+
+        None
+    }
 }
 
 ////////////////////////////////////
-
-// TODO - add helper methods for ManagedOject
 
 pub trait KmipStoreProvider {
     fn add(&self, id: &str, doc: bson::Document);
@@ -197,18 +265,21 @@ pub trait KmipStoreProvider {
 
 pub struct KmipStore {
     store: Arc<dyn KmipStoreProvider + Send + Sync>,
+    clock: Arc<dyn ClockSource + Send + Sync>,
 }
 
 impl KmipStore {
-    pub fn new_mem() -> KmipStore {
+    pub fn new_mem(clock : Arc<dyn ClockSource + Send + Sync>) -> KmipStore {
         KmipStore {
             store: Arc::new(KmipMemoryStore::new()),
+            clock : clock,
         }
     }
 
-    pub fn new_mongodb(uri: &str) -> KmipStore {
+    pub fn new_mongodb(clock : Arc<dyn ClockSource + Send + Sync>, uri: &str) -> KmipStore {
         KmipStore {
             store: Arc::new(KmipMongoDBStore::new(uri)),
+            clock : clock,
         }
     }
 
@@ -238,8 +309,11 @@ impl KmipStore {
     pub fn update(
         &self,
         id: &str,
-        mo: &ManagedObject,
+        mo: &mut ManagedObject,
     ) -> std::result::Result<(), KmipResponseError> {
+
+        mo.attributes.last_change_date = self.clock.now();
+
         let d = bson::to_bson(&mo).unwrap();
 
         if let bson::Bson::Document(d1) = d {

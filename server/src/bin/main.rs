@@ -161,19 +161,20 @@ fn main() {
         .set_single_cert(server_certs, privkey)
         .expect("Failed to set certificate");
 
+    let clock_source = Arc::new(TestClockSource::new());
+
     let store: Arc<KmipStore> = match args.store {
         StoreType::Memory => {
             info!("Using Memory Store");
-            Arc::new(KmipStore::new_mem())
+            Arc::new(KmipStore::new_mem(clock_source.clone()))
         }
         StoreType::MongoDB => {
             info!("Using MongoDB Store");
             let uri = "mongodb://localhost:27017/";
-            Arc::new(KmipStore::new_mongodb(uri))
+            Arc::new(KmipStore::new_mongodb(clock_source.clone(), uri))
         }
     };
 
-    let clock_source = Arc::new(TestClockSource::new());
     let server_context = Arc::new(ServerContext::new(store, clock_source));
     let sc = Arc::new(server_config);
 

@@ -252,7 +252,7 @@ pub trait EncodedWriter {
 
     fn write_i32(&mut self, v: i32) -> TTLVResult<()>;
 
-    fn write_i32_enumeration(&mut self, v: i32, enum_resolver: &dyn EnumResolver)
+    fn write_i32_enumeration(&mut self, enum_name: &str, v: i32, enum_resolver: &dyn EnumResolver)
         -> TTLVResult<()>;
     fn write_i64(&mut self, v: i64) -> TTLVResult<()>;
     fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()>;
@@ -350,6 +350,7 @@ impl EncodedWriter for NestedWriter {
 
     fn write_i32_enumeration(
         &mut self,
+        enum_name: &str,
         v: i32,
         _enum_resolver: &dyn EnumResolver,
     ) -> TTLVResult<()> {
@@ -572,9 +573,29 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
         if _name == "my_date" {
             let mut mydate_serializer = MyDateSerializer::new(&mut self.output);
             return value.serialize(&mut mydate_serializer);
-        } else if _name == "my_enum" {
+        } else if _name.starts_with("my_enum|") {
+            let (_, enum_name) =  _name.split_at(_name.find("|").unwrap() + 1);
+            if enum_name.ends_with("Enum") {
+                let (enum_name2, _ ) =  enum_name.split_at(enum_name.rfind("Enum").unwrap());
+
+                eprintln!("---enum2: {}", enum_name2 );
+
+                if enum_name2 == "ObjectState" {
+                    let mut myenum_serializer =
+                    MyEnumSerializer::new(&mut self.output, "State", self.enum_resolver.clone());
+                return value.serialize(&mut myenum_serializer);
+                }
+
+                let mut myenum_serializer =
+                    MyEnumSerializer::new(&mut self.output, enum_name2, self.enum_resolver.clone());
+                return value.serialize(&mut myenum_serializer);
+            }
+            eprintln!("---enum: {}", enum_name );
+
+
+
             let mut myenum_serializer =
-                MyEnumSerializer::new(&mut self.output, self.enum_resolver.clone());
+                MyEnumSerializer::new(&mut self.output, enum_name, self.enum_resolver.clone());
             return value.serialize(&mut myenum_serializer);
         }
 
@@ -1268,13 +1289,15 @@ where
 {
     output: &'a mut W,
     enum_resolver: Rc<dyn EnumResolver>,
+    enum_name : &'a str,
 }
 
 impl<'a, W: EncodedWriter> MyEnumSerializer<'a, W> {
-    pub fn new(output: &'a mut W, enum_resolver: Rc<dyn EnumResolver>) -> MyEnumSerializer<'a, W> {
+    pub fn new(output: &'a mut W, enum_name: &'a str, enum_resolver: Rc<dyn EnumResolver>) -> MyEnumSerializer<'a, W> {
         MyEnumSerializer {
             output: output,
             enum_resolver: enum_resolver,
+            enum_name : enum_name,
         }
     }
 }
@@ -1310,7 +1333,7 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut MyEnumSerializer<'a, W> {
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.output.write_optional_tag()?;
         self.output
-            .write_i32_enumeration(v, self.enum_resolver.as_ref())?;
+            .write_i32_enumeration(self.enum_name, v, self.enum_resolver.as_ref())?;
         Ok(())
     }
 
