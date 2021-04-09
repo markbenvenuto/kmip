@@ -13,7 +13,7 @@ pub use mem::KmipMemoryStore;
 
 use option_datefmt::option_datefmt;
 
-use protocol::{AttributesEnum, SymmetricKey};
+use protocol::{AttributesEnum, ObjectTypeEnum, SymmetricKey};
 use protocol::{
     CryptographicAlgorithm, CryptographicParameters, NameStruct, ObjectStateEnum, SecretData,
 };
@@ -75,7 +75,6 @@ pub struct ManagedAttributes {
     // // pub deactivation_date : Option<chrono::DateTime<Utc>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destroy_date: Option<chrono::DateTime<Utc>>,
-
 }
 
 // impl ManagedAttributes {
@@ -150,7 +149,6 @@ impl ManagedAttributes {
             attributes.push(AttributesEnum::ActivationDate(date));
         }
 
-
         attributes.push(AttributesEnum::InitialDate(self.initial_date));
         attributes.push(AttributesEnum::LastChangeDate(self.last_change_date));
 
@@ -165,10 +163,15 @@ impl ManagedAttributes {
                 return Some(AttributesEnum::ActivationDate(date));
             }
         } else if name == "Initial Date" {
-                return Some(AttributesEnum::InitialDate(self.initial_date));
-    } else if name == "Last Change Date" {
-        return Some(AttributesEnum::LastChangeDate(self.last_change_date));
-}
+            return Some(AttributesEnum::InitialDate(self.initial_date));
+        } else if name == "Last Change Date" {
+            return Some(AttributesEnum::LastChangeDate(self.last_change_date));
+        } else if name == "Cryptographic Usage Mask" {
+            if let Some(m) = self.cryptographic_usage_mask {
+            return Some(AttributesEnum::CryptographicUsageMask(m));
+            }
+        }
+
         None
     }
 }
@@ -215,18 +218,24 @@ impl ManagedObject {
     pub fn get_all_attributes(&self) -> Vec<AttributesEnum> {
         let mut attributes = self.attributes.get_all_attributes();
 
+        attributes.push(AttributesEnum::UniqueIdentifier(self.id.clone()));
+
         match &self.payload {
             ManagedObjectEnum::SymmetricKey(s) => {
                 // if let Some(params) = s.cryptographic_parameters {
                 //     // attributes.push(AttributesEnum::CryptographicUsageMask(params));
                 // }
 
-                // TODO - make real enum
-                // attributes.push(AttributesEnum::CryptographicAlgorithm(s.cryptographic_algorithm));
+                attributes.push(AttributesEnum::CryptographicAlgorithm(s.cryptographic_algorithm));
 
                 attributes.push(AttributesEnum::CryptographicLength(s.cryptographic_length));
+
+                attributes.push(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
             }
-            ManagedObjectEnum::SecretData(s) => {}
+            ManagedObjectEnum::SecretData(s) => {
+                attributes.push(AttributesEnum::ObjectType(ObjectTypeEnum::SecretData));
+
+            }
         }
 
         attributes
@@ -238,13 +247,26 @@ impl ManagedObject {
             return attr;
         }
 
+        if name == "Unique Identifier" {
+            return Some(AttributesEnum::UniqueIdentifier(self.id.clone()));
+        }
+
         match &self.payload {
             ManagedObjectEnum::SymmetricKey(s) => {
                 if name == "Cryptographic Length" {
                     return Some(AttributesEnum::CryptographicLength(s.cryptographic_length));
+                } else if name == "Cryptographic Algorithm" {
+                    return Some(AttributesEnum::CryptographicAlgorithm(s.cryptographic_algorithm));
+                } else if name == "Object Type" {
+                    return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
                 }
             }
-            ManagedObjectEnum::SecretData(s) => {}
+            ManagedObjectEnum::SecretData(s) => {
+           if name == "Object Type" {
+                return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
+            }
+
+            }
         }
 
         None
@@ -269,17 +291,17 @@ pub struct KmipStore {
 }
 
 impl KmipStore {
-    pub fn new_mem(clock : Arc<dyn ClockSource + Send + Sync>) -> KmipStore {
+    pub fn new_mem(clock: Arc<dyn ClockSource + Send + Sync>) -> KmipStore {
         KmipStore {
             store: Arc::new(KmipMemoryStore::new()),
-            clock : clock,
+            clock: clock,
         }
     }
 
-    pub fn new_mongodb(clock : Arc<dyn ClockSource + Send + Sync>, uri: &str) -> KmipStore {
+    pub fn new_mongodb(clock: Arc<dyn ClockSource + Send + Sync>, uri: &str) -> KmipStore {
         KmipStore {
             store: Arc::new(KmipMongoDBStore::new(uri)),
-            clock : clock,
+            clock: clock,
         }
     }
 
@@ -311,7 +333,6 @@ impl KmipStore {
         id: &str,
         mo: &mut ManagedObject,
     ) -> std::result::Result<(), KmipResponseError> {
-
         mo.attributes.last_change_date = self.clock.now();
 
         let d = bson::to_bson(&mo).unwrap();

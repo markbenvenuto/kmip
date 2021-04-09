@@ -680,14 +680,18 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        println!("serializing: {:?}", name);
-
-        self.output.write_tag_enum(match self.output.get_tag() {
+        let t = match self.output.get_tag() {
             Some(t) => t,
             None => Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
                 name: name.to_owned(),
             })?,
-        })?;
+        };
+        // let t =  Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
+        //         name: name.to_owned() } )?;
+
+        println!("serializing: {:?} - {:?}", name, t);
+
+        self.output.write_tag_enum(t)?;
 
         self.serialize_map(Some(len))
     }

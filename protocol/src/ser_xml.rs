@@ -1,6 +1,7 @@
 use serde::Serialize;
+use strum::AsStaticRef;
 
-use crate::chrono::TimeZone;
+use crate::{CryptographicUsageMask, chrono::TimeZone};
 use crate::{
     error::Result,
     ser::{EncodedWriter, Serializer},
@@ -73,7 +74,30 @@ impl EncodedWriter for NestedWriter {
     fn write_i32(&mut self, v: i32) -> TTLVResult<()> {
         // TODO special case masks - 5.4.1.6.4 Integer - Special case for Masks
         //  (Cryptographic Usage Mask, Storage Status Mask):
-        self.write_element(self.tag.unwrap().as_ref(), "Integer", &v.to_string())
+
+        let tag = self.tag.unwrap();
+
+        // TODO - cannot make this work until change CryptographicUsageMask to stop being an i32
+        if tag == Tag::CryptographicUsageMask {
+            let mut buffer = String::new();
+
+            let max_bit = f32::log2(CryptographicUsageMask::TranslateUnwrap as usize as f32) as usize;
+            for i in 0..max_bit {
+                let bit : i32  = 1 << i;
+                if (v & bit) == 1 {
+                    if buffer.is_empty() {
+                        buffer.push(' ');
+                    }
+                    let o : CryptographicUsageMask = num::FromPrimitive::from_i32(bit).unwrap();
+                    let s = o.as_static();
+                    buffer.push_str(s);
+                }
+            }
+
+            return self.write_element(tag.as_ref(), "Integer", &buffer);
+        }
+
+        self.write_element(tag.as_ref(), "Integer", &v.to_string())
     }
 
     fn write_i32_enumeration(
@@ -92,23 +116,21 @@ impl EncodedWriter for NestedWriter {
 
             return Err(TTLVError::XmlError);
         }
-        let tag = tag_result.expect("already checked");
-        // let tag = self.tag.unwrap();
-        // if( tag == Tag::AttributeValue) {
-        //     self.write_element(self.tag.unwrap().as_ref(), "Integer", &v.to_string())
-        // }
-        // else
-        {
+
+        let enum_tag = tag_result.expect("already checked");
+
+        let element_tag = self.tag.unwrap();
         self.write_element(
-            tag.as_ref(),
+            element_tag.as_ref(),
             "Enumeration",
-            &enum_resolver.to_string(tag, v)?,
+            &enum_resolver.to_string(enum_tag, v)?,
         )
     }
-    }
+
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
         self.write_element(self.tag.unwrap().as_ref(), "LongInteger", &v.to_string())
     }
+
     fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()> {
         // TODO - to_rfc3339 can panic if the datetime is bad
         let dt = chrono::Utc.timestamp(v, 0);
@@ -127,6 +149,8 @@ impl EncodedWriter for NestedWriter {
         // This starts a struct
         // TODO - omit type as it is the default
         // self.writer.write( XmlEvent::start_element(t.as_ref()).attr("type", "Structure")).map_err(|_| TTLVError::XmlError)
+        self.tag = None;
+
         self.writer
             .write(XmlEvent::start_element(t.as_ref()))
             .map_err(|_| TTLVError::XmlError)
@@ -137,47 +161,20 @@ impl EncodedWriter for NestedWriter {
     }
 
     fn begin_inner(&mut self) -> TTLVResult<()> {
-        //println!("write_innter");
-        // let pos = self.vec.len();
-        // self.vec
-        //     .write_u32::<BigEndian>(0)
-        //     .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
-        // self.start_positions.push(pos);
-        // self.writer
-        //     .write(XmlEvent::start_element("foo").attr("type", "Structure"))
-        //     .map_err(|_| TTLVError::XmlError)
-        //self.writer.write( XmlEvent::start_element(self.tag.unwrap().as_ref()).attr("type", "Structure")).map_err(|_| TTLVError::XmlError)
+        self.tag = None;
+
         Ok(())
     }
 
     fn close_inner(&mut self) -> TTLVResult<()> {
-        // let current_pos = self.vec.len();
-        // let start_pos = self.start_positions.pop().unwrap();
-        // // offset by 4
-        // let len = current_pos - start_pos - 4;
+        self.tag = None;
 
-        // let mut v1: Vec<u8> = Vec::new();
-        // v1.write_u32::<BigEndian>(len as u32)
-        //     .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
-
-        // for i in 0..4 {
-        //     self.vec[start_pos + i] = v1[i];
-        // }
         self.writer
             .write(XmlEvent::end_element())
             .map_err(|_| TTLVError::XmlError)
+
     }
 }
-
-// impl Write for NestedWriter {
-//     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-//         return self.vec.write(buf);
-//     }
-
-//     fn flush(&mut self) -> std::io::Result<()> {
-//         return Ok(());
-//     }
-// }
 
 // By convention, the public API of a Serde serializer is one or more `to_abc`
 // functions such as `to_string`, `to_bytes`, or `to_writer` depending on what

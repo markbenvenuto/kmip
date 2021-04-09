@@ -113,7 +113,7 @@ pub enum Operation {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr,
+    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
 )]
 #[repr(i32)]
 pub enum ObjectTypeEnum {
@@ -828,7 +828,16 @@ pub enum AttributesEnum {
     // TODO - cannot be set by client
     #[serde(with = "my_date_format", rename = "Last Change Date")]
     LastChangeDate(DateTime<Utc>),
-}
+
+    // TODO - cannot be set by client
+    #[serde(rename = "Object Type")]
+    ObjectType(ObjectTypeEnum),
+
+
+    // TODO - cannot be set by client
+    #[serde(rename = "Unique Identifier")]
+    UniqueIdentifier(String),
+    }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
