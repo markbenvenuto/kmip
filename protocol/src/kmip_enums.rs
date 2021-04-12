@@ -287,7 +287,7 @@ pub enum Tag {
     CertificateSubjectCN = 0x420108,
     CertificateSubjectO = 0x420109,
     CertificateSubjectOU = 0x42010A,
-    CertificateSubjectEmail = 0x42010B,
+CertificateSubjectEmail = 0x42010B,
     CertificateSubjectC = 0x42010C,
     CertificateSubjectST = 0x42010D,
     CertificateSubjectL = 0x42010E,

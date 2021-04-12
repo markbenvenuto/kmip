@@ -11,6 +11,7 @@ extern crate env_logger;
 extern crate log;
 use log::info;
 use serde_bytes::ByteBuf;
+use strum::AsStaticRef;
 
 #[macro_use]
 extern crate serde_derive;
@@ -188,19 +189,28 @@ impl<'a> RequestContext<'a> {
 #[derive(Debug)]
 pub struct KmipResponseError {
     msg: String,
+    reason: ResultReason,
 }
 
 impl KmipResponseError {
     fn new(msg: &str) -> KmipResponseError {
         KmipResponseError {
             msg: msg.to_owned(),
+            reason: ResultReason::GeneralFailure,
+        }
+    }
+
+    fn new_reason(reason: ResultReason, msg: &str) -> KmipResponseError {
+        KmipResponseError {
+            msg: msg.to_owned(),
+            reason: reason,
         }
     }
 }
 
 impl fmt::Display for KmipResponseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "KMIP Response error: {}", self.msg)
+        write!(f, "KMIP Response error ({}), : {}", self.reason.as_static(), self.msg)
     }
 }
 
@@ -214,6 +224,10 @@ impl From<bson::de::Error> for KmipResponseError {
     fn from(e: bson::de::Error) -> Self {
         KmipResponseError::new(&format!("BSON error: {}", e))
     }
+}
+
+fn create_permission_denied() -> KmipResponseError {
+    KmipResponseError::new_reason(ResultReason::PermissionDenied, "DENIED")
 }
 
 
@@ -680,10 +694,7 @@ fn process_destroy_request<'a>(
 
         rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
     } else {
-        throw error
-        <ResultStatus type="Enumeration" value="OperationFailed"/>
-        <ResultReason type="Enumeration" value="PermissionDenied"/>
-        <ResultMessage type="TextString" value="DENIED"/>
+        return Err(create_permission_denied());
     }
 
     let resp = DestroyResponse {
@@ -913,7 +924,7 @@ fn create_ok_response(
             result_reason: Some(protocol::ResultReason::GeneralFailure),
             result_message: None,
             response_payload: Some(op),
-            // ResponseOperation: None,
+            result_response_enum : None,
         },
     };
 
@@ -921,7 +932,8 @@ fn create_ok_response(
 }
 
 fn create_error_response(
-    msg: Option<String>,
+    e: &KmipResponseError,
+    request_operation: Operation,
     clock_source: &dyn ClockSource,
 ) -> protocol::ResponseMessage {
     let r = protocol::ResponseMessage {
@@ -936,10 +948,10 @@ fn create_error_response(
         batch_item: protocol::ResponseBatchItem {
             //Operation: None,
             result_status: protocol::ResultStatus::OperationFailed,
-            result_reason: Some(protocol::ResultReason::GeneralFailure),
-            result_message: msg,
+            result_reason: Some(e.reason),
+            result_message: Some(e.msg.to_owned()),
             response_payload: None,
-            // ResponseOperation: None,
+            result_response_enum : Some(request_operation)
         },
     };
 
@@ -970,6 +982,8 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
             .protocol_version
             .protocol_version_minor
     );
+
+    let request_operation = get_operation_for_request(&request.batch_item);
 
     let result = match request.batch_item {
         RequestBatchItem::Create(x) => {
@@ -1027,8 +1041,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
             create_ok_response(t, rc.get_server_context().get_clock_source())
         }
         std::result::Result::Err(e) => {
-            let msg = format!("error: {}", e);
-            create_error_response(Some(msg), rc.get_server_context().get_clock_source())
+            create_error_response(&e, request_operation, rc.get_server_context().get_clock_source())
         }
     };
 

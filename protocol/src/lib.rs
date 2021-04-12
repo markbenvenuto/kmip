@@ -565,7 +565,7 @@ pub enum ResultStatus {
     OperationUndone = 0x00000003,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, Copy, Clone)]
 #[repr(i32)]
 pub enum ResultReason {
     ItemNotFound = 0x00000001,
@@ -1204,7 +1204,6 @@ pub struct ResponseHeader {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-//#[serde(tag = "Operation", content = "RequestPayload")]
 pub enum ResponseOperationEnum {
     Create(CreateResponse),
     Get(GetResponse),
@@ -1218,26 +1217,21 @@ pub enum ResponseOperationEnum {
     MAC(MACResponse),
     MACVerify(MACVerifyResponse),
     Revoke(RevokeResponse),
-    Empty,
     // TODO - add support for: Unique Batch Item ID
 }
 
-// TODO - remove Deserialize
 #[derive(Debug)]
-//#[serde(rename = "BatchItem")]
 pub struct ResponseBatchItem {
-    //Operation: Option<String>,
-    //#[serde(rename = "ResultStatus")]
     pub result_status: ResultStatus,
 
-    //#[serde(rename = "ResultReason")]
     pub result_reason: Option<ResultReason>,
 
-    //#[serde(rename = "ResultMessage")]
     pub result_message: Option<String>,
 
-    //#[serde(rename = "ResponsePayload")]
     pub response_payload: Option<ResponseOperationEnum>,
+
+    // Hack for error messages - we must specify an operation type but it is not a full enum
+    pub result_response_enum: Option<Operation>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1249,6 +1243,40 @@ pub struct ResponseMessage {
     pub batch_item: ResponseBatchItem,
 }
 
+pub fn get_operation_for_request(item: &RequestBatchItem) -> Operation {
+    match item {
+        RequestBatchItem::Create(_) => Operation::Create,
+        RequestBatchItem::Get(_) => Operation::Get,
+        RequestBatchItem::GetAttributes(_) => Operation::GetAttributes,
+        RequestBatchItem::GetAttributeList(_) => Operation::GetAttributeList,
+        RequestBatchItem::Activate(_) => Operation::Activate,
+        RequestBatchItem::Destroy(_) => Operation::Destroy,
+        RequestBatchItem::Register(_) => Operation::Register,
+        RequestBatchItem::Encrypt(_) => Operation::Encrypt,
+        RequestBatchItem::Decrypt(_) => Operation::Decrypt,
+        RequestBatchItem::MAC(_) => Operation::MAC,
+        RequestBatchItem::MACVerify(_) => Operation::MACVerify,
+        RequestBatchItem::Revoke(_) => Operation::Revoke,
+    }
+}
+
+pub fn get_operation_for_response(item: &ResponseOperationEnum) -> Operation {
+    match item {
+        ResponseOperationEnum::Create(_) => Operation::Create,
+        ResponseOperationEnum::Get(_) => Operation::Get,
+        ResponseOperationEnum::GetAttributes(_) => Operation::GetAttributes,
+        ResponseOperationEnum::GetAttributeList(_) => Operation::GetAttributeList,
+        ResponseOperationEnum::Activate(_) => Operation::Activate,
+        ResponseOperationEnum::Destroy(_) => Operation::Destroy,
+        ResponseOperationEnum::Register(_) => Operation::Register,
+        ResponseOperationEnum::Encrypt(_) => Operation::Encrypt,
+        ResponseOperationEnum::Decrypt(_) => Operation::Decrypt,
+        ResponseOperationEnum::MAC(_) => Operation::MAC,
+        ResponseOperationEnum::MACVerify(_) => Operation::MACVerify,
+        ResponseOperationEnum::Revoke(_) => Operation::Revoke,
+    }
+}
+
 impl Serialize for ResponseBatchItem {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
@@ -1257,16 +1285,19 @@ impl Serialize for ResponseBatchItem {
         let mut field_count = 1;
         let mut serialize_reason = false;
         let mut serialize_operation = false;
+        let mut serialize_operation_enum = false;
         let mut serialize_message = false;
 
         if self.result_status == ResultStatus::OperationFailed {
-            field_count += 1;
+            field_count += 2;
             serialize_reason = true;
+            serialize_operation_enum = true;
 
             if self.result_message.is_some() {
                 field_count += 1;
                 serialize_message = true;
             }
+
         }
 
         //         if self.Operation.is_some() {
@@ -1288,47 +1319,15 @@ impl Serialize for ResponseBatchItem {
         // }
 
         if serialize_operation {
-            // TODO - use a macro to derive this stuff
-            match self.response_payload.as_ref().unwrap() {
-                ResponseOperationEnum::Create(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Create)?;
-                }
-                ResponseOperationEnum::Get(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Get)?;
-                }
-                ResponseOperationEnum::GetAttributes(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::GetAttributes)?;
-                }
-                ResponseOperationEnum::GetAttributeList(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::GetAttributeList)?;
-                }
-                ResponseOperationEnum::Activate(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Activate)?;
-                }
-                ResponseOperationEnum::Destroy(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Destroy)?;
-                }
-                ResponseOperationEnum::Register(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Register)?;
-                }
-                ResponseOperationEnum::Encrypt(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Encrypt)?;
-                }
-                ResponseOperationEnum::Decrypt(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Decrypt)?;
-                }
-                ResponseOperationEnum::MAC(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::MAC)?;
-                }
-                ResponseOperationEnum::MACVerify(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::MACVerify)?;
-                }
-                ResponseOperationEnum::Revoke(_) => {
-                    ser_struct.serialize_field("Operation", &Operation::Revoke)?;
-                }
-                ResponseOperationEnum::Empty => unimplemented!(),
-            }
+            let op = get_operation_for_response(self.response_payload.as_ref().unwrap());
+            ser_struct.serialize_field("Operation", &op)?;
         }
+
+
+        if serialize_operation_enum {
+            ser_struct.serialize_field("Operation", &self.result_response_enum.as_ref().unwrap())?;
+        }
+
 
         ser_struct.serialize_field("ResultStatus", &self.result_status)?;
 
@@ -1380,7 +1379,6 @@ impl Serialize for ResponseBatchItem {
                 ResponseOperationEnum::Revoke(x) => {
                     ser_struct.serialize_field("ResponsePayload", x)?;
                 }
-                ResponseOperationEnum::Empty => unimplemented!(),
             }
         }
 
@@ -1547,7 +1545,7 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                     }
                 }
 
-                let _operation =
+                let operation =
                     operation.ok_or_else(|| serde::de::Error::missing_field("Operation"))?;
                 let result_status =
                     result_status.ok_or_else(|| serde::de::Error::missing_field("ResultStatus"))?;
@@ -1559,6 +1557,7 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                     result_reason,
                     result_message,
                     response_payload,
+                    result_response_enum: Some(operation),
                 })
             }
         }
@@ -1747,6 +1746,11 @@ impl EnumResolver for KmipEnumResolver {
             }
             Tag::ResultStatus => {
                 let o: ResultStatus = num::FromPrimitive::from_i32(value).unwrap();
+                return
+                Ok(o.as_static().to_owned());
+            }
+            Tag::ResultReason => {
+                let o: ResultReason = num::FromPrimitive::from_i32(value).unwrap();
                 return Ok(o.as_static().to_owned());
             }
             Tag::NameType => {
@@ -1789,6 +1793,7 @@ impl EnumResolver for KmipEnumResolver {
                 let o: ObjectStateEnum = num::FromPrimitive::from_i32(value).unwrap();
                 return Ok(o.as_static().to_owned());
             }
+
             _ => {
                 println!("Not implemented to_string: {:?}", tag);
                 unimplemented! {}

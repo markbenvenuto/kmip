@@ -1672,7 +1672,7 @@ mod tests {
         run_e2e_xml_conversation(conv);
     }
 
-        // Create + GetAttributes
+        // Create + Destroy + Revoke
     //  https://docs.oasis-open.org/kmip/profiles/v1.4/os/test-cases/kmip-v1.4/mandatory/SKLC-M-2-14.xml
     #[test]
     fn e2e_test_xml_sklc_m_2_14() {
