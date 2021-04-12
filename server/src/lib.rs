@@ -684,9 +684,10 @@ fn process_destroy_request<'a>(
         .get_store()
         .get(&req.unique_identifier)?;
 
-    // TODO - throw an error on illegal state transition??
+    // Compromised is not documented as as source state but it is required in SKLC-M-2-14
     if mo.attributes.state == ObjectStateEnum::PreActive
-        || mo.attributes.state == ObjectStateEnum::Deactivated
+    || mo.attributes.state == ObjectStateEnum::Deactivated
+    || mo.attributes.state == ObjectStateEnum::Compromised
     {
         mo.attributes.state = ObjectStateEnum::Destroyed;
 

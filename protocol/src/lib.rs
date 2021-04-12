@@ -14,7 +14,7 @@ extern crate strum_macros;
 use serde_bytes::ByteBuf;
 use serde_enum::{Deserialize_enum, Serialize_enum};
 
-use chrono::DateTime;
+use chrono::{DateTime, NaiveDateTime};
 use chrono::Utc;
 use std::fmt;
 use std::io::{Cursor, Read};
@@ -982,7 +982,7 @@ pub struct ActivateResponse {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 pub struct RevokeRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
@@ -991,11 +991,14 @@ pub struct RevokeRequest {
 
     #[serde(rename = "RevocationReason")]
     pub revocation_reason: RevocationReason,
+
     // TODO - the option datetime is messing with Serde
     // Serde thinks the field is required for deserialization even thought it is not
     // ByteBuf works - so look into how it work
-    // #[serde(skip_serializing_if = "Option::is_none", with = "my_opt_date_format", rename = "CompromiseOccurrenceDate")]
-    // pub compromise_occurrence_date: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none", with = "my_opt_date_format", rename = "CompromiseOccurrenceDate")]
+    pub compromise_occurrence_date: Option<DateTime<Utc>>,
+    // #[serde(skip_serializing_if = "Option::is_none", rename = "CompromiseOccurrenceDate")]
+    // pub compromise_occurrence_date: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1572,6 +1575,124 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
         deserializer.deserialize_struct("ResponseBatchItem", FIELDS, ResponseBatchItemVisitor)
     }
 }
+
+
+
+impl<'de> Deserialize<'de> for RevokeRequest {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        enum Field {
+            UniqueIdentifier,
+            RevocationReason,
+            CompromiseOccurrenceDate,
+        }
+
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<Field, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("revoke request")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<Field, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        info!("VISITING: {:?}", value);
+                        // TODO - include
+                        match value {
+                            "UniqueIdentifier" => Ok(Field::UniqueIdentifier),
+                            "RevocationReason" => Ok(Field::RevocationReason),
+                            "CompromiseOccurrenceDate" => Ok(Field::CompromiseOccurrenceDate),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
+
+        struct RevokeRequestVisitor;
+
+        impl<'de> Visitor<'de> for RevokeRequestVisitor {
+            type Value = RevokeRequest;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct RevokeRequest")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> std::result::Result<RevokeRequest, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+
+                let mut unique_identifier : Option<String> = None;
+                let mut revocation_reason : Option<RevocationReason> = None;
+                let mut compromise_occurrence_date : Option<DateTime<Utc>> = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::UniqueIdentifier => {
+                            if unique_identifier.is_some() {
+                                return Err(serde::de::Error::duplicate_field("UniqueIdentifier"));
+                            }
+                            unique_identifier = Some(map.next_value()?);
+                        }
+                        Field::RevocationReason => {
+                            if revocation_reason.is_some() {
+                                return Err(serde::de::Error::duplicate_field("RevocationReason"));
+                            }
+                            revocation_reason = Some(map.next_value()?);
+                        }
+                        Field::CompromiseOccurrenceDate => {
+                            if compromise_occurrence_date.is_some() {
+                                return Err(serde::de::Error::duplicate_field("CompromiseOccurrenceDate"));
+                            }
+                            let a1 : i64 = map.next_value()?;
+
+                            compromise_occurrence_date = Some(chrono::DateTime::<Utc>::from_utc(
+                                NaiveDateTime::from_timestamp(a1, 0),
+                                Utc,
+                            ));
+                            // compromise_occurrence_date = Some(map.next_value::<my_date_format>::deserialize()?);
+                        }
+                    }
+                }
+
+                let unique_identifier =
+                    unique_identifier.ok_or_else(|| serde::de::Error::missing_field("UniqueIdentifier"))?;
+                let revocation_reason =
+                    revocation_reason.ok_or_else(|| serde::de::Error::missing_field("RevocationReason"))?;
+
+                // TODO check for reason and message per KMIP rules
+
+                Ok(RevokeRequest {
+                    unique_identifier,
+                    revocation_reason,
+                    compromise_occurrence_date,
+                })
+            }
+        }
+
+        const FIELDS: &[&str] = &[
+            "UniqueIdentifier",
+            "RevocationReason",
+            "CompromiseOccurrenceDate",
+        ];
+        deserializer.deserialize_struct("RevokeRequest", FIELDS, RevokeRequestVisitor)
+    }
+}
+
 
 // impl Serialize for AttributesEnum {
 //     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>

@@ -916,7 +916,7 @@ mod tests {
       <RequestHeader>
         <ProtocolVersion>
           <ProtocolVersionMajor type="Integer" value="1"/>
-          <ProtocolVersionMinor type="Integer" value="4"/>
+        <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
         <BatchCount type="Integer" value="1"/>
       </RequestHeader>
