@@ -16,7 +16,6 @@ extern crate num_traits;
 extern crate byteorder;
 use byteorder::{BigEndian, ReadBytesExt};
 use pretty_hex::*;
-//use self::enums;
 
 use crate::kmip_enums::*;
 
@@ -30,7 +29,7 @@ fn compute_padding(len: usize) -> usize {
     }
 
     let padding = 8 - (len % 8);
-    return len + padding;
+    len + padding
 }
 
 pub fn read_tag(reader: &mut dyn Read) -> TTLVResult<u32> {
@@ -47,7 +46,7 @@ pub fn read_tag(reader: &mut dyn Read) -> TTLVResult<u32> {
         .read_u16::<BigEndian>()
         .map_err(|error| TTLVError::BadRead { count: 2, error })?;
 
-    return Ok(0x420000 + tag as u32);
+    Ok(0x420000 + tag as u32)
 }
 
 fn read_tag_enum(reader: &mut dyn Read) -> TTLVResult<Tag> {
@@ -82,12 +81,12 @@ pub fn read_type(reader: &mut dyn Read) -> TTLVResult<ItemType> {
 fn check_type_len(actual: u32, expected: u32) -> TTLVResult<()> {
     if actual != expected {
         return Err(TTLVError::InvalidTypeLength {
-            actual: actual,
-            expected: expected,
+            actual,
+            expected,
         });
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
@@ -105,7 +104,7 @@ fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
         .map_err(|error| TTLVError::BadRead { count: 4, error })?;
 
     //println!("Read i32: {:?}", v);
-    return Ok(v);
+    Ok(v)
 }
 
 fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
@@ -123,7 +122,7 @@ fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
         .map_err(|error| TTLVError::BadRead { count: 1, error })?;
 
     //println!("Read i32: {:?}", v);
-    return Ok(v);
+    Ok(v)
 }
 
 fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
@@ -134,7 +133,7 @@ fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
         .read_i64::<BigEndian>()
         .map_err(|error| TTLVError::BadRead { count: 1, error })?;
     //println!("Read i64: {:?}", v);
-    return Ok(v);
+    Ok(v)
 }
 
 fn read_datetime_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
@@ -145,7 +144,7 @@ fn read_datetime_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
         .read_i64::<BigEndian>()
         .map_err(|error| TTLVError::BadRead { count: 1, error })?;
     //println!("Read DateTime: {:?}", v);
-    return Ok(v);
+    Ok(v)
 }
 
 fn read_string(reader: &mut dyn Read) -> TTLVResult<String> {
@@ -172,7 +171,7 @@ fn read_string(reader: &mut dyn Read) -> TTLVResult<String> {
 
     //println!("Read string: {:?}", s);
 
-    return Ok(s);
+    Ok(s)
 }
 
 fn read_bytes(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
@@ -195,7 +194,7 @@ fn read_bytes(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
 
     v.resize(len as usize, 0);
 
-    return Ok(v);
+    Ok(v)
 }
 
 pub fn read_struct(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
@@ -211,7 +210,7 @@ pub fn read_struct(reader: &mut dyn Read) -> TTLVResult<Vec<u8>> {
             error,
         })?;
 
-    return Ok(v);
+    Ok(v)
 }
 
 /////////////////////////////
@@ -221,7 +220,7 @@ struct IndentPrinter {
 
 impl IndentPrinter {
     fn new() -> IndentPrinter {
-        return IndentPrinter { indent: 0 };
+        IndentPrinter { indent: 0 }
     }
 
     fn indent(&mut self) {
@@ -232,7 +231,7 @@ impl IndentPrinter {
         self.indent -= 1;
     }
 
-    fn print(&self, msg: String) {
+    fn print(&self, msg: &str) {
         // for _ in 0..self.indent {
         //     std::io::stdout().write(" ".as_bytes());
         // }
@@ -261,14 +260,14 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
         match item_type {
             ItemType::Integer => {
                 let v = read_i32(&mut cur)?;
-                printer.print(format!(
+                printer.print(&format!(
                     "Tag {:?} - Type {:?} - Value {:?}",
                     tag, item_type, v
                 ));
             }
             ItemType::LongInteger => {
                 let v = read_i64(&mut cur)?;
-                printer.print(format!(
+                printer.print(&format!(
                     "Tag {:?} - Type {:?} - Value {:?}",
                     tag, item_type, v
                 ));
@@ -276,28 +275,28 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
             ItemType::DateTime => {
                 // TODO:
                 let v = read_i64(&mut cur)?;
-                printer.print(format!(
+                printer.print(&format!(
                     "Tag {:?} - Type {:?} - Value {:?}",
                     tag, item_type, v
                 ));
             }
             ItemType::Enumeration => {
                 let v = read_i32(&mut cur)?;
-                printer.print(format!(
+                printer.print(&format!(
                     "Tag {:?} - Type {:?} - Value {:?}",
                     tag, item_type, v
                 ));
             }
             ItemType::TextString => {
                 let v = read_string(&mut cur)?;
-                printer.print(format!(
+                printer.print(&format!(
                     "Tag {:?} - Type {:?} - Value {:?}",
                     tag, item_type, v
                 ));
             }
             ItemType::ByteString => {
                 let v = read_bytes(&mut cur)?;
-                printer.print(format!(
+                printer.print(&format!(
                     "Tag {:?} - Type {:?} - Value {:?}",
                     tag,
                     item_type,
@@ -307,14 +306,14 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
 
             ItemType::Structure => {
                 let v = read_struct(&mut cur)?;
-                printer.print(format!(
+                printer.print(&format!(
                     "Tag {:?} - Type {:?} - Structure {{",
                     tag, item_type
                 ));
                 printer.indent();
                 to_print_int(printer, v.as_slice())?;
                 printer.unindent();
-                printer.print(format!("}}"));
+                printer.print("}}");
             }
             _ => {
                 panic! {};
@@ -396,25 +395,14 @@ struct NestedReader<'a> {
     tag: Option<Tag>,
 }
 
-// impl<'a> NestedReader<'a> {
-//     fn new(buf: &'a [u8]) -> NestedReader {
-//         return NestedReader {
-//             end_positions: Vec::new(),
-//             cur: Cursor::new(buf),
-//             state: ReaderState::Tag,
-//             tag: None,
-//         };
-//     }
-// }
-
 impl<'a> EncodingReader<'a> for NestedReader<'a> {
     fn new(buf: &'a [u8]) -> NestedReader {
-        return NestedReader {
+        NestedReader {
             end_positions: Vec::new(),
             cur: Cursor::new(buf),
             state: ReaderState::Tag,
             tag: None,
-        };
+        }
     }
 
     fn begin_inner_or_more(&mut self) -> TTLVResult<()> {
@@ -477,7 +465,7 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         if t != expected {
             return Err(TTLVError::UnexpectedType {
                 actual: t,
-                expected: expected,
+                expected,
             });
         }
 
@@ -489,7 +477,7 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
     }
 
     fn get_tag(&self) -> Tag {
-        return self.tag.unwrap();
+        self.tag.unwrap()
     }
 
     fn read_tag(&mut self) -> TTLVResult<Tag> {
@@ -497,7 +485,7 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         self.state = ReaderState::Type;
         let t = read_tag_enum(&mut self.cur)?;
         self.tag = Some(t);
-        return Ok(t);
+        Ok(t)
     }
 
     fn peek_tag(&mut self) -> TTLVResult<Tag> {
@@ -505,7 +493,7 @@ impl<'a> EncodingReader<'a> for NestedReader<'a> {
         let pos = self.cur.position();
         let tag = read_tag_enum(&mut self.cur)?;
         self.cur.set_position(pos);
-        return Ok(tag);
+        Ok(tag)
     }
 
     fn reverse_tag(&mut self) {
@@ -591,7 +579,7 @@ impl<'de, R: EncodingReader<'de>> Deserializer<'de, R> {
         //Deserializer { input }
         Deserializer {
             input: R::new(input),
-            enum_resolver: enum_resolver,
+            enum_resolver,
         }
     }
 }
@@ -1047,21 +1035,16 @@ impl<'de, 'a, R: EncodingReader<'de>> MapAccess<'de> for MapParser<'a, 'de, R> {
             return Ok(None);
         }
 
-        //println!("next key==");
-        let a = seed.deserialize(&mut *self.de).map(Some);
-        //println!("==");
-        return a;
+       seed.deserialize(&mut *self.de).map(Some)
+
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,
     {
-        //println!("next seed--");
-        // Deserialize a map value.
-        let a = seed.deserialize(&mut *self.de);
-        //println!("--");
-        return a;
+       seed.deserialize(&mut *self.de)
+
     }
 }
 

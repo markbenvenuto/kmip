@@ -11,6 +11,9 @@ extern crate clap_verbosity_flag;
 extern crate structopt;
 use structopt::StructOpt;
 
+extern crate minidom;
+use minidom::Element;
+
 #[macro_use]
 extern crate log;
 
@@ -67,7 +70,7 @@ enum Command {
         // TODO
         /// TODO
         #[structopt(name = "algo", long = "algo", value_name = "algo")]
-        algo: String,
+        algo: CryptographicAlgorithm,
     },
     #[structopt(name = "get")]
     /// Get an item by id
@@ -85,9 +88,6 @@ enum Command {
     },
 }
 
-extern crate minidom;
-//extern crate quick_xml;
-use minidom::Element;
 
 fn run_xml<'a, T>(filename: &PathBuf, client: &mut Client<'a, T>)
 where
@@ -109,7 +109,7 @@ where
         } else if child.name() == "ResponseMessage" {
             resps.push(xml_str);
         } else {
-            panic!(format!("Unknown XML child {:?}", child.name()));
+            panic!("Unknown XML child {:?}", child.name());
         }
     }
     assert_eq!(reqs.len(), resps.len());
@@ -130,8 +130,8 @@ fn main() {
 
     //args.log.log_all(Option::Some(args.verbose.log_level()));
 
-    info!("starting up");
-    warn!("oops, nothing implemented!");
+    // info!("starting up");
+    // warn!("oops, nothing implemented!");
 
     // TODO - add client auth
 

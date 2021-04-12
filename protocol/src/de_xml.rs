@@ -95,9 +95,9 @@ impl<'a> XmlEncodingReader<'a> {
 
                 self.depth += 1;
                 Ok(Some(XmlItem {
-                    name: name,
+                    name,
                     item_type: item_type_enum,
-                    value: value,
+                    value,
                 }))
             }
             XmlEvent::EndElement { name } => {
@@ -132,7 +132,7 @@ use crate::de::EncodingReader;
 impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
     fn new(buf: &'a [u8]) -> XmlEncodingReader {
         let cur = Cursor::new(buf);
-        return XmlEncodingReader {
+        XmlEncodingReader {
             reader: EventReader::new(cur),
             state: ReaderState::Tag,
             cur_depths: Vec::new(),
@@ -141,7 +141,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
             tag: None,
             element: None,
             last_attribute_tag: None,
-        };
+        }
     }
 
     fn begin_inner_or_more(&mut self) -> TTLVResult<()> {
@@ -228,7 +228,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
 
     fn get_tag(&self) -> Tag {
         // eprintln!("get_tag");
-        return self.tag.unwrap();
+        self.tag.unwrap()
     }
 
     fn read_tag(&mut self) -> TTLVResult<Tag> {
@@ -240,7 +240,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
         let t =
             Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
         self.tag = Some(t);
-        return Ok(t);
+        Ok(t)
     }
 
     fn peek_tag(&mut self) -> TTLVResult<Tag> {
@@ -250,7 +250,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
         let tag =
             Tag::from_str(&self.element.as_ref().unwrap().name).map_err(|_| TTLVError::XmlError)?;
 
-        return Ok(tag);
+        Ok(tag)
     }
 
     fn reverse_tag(&mut self) {
@@ -276,7 +276,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
                         Err(_) => {
                             let mut iv: i32 = 0;
                             // Resolve as string for enum
-                            for ev in value.split(" ") {
+                            for ev in value.split(' ') {
                                 iv |= enum_resolver
                                     .resolve_enum_str(Tag::CryptographicUsageMask, ev)
                                     .unwrap();

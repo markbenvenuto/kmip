@@ -50,7 +50,7 @@ fn compute_padding(len: usize) -> usize {
     }
 
     let padding = 8 - (len % 8);
-    return len + padding;
+    len + padding
 }
 
 pub fn write_string(writer: &mut dyn Write, value: &str) -> TTLVResult<()> {
@@ -77,7 +77,7 @@ pub fn write_string(writer: &mut dyn Write, value: &str) -> TTLVResult<()> {
             .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
     }
 
-    return Ok(());
+    Ok(())
 }
 
 pub fn write_bytes(writer: &mut dyn Write, value: &[u8]) -> TTLVResult<()> {
@@ -102,7 +102,7 @@ pub fn write_bytes(writer: &mut dyn Write, value: &[u8]) -> TTLVResult<()> {
             .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
     }
 
-    return Ok(());
+    Ok(())
 }
 
 pub fn write_i32(writer: &mut dyn Write, value: i32) -> TTLVResult<()> {
@@ -278,15 +278,15 @@ struct NestedWriter {
 
 impl EncodedWriter for NestedWriter {
     fn new() -> NestedWriter {
-        return NestedWriter {
+        NestedWriter {
             start_positions: Vec::new(),
             vec: Vec::new(),
             tag: None,
-        };
+        }
     }
 
     fn get_vector(self) -> Vec<u8> {
-        return self.vec;
+        self.vec
     }
 
     fn get_tag(&self) -> Option<Tag> {
@@ -336,9 +336,11 @@ impl EncodedWriter for NestedWriter {
         v1.write_u32::<BigEndian>(len as u32)
             .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
-        for i in 0..4 {
-            self.vec[start_pos + i] = v1[i];
-        }
+        // for i in 0..4 {
+        //     self.vec[start_pos + i] = v1[i];
+        // }
+        self.vec[start_pos..(4 + start_pos)].clone_from_slice(&v1[..4]);
+
         self.tag = None;
 
         Ok(())
@@ -350,7 +352,7 @@ impl EncodedWriter for NestedWriter {
 
     fn write_i32_enumeration(
         &mut self,
-        enum_name: &str,
+        _enum_name: &str,
         v: i32,
         _enum_resolver: &dyn EnumResolver,
     ) -> TTLVResult<()> {
@@ -383,11 +385,11 @@ impl EncodedWriter for NestedWriter {
 
 impl Write for NestedWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        return self.vec.write(buf);
+        self.vec.write(buf)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -409,7 +411,7 @@ where
 {
     let mut serializer = Serializer {
         output: NestedWriter::new(),
-        enum_resolver: enum_resolver,
+        enum_resolver,
     };
     value.serialize(&mut serializer)?;
     Ok(serializer.output.get_vector())
@@ -574,11 +576,11 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
             let mut mydate_serializer = MyDateSerializer::new(&mut self.output);
             return value.serialize(&mut mydate_serializer);
         } else if _name.starts_with("my_enum|") {
-            let (_, enum_name) =  _name.split_at(_name.find("|").unwrap() + 1);
+            let (_, enum_name) =  _name.split_at(_name.find('|').unwrap() + 1);
             if enum_name.ends_with("Enum") {
                 let (enum_name2, _ ) =  enum_name.split_at(enum_name.rfind("Enum").unwrap());
 
-                eprintln!("---enum2: {}", enum_name2 );
+                // eprintln!("---enum2: {}", enum_name2 );
 
                 if enum_name2 == "ObjectState" {
                     let mut myenum_serializer =
@@ -590,9 +592,7 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
                     MyEnumSerializer::new(&mut self.output, enum_name2, self.enum_resolver.clone());
                 return value.serialize(&mut myenum_serializer);
             }
-            eprintln!("---enum: {}", enum_name );
-
-
+            // eprintln!("---enum: {}", enum_name );
 
             let mut myenum_serializer =
                 MyEnumSerializer::new(&mut self.output, enum_name, self.enum_resolver.clone());
@@ -902,7 +902,7 @@ where
 
 impl<'a, W: EncodedWriter> MyDateSerializer<'a, W> {
     pub fn new(output: &'a mut W) -> MyDateSerializer<'a, W> {
-        MyDateSerializer { output: output }
+        MyDateSerializer { output }
     }
 }
 
@@ -1299,9 +1299,9 @@ where
 impl<'a, W: EncodedWriter> MyEnumSerializer<'a, W> {
     pub fn new(output: &'a mut W, enum_name: &'a str, enum_resolver: Rc<dyn EnumResolver>) -> MyEnumSerializer<'a, W> {
         MyEnumSerializer {
-            output: output,
-            enum_resolver: enum_resolver,
-            enum_name : enum_name,
+            output,
+            enum_resolver,
+            enum_name ,
         }
     }
 }

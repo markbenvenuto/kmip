@@ -8,10 +8,8 @@ use chrono::serde::ts_milliseconds;
 use chrono::Utc;
 
 pub use crate::store::mongodb::KmipMongoDBStore;
-use crate::{ClockSource, KmipResponseError, RequestContext};
+use crate::{ClockSource, KmipResponseError};
 pub use mem::KmipMemoryStore;
-
-use option_datefmt::option_datefmt;
 
 use protocol::{AttributesEnum, ObjectTypeEnum, SymmetricKey};
 use protocol::{
@@ -149,6 +147,10 @@ impl ManagedAttributes {
             attributes.push(AttributesEnum::ActivationDate(date));
         }
 
+        if let Some(date) = self.deactivation_date {
+            attributes.push(AttributesEnum::DeactivationDate(date));
+        }
+
         attributes.push(AttributesEnum::InitialDate(self.initial_date));
         attributes.push(AttributesEnum::LastChangeDate(self.last_change_date));
 
@@ -161,6 +163,10 @@ impl ManagedAttributes {
         } else if name == "Activation Date" {
             if let Some(date) = self.activation_date {
                 return Some(AttributesEnum::ActivationDate(date));
+            }
+        } else if name == "Deactivation Date" {
+            if let Some(date) = self.deactivation_date {
+                return Some(AttributesEnum::DeactivationDate(date));
             }
         } else if name == "Initial Date" {
             return Some(AttributesEnum::InitialDate(self.initial_date));
@@ -204,12 +210,12 @@ impl ManagedObject {
         attribute_names.push("Object Type".to_owned());
 
         match &self.payload {
-            ManagedObjectEnum::SymmetricKey(s) => {
+            ManagedObjectEnum::SymmetricKey(_s) => {
                 attribute_names.push("Cryptographic Parameters".to_owned());
                 attribute_names.push("Cryptographic Algorithm".to_owned());
                 attribute_names.push("Cryptographic Length".to_owned());
             }
-            ManagedObjectEnum::SecretData(s) => {}
+            ManagedObjectEnum::SecretData(_s) => {}
         }
 
         attribute_names
@@ -232,7 +238,7 @@ impl ManagedObject {
 
                 attributes.push(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
             }
-            ManagedObjectEnum::SecretData(s) => {
+            ManagedObjectEnum::SecretData(_s) => {
                 attributes.push(AttributesEnum::ObjectType(ObjectTypeEnum::SecretData));
 
             }
@@ -261,7 +267,7 @@ impl ManagedObject {
                     return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
                 }
             }
-            ManagedObjectEnum::SecretData(s) => {
+            ManagedObjectEnum::SecretData(_s) => {
            if name == "Object Type" {
                 return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
             }

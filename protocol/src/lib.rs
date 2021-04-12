@@ -812,6 +812,9 @@ pub enum AttributesEnum {
     #[serde(with = "my_date_format", rename = "Activation Date")]
     ActivationDate(DateTime<Utc>),
 
+    #[serde(with = "my_date_format", rename = "Deactivation Date")]
+    DeactivationDate(DateTime<Utc>),
+
     #[serde(rename = "Name")]
     Name(NameStruct),
 
@@ -821,20 +824,15 @@ pub enum AttributesEnum {
     #[serde(rename = "State")]
     State(ObjectStateEnum),
 
-    // TODO - cannot be set by client
     #[serde(with = "my_date_format", rename = "Initial Date")]
     InitialDate(DateTime<Utc>),
 
-    // TODO - cannot be set by client
     #[serde(with = "my_date_format", rename = "Last Change Date")]
     LastChangeDate(DateTime<Utc>),
 
-    // TODO - cannot be set by client
     #[serde(rename = "Object Type")]
     ObjectType(ObjectTypeEnum),
 
-
-    // TODO - cannot be set by client
     #[serde(rename = "Unique Identifier")]
     UniqueIdentifier(String),
     }
@@ -1557,15 +1555,15 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
                 // TODO check for reason and message per KMIP rules
 
                 Ok(ResponseBatchItem {
-                    result_status: result_status,
-                    result_reason: result_reason,
-                    result_message: result_message,
-                    response_payload: response_payload,
+                    result_status,
+                    result_reason,
+                    result_message,
+                    response_payload,
                 })
             }
         }
 
-        const FIELDS: &'static [&'static str] = &[
+        const FIELDS: &[&str] = &[
             "Operation",
             "ResultStatus",
             "ResultReason",
@@ -1649,7 +1647,7 @@ impl EnumResolver for KmipEnumResolver {
         let trimmed = orig.replace(" ", "").replace("_", "");
         let name = trimmed.as_ref();
         let tag = Tag::from_str(name).map_err(|_| TTLVError::XmlError)?;
-        return self.to_string(tag, value);
+        self.to_string(tag, value)
     }
 
     fn resolve_enum_str(&self, tag: Tag, orig: &str) -> std::result::Result<i32, TTLVError> {
@@ -1833,5 +1831,5 @@ pub fn read_msg(reader: &mut dyn Read) -> std::result::Result<Vec<u8>, TTLVError
         .read_exact(&mut slice[8..])
         .map_err(|error| TTLVError::BadRead { count: len, error })?;
 
-    return Ok(msg);
+    Ok(msg)
 }

@@ -49,14 +49,14 @@ impl NestedWriter {
 impl EncodedWriter for NestedWriter {
     fn new() -> NestedWriter {
         let vec = Vec::new();
-        return NestedWriter {
+        NestedWriter {
             tag: None,
             writer: EmitterConfig::new().create_writer(vec),
-        };
+        }
     }
 
     fn get_vector(self) -> Vec<u8> {
-        return self.writer.into_inner();
+        self.writer.into_inner()
     }
 
     fn get_tag(&self) -> Option<Tag> {

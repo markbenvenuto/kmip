@@ -39,6 +39,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use std::error::Error;
+use std::fmt;
 use std::string::ToString;
 
 #[macro_use(doc)]
@@ -183,9 +185,6 @@ impl<'a> RequestContext<'a> {
     // }
 }
 
-use std::error::Error;
-use std::fmt;
-
 #[derive(Debug)]
 pub struct KmipResponseError {
     msg: String,
@@ -310,9 +309,25 @@ fn merge_to_managed_attribute(
             // TODO - validate
             ma.names.push(a.clone());
         }
-        protocol::AttributesEnum::State(a) => {
+        protocol::AttributesEnum::State(_) => {
             return Err(KmipResponseError::new(
                 "Cannot set 'State' via a client request"));
+        }
+        protocol::AttributesEnum::InitialDate(_) => {
+            return Err(KmipResponseError::new(
+                "Cannot set 'Initial Date' via a client request"));
+        }
+        protocol::AttributesEnum::LastChangeDate(_) => {
+            return Err(KmipResponseError::new(
+                "Cannot set 'Last Change Date' via a client request"));
+        }
+        protocol::AttributesEnum::ObjectType(_) => {
+            return Err(KmipResponseError::new(
+                "Cannot set 'Object Type' via a client request"));
+        }
+        protocol::AttributesEnum::UniqueIdentifier(_) => {
+            return Err(KmipResponseError::new(
+                "Cannot set 'Unique Identifier' via a client request"));
         }
         _ => {
             return Err(KmipResponseError::new(&format!(
@@ -607,6 +622,8 @@ fn process_activate_request<'a>(
     if mo.attributes.state == ObjectStateEnum::PreActive {
         mo.attributes.state = ObjectStateEnum::Active;
 
+        mo.attributes.activation_date = Some(rc.get_server_context().get_clock_source().now());
+
         rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
     }
 
@@ -662,6 +679,11 @@ fn process_destroy_request<'a>(
         mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());
 
         rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
+    } else {
+        throw error
+        <ResultStatus type="Enumeration" value="OperationFailed"/>
+        <ResultReason type="Enumeration" value="PermissionDenied"/>
+        <ResultMessage type="TextString" value="DENIED"/>
     }
 
     let resp = DestroyResponse {
