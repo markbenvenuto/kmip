@@ -212,7 +212,6 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
         self.state = ReaderState::LengthValue;
         let t = self.element.as_ref().unwrap().item_type;
         if t != expected {
-            //panic!();
             return Err(TTLVError::UnexpectedType {
                 actual: t,
                 expected: expected,

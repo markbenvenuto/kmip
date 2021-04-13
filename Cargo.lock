@@ -1001,6 +1001,8 @@ dependencies = [
  "clap-log-flag",
  "clap-verbosity-flag",
  "confy",
+ "crypto-mac 0.10.0",
+ "digest 0.9.0",
  "env_logger 0.8.3",
  "futures",
  "hmac 0.10.1",
