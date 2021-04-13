@@ -302,14 +302,14 @@ impl KmipStore {
     pub fn new_mem(clock: Arc<dyn ClockSource + Send + Sync>) -> KmipStore {
         KmipStore {
             store: Arc::new(KmipMemoryStore::new()),
-            clock: clock,
+            clock,
         }
     }
 
     pub fn new_mongodb(clock: Arc<dyn ClockSource + Send + Sync>, uri: &str) -> KmipStore {
         KmipStore {
             store: Arc::new(KmipMongoDBStore::new(uri)),
-            clock: clock,
+            clock,
         }
     }
 

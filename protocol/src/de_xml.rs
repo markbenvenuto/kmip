@@ -317,7 +317,7 @@ impl<'a> EncodingReader<'a> for XmlEncodingReader<'a> {
             };
 
             // Resolve as string for enum
-            for ev in input_str.split(" ") {
+            for ev in input_str.split(' ') {
                 value |= enum_resolver.resolve_enum_str(tag, ev).unwrap();
             }
         }

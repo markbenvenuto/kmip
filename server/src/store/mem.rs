@@ -41,7 +41,7 @@ impl KmipStoreProvider for KmipMemoryStore {
             lock.counter += 1;
             c = lock.counter;
         }
-        return c.to_string();
+        c.to_string()
     }
 
     fn get(&self, id: &str) -> Option<bson::Document> {
@@ -51,7 +51,7 @@ impl KmipStoreProvider for KmipMemoryStore {
                 return Some(d.clone());
             }
         }
-        return None;
+        None
     }
 
     fn update_bson(&self, id: &str, doc: bson::Document) {

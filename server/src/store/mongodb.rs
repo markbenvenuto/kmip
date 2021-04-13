@@ -34,7 +34,7 @@ impl KmipMongoDBStore {
 
         let collection = db.collection("managed_objects");
 
-        return collection;
+        collection
     }
 }
 
@@ -53,7 +53,7 @@ impl KmipStoreProvider for KmipMongoDBStore {
             lock.counter += 1;
             c = lock.counter;
         }
-        return c.to_string();
+        c.to_string()
     }
 
     fn get(&self, id: &str) -> Option<bson::Document> {
@@ -69,13 +69,13 @@ impl KmipStoreProvider for KmipMongoDBStore {
         let cur = futures::executor::block_on(cursor).unwrap();
         let mut results: Vec<mongodb::error::Result<Document>> =
             futures::executor::block_on(cur.collect());
-        if results.len() == 0 {
+        if results.is_empty() {
             return None;
         }
 
         assert_eq!(results.len(), 1);
 
-        return Some(results.remove(0).unwrap());
+        Some(results.remove(0).unwrap())
     }
 
     fn update_bson(&self, id: &str, doc: bson::Document) {

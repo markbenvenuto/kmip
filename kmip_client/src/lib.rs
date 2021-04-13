@@ -39,7 +39,7 @@ where
     T: 'a + Read + Write,
 {
     pub fn create_from_stream(stream: &'a mut T) -> Client<'a, T> {
-        Client { stream: stream }
+        Client { stream }
     }
 
     pub fn create_symmetric_key(
@@ -52,7 +52,7 @@ where
             AttributesEnum::CryptographicLength(len),
         ];
 
-        return self.create(ObjectTypeEnum::SymmetricKey, attributes);
+        self.create(ObjectTypeEnum::SymmetricKey, attributes)
     }
 
     pub fn create(
@@ -116,7 +116,7 @@ where
 
         // TODO check response
 
-        return response.batch_item.response_payload.unwrap();
+        response.batch_item.response_payload.unwrap()
     }
 
     pub fn make_xml_request(&mut self, xml_str: &str) -> String {
@@ -148,9 +148,9 @@ where
 
         // TODO check response
 
-        return std::str::from_utf8(&protocol::to_xml_bytes(&response, k).unwrap())
+        std::str::from_utf8(&protocol::to_xml_bytes(&response, k).unwrap())
             .unwrap()
-            .to_string();
+            .to_string()
     }
 
     //     fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {

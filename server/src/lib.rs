@@ -3,7 +3,6 @@ extern crate num_derive;
 #[macro_use]
 extern crate lazy_static;
 
-#[allow(unused_imports)]
 extern crate pretty_hex;
 //extern crate serde_transcode;
 
@@ -111,13 +110,13 @@ impl ServerContext {
     ) -> ServerContext {
         ServerContext {
             inner: Arc::new(Mutex::new(ServerContextInner { count: 0 })),
-            store: store,
-            clock_source: clock_source,
+            store,
+            clock_source,
         }
     }
 
     fn get_store<'a>(&'a self) -> &'a KmipStore {
-        return self.store.as_ref();
+        self.store.as_ref()
     }
 
     fn get_clock_source(&self) -> &dyn ClockSource {
@@ -142,7 +141,7 @@ impl KmipCrypto {
             .fill(a.as_mut())
             .expect("Random number generator failed");
 
-        return a;
+        a
     }
 }
 
@@ -157,12 +156,12 @@ impl<'a> RequestContext<'a> {
     pub fn new(server_context: &'a ServerContext) -> RequestContext<'a> {
         RequestContext {
             peer_addr: None,
-            server_context: server_context,
+            server_context,
         }
     }
 
     fn get_server_context(&self) -> &'a ServerContext {
-        return self.server_context;
+        self.server_context
     }
 
     fn set_peer_addr(&mut self, addr: SocketAddr) {
@@ -203,7 +202,7 @@ impl KmipResponseError {
     fn new_reason(reason: ResultReason, msg: &str) -> KmipResponseError {
         KmipResponseError {
             msg: msg.to_owned(),
-            reason: reason,
+            reason,
         }
     }
 }
@@ -228,6 +227,13 @@ impl Error for KmipResponseError {
 impl From<bson::de::Error> for KmipResponseError {
     fn from(e: bson::de::Error) -> Self {
         KmipResponseError::new(&format!("BSON error: {}", e))
+    }
+}
+
+
+impl From<protocol::Error> for KmipResponseError {
+    fn from(e: protocol::Error) -> Self {
+        KmipResponseError::new(&format!("Protocol error: {}", e))
     }
 }
 
@@ -264,7 +270,7 @@ fn create_permission_denied() -> KmipResponseError {
 fn merge_to_secret_data(
     ma: &mut ManagedAttributes,
     sd: &mut SecretData,
-    tas: &Vec<TemplateAttribute>,
+    tas: &[TemplateAttribute],
 ) -> std::result::Result<(), KmipResponseError> {
     for ta in tas {
         for attr in &ta.attribute {
@@ -286,7 +292,7 @@ fn merge_to_secret_data(
 fn merge_to_symmetric_key(
     ma: &mut ManagedAttributes,
     sks: &mut SymmetricKeyStore,
-    tas: &Vec<TemplateAttribute>,
+    tas: &[TemplateAttribute],
 ) -> std::result::Result<(), KmipResponseError> {
     for ta in tas {
         for attr in &ta.attribute {
@@ -410,7 +416,7 @@ fn process_create_request(
                 ));
             }
 
-            //let crypt_len = sks.symmetric_key.key_block.cryptographic_length.ok_or(KmipResponseError::new("Invalid value for cryptographic_length"))?;
+            //let crypt_len = sks.symmetric_key.key_block.cryptographic_length.ok_or_else(|| KmipResponseError::new("Invalid value for cryptographic_length"))?;
             let crypt_len = sks.cryptographic_length;
             // TODO - validate crypt len
 
@@ -454,7 +460,7 @@ fn process_register_request(
             let mut secret_data = req
                 .secret_data
                 .as_ref()
-                .ok_or(KmipResponseError::new("Missing secret_data"))?
+                .ok_or_else(|| KmipResponseError::new("Missing secret_data"))?
                 .clone();
 
             merge_to_secret_data(&mut ma, &mut secret_data, &req.template_attribute)?;
@@ -470,7 +476,7 @@ fn process_register_request(
                 id: id.to_string(),
                 payload: store::ManagedObjectEnum::SecretData(SecretData {
                     secret_data_type: secret_data.secret_data_type,
-                    key_block: secret_data.key_block.clone(),
+                    key_block: secret_data.key_block,
                 }),
                 attributes: ma,
             };
@@ -499,7 +505,7 @@ fn process_register_request(
             let symmetric_key = req
                 .symmetric_key
                 .as_ref()
-                .ok_or(KmipResponseError::new("Missing symmetric_key"))?;
+                .ok_or_else(|| KmipResponseError::new("Missing symmetric_key"))?;
 
             let mut sks = SymmetricKeyStore {
                 symmetric_key: symmetric_key.clone(),
@@ -512,8 +518,8 @@ fn process_register_request(
 
             if sks.cryptographic_algorithm == CryptographicAlgorithm::UNKNOWN {
                 sks.cryptographic_algorithm =
-                    sks.symmetric_key.key_block.cryptographic_algorithm.ok_or(
-                        KmipResponseError::new("cryptographic_algorithm was not set"),
+                    sks.symmetric_key.key_block.cryptographic_algorithm.ok_or_else(
+                        || KmipResponseError::new("cryptographic_algorithm was not set"),
                     )?;
             }
             if sks.cryptographic_length == 0 {
@@ -521,7 +527,7 @@ fn process_register_request(
                     .symmetric_key
                     .key_block
                     .cryptographic_length
-                    .ok_or(KmipResponseError::new("cryptographic_length was not set"))?;
+                    .ok_or_else( || KmipResponseError::new("cryptographic_length was not set"))?;
             }
 
             let id = rc.get_server_context().get_store().gen_id();
@@ -588,7 +594,7 @@ fn process_get_attributes_request(
         .get_store()
         .get(&req.unique_identifier)?;
 
-    let attributes = if req.attribute.len() == 0 {
+    let attributes = if req.attribute.is_empty() {
         // Get all the attributes
         mo.attributes.get_all_attributes()
     } else {
@@ -758,8 +764,8 @@ fn process_encrypt_request<'a>(
     // TODO
     // We only support block ciphers for now, if we support streaming ciphers we will have to do something
     let block_cipher_mode =
-        block_cipher_mode.ok_or(KmipResponseError::new("Block Cipher Mode is required"))?;
-    // let padding_method = padding_method.ok_or(KmipResponseError::new("Padding Method Mode is required"))?;
+        block_cipher_mode.ok_or_else(|| KmipResponseError::new("Block Cipher Mode is required"))?;
+    // let padding_method = padding_method.ok_or_else(|| KmipResponseError::new("Padding Method Mode is required"))?;
     let padding_method = padding_method.unwrap_or(PaddingMethod::None);
 
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
@@ -776,7 +782,7 @@ fn process_encrypt_request<'a>(
     let resp = EncryptResponse {
         unique_identifier: id.to_owned(),
         data: ret.0,
-        iv_counter_nonce: ret.1.map(|x| ByteBuf::from(x)),
+        iv_counter_nonce: ret.1.map(ByteBuf::from),
     };
 
     Ok(resp)
@@ -814,8 +820,8 @@ fn process_decrypt_request(
     // TODO
     // We only support block ciphers for now, if we support streaming ciphers we will have to do something
     let block_cipher_mode =
-        block_cipher_mode.ok_or(KmipResponseError::new("Block Cipher Mode is required"))?;
-    // let padding_method = padding_method.ok_or(KmipResponseError::new("Padding Method Mode is required"))?;
+        block_cipher_mode.ok_or_else(|| KmipResponseError::new("Block Cipher Mode is required"))?;
+    // let padding_method = padding_method.ok_or_else(|| KmipResponseError::new("Padding Method Mode is required"))?;
     let padding_method = padding_method.unwrap_or(PaddingMethod::None);
 
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
@@ -860,7 +866,7 @@ fn process_mac_request(
         cryptographic_algorithm = params.cryptographic_algorithm.or(cryptographic_algorithm);
     }
 
-    let algo = cryptographic_algorithm.ok_or(KmipResponseError::new("Algorithm is required"))?;
+    let algo = cryptographic_algorithm.ok_or_else(|| KmipResponseError::new("Algorithm is required"))?;
 
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
     //req.iv_counter_nonce.map(|x| x.as_ref()))?;
@@ -897,7 +903,7 @@ fn process_mac_verify_request(
         cryptographic_algorithm = params.cryptographic_algorithm.or(cryptographic_algorithm);
     }
 
-    let algo = cryptographic_algorithm.ok_or(KmipResponseError::new("Algorithm is required"))?;
+    let algo = cryptographic_algorithm.ok_or_else(|| KmipResponseError::new("Algorithm is required"))?;
 
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
     //req.iv_counter_nonce.map(|x| x.as_ref()))?;
@@ -917,7 +923,7 @@ fn create_ok_response(
     op: protocol::ResponseOperationEnum,
     clock_source: &dyn ClockSource,
 ) -> protocol::ResponseMessage {
-    let r = protocol::ResponseMessage {
+    protocol::ResponseMessage {
         response_header: protocol::ResponseHeader {
             protocol_version: protocol::ProtocolVersion {
                 protocol_version_major: 1,
@@ -933,9 +939,7 @@ fn create_ok_response(
             response_payload: Some(op),
             result_response_enum: None,
         },
-    };
-
-    return r;
+    }
 }
 
 fn create_error_response(
@@ -943,7 +947,7 @@ fn create_error_response(
     request_operation: Operation,
     clock_source: &dyn ClockSource,
 ) -> protocol::ResponseMessage {
-    let r = protocol::ResponseMessage {
+    protocol::ResponseMessage {
         response_header: protocol::ResponseHeader {
             protocol_version: protocol::ProtocolVersion {
                 protocol_version_major: 1,
@@ -960,9 +964,7 @@ fn create_error_response(
             response_payload: None,
             result_response_enum: Some(request_operation),
         },
-    };
-
-    return r;
+    }
 }
 
 // fn process_request(batchitem: &RequestBatchItem) -> {ResponseOperationEnum
@@ -975,7 +977,25 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     info!("Request Message: {:?}", buf.hex_dump());
     protocol::to_print(buf);
 
-    let request = protocol::from_bytes::<RequestMessage>(&buf, k.as_ref()).unwrap();
+    let request_ret = protocol::from_bytes::<RequestMessage>(&buf, k.as_ref());
+
+    if let Err(e)  = request_ret {
+        // If we fail to decode, we just return a very generic error
+        let rm = create_error_response(
+            &KmipResponseError::from(e),
+            Operation::DiscoverVersions,
+            rc.get_server_context().get_clock_source(),
+        );
+
+        let vr = protocol::to_bytes(&rm, k).unwrap();
+        info!("Response Message: {:?}", vr.hex_dump());
+
+        protocol::to_print(vr.as_slice());
+
+        return vr;
+    }
+
+    let request = request_ret.expect("Already checked");
 
     // TODO - check protocol version
     info!(
@@ -995,52 +1015,52 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     let result = match request.batch_item {
         RequestBatchItem::Create(x) => {
             info!("Got Create Request");
-            process_create_request(&rc, &x).map(|r| ResponseOperationEnum::Create(r))
+            process_create_request(&rc, &x).map(ResponseOperationEnum::Create)
         }
         RequestBatchItem::Register(x) => {
             info!("Got Register Request");
-            process_register_request(&rc, &x).map(|r| ResponseOperationEnum::Register(r))
+            process_register_request(&rc, &x).map(ResponseOperationEnum::Register)
         }
         RequestBatchItem::Get(x) => {
             info!("Got Get Request");
-            process_get_request(&rc, x).map(|r| ResponseOperationEnum::Get(r))
+            process_get_request(&rc, x).map(ResponseOperationEnum::Get)
         }
         RequestBatchItem::GetAttributes(x) => {
             info!("Got Get Request");
-            process_get_attributes_request(&rc, x).map(|r| ResponseOperationEnum::GetAttributes(r))
+            process_get_attributes_request(&rc, x).map(ResponseOperationEnum::GetAttributes)
         }
         RequestBatchItem::GetAttributeList(x) => {
             info!("Got Get Request");
             process_get_attribute_list_request(&rc, x)
-                .map(|r| ResponseOperationEnum::GetAttributeList(r))
+                .map(ResponseOperationEnum::GetAttributeList)
         }
         RequestBatchItem::Activate(x) => {
             info!("Got Activate Request");
-            process_activate_request(&rc, x).map(|r| ResponseOperationEnum::Activate(r))
+            process_activate_request(&rc, x).map(ResponseOperationEnum::Activate)
         }
         RequestBatchItem::Destroy(x) => {
             info!("Got Destroy Request");
-            process_destroy_request(&rc, x).map(|r| ResponseOperationEnum::Destroy(r))
+            process_destroy_request(&rc, x).map(ResponseOperationEnum::Destroy)
         }
         RequestBatchItem::Encrypt(x) => {
             info!("Got Encrypt Request");
-            process_encrypt_request(&rc, &x).map(|r| ResponseOperationEnum::Encrypt(r))
+            process_encrypt_request(&rc, &x).map(ResponseOperationEnum::Encrypt)
         }
         RequestBatchItem::Decrypt(x) => {
             info!("Got Decrypt Request");
-            process_decrypt_request(&rc, &x).map(|r| ResponseOperationEnum::Decrypt(r))
+            process_decrypt_request(&rc, &x).map(ResponseOperationEnum::Decrypt)
         }
         RequestBatchItem::MAC(x) => {
             info!("Got MAC Request");
-            process_mac_request(&rc, &x).map(|r| ResponseOperationEnum::MAC(r))
+            process_mac_request(&rc, &x).map(ResponseOperationEnum::MAC)
         }
         RequestBatchItem::MACVerify(x) => {
             info!("Got MACVerify Request");
-            process_mac_verify_request(&rc, &x).map(|r| ResponseOperationEnum::MACVerify(r))
+            process_mac_verify_request(&rc, &x).map(ResponseOperationEnum::MACVerify)
         }
         RequestBatchItem::Revoke(x) => {
             info!("Got Revoke Request");
-            process_revoke_request(&rc, x).map(|r| ResponseOperationEnum::Revoke(r))
+            process_revoke_request(&rc, x).map(ResponseOperationEnum::Revoke)
         }
     };
 
@@ -1069,7 +1089,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
 
     protocol::to_print(vr.as_slice());
 
-    return vr;
+    vr
 }
 #[cfg(test)]
 mod tests {

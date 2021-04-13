@@ -1,3 +1,8 @@
+
+#![allow(
+    clippy::upper_case_acronyms
+)]
+
 #[macro_use]
 extern crate num_derive;
 
@@ -61,6 +66,7 @@ pub use de::read_type;
 
 pub use kmip_enums::ItemType;
 pub use kmip_enums::Tag;
+
 
 #[derive(
     FromPrimitive, ToPrimitive, Serialize_enum, Deserialize_enum, Debug, EnumString, AsStaticStr,

@@ -69,7 +69,7 @@ pub fn encrypt_block_cipher(
                             padding_method,
                             nonce
                                 .as_ref()
-                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .ok_or_else(|| KmipResponseError::new("Missing IV"))?
                                 .as_ref(),
                             data,
                             key
@@ -97,7 +97,7 @@ pub fn encrypt_block_cipher(
                             padding_method,
                             nonce
                                 .as_ref()
-                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .ok_or_else(|| KmipResponseError::new("Missing IV"))?
                                 .as_ref(),
                             data,
                             key
@@ -125,7 +125,7 @@ pub fn encrypt_block_cipher(
                             padding_method,
                             nonce
                                 .as_ref()
-                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .ok_or_else(|| KmipResponseError::new("Missing IV"))?
                                 .as_ref(),
                             data,
                             key
@@ -206,7 +206,7 @@ pub fn decrypt_block_cipher(
                             padding_method,
                             nonce
                                 .as_ref()
-                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .ok_or_else(|| KmipResponseError::new("Missing IV"))?
                                 .as_ref(),
                             data,
                             key
@@ -234,7 +234,7 @@ pub fn decrypt_block_cipher(
                             padding_method,
                             nonce
                                 .as_ref()
-                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .ok_or_else(|| KmipResponseError::new("Missing IV"))?
                                 .as_ref(),
                             data,
                             key
@@ -262,7 +262,7 @@ pub fn decrypt_block_cipher(
                             padding_method,
                             nonce
                                 .as_ref()
-                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .ok_or_else(|| KmipResponseError::new("Missing IV"))?
                                 .as_ref(),
                             data,
                             key

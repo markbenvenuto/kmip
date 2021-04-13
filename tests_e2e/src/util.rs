@@ -119,21 +119,18 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
             Ok(mut stream) => {
                 println!("new client!");
                 let sc2 = sc.clone();
-                let server_context2 = server_context.clone();
-                // thread::spawn(move || {
                 let mut tls_session = rustls::ServerSession::new(&sc2);
                 let mut tls = rustls::Stream::new(&mut tls_session, &mut stream);
 
                 let mut req_count = count;
                 while req_count > 0 {
-                    handle_client(&mut tls, &server_context2);
+                    handle_client(&mut tls, &server_context);
                     req_count -= 1;
                 }
 
                 end_barrier.wait();
 
                 return;
-                // });
             }
             Err(e) => eprintln!("Connection failed: {}", e),
         }
