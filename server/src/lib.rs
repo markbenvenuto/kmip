@@ -660,7 +660,7 @@ fn process_revoke_request<'a>(
     // TODO - record revocation code and reason text
     if req.revocation_reason.revocation_reason_code == RevocationReasonCode::KeyCompromise {
         mo.attributes.state = ObjectStateEnum::Compromised;
-    //mo.attributes.compromise_date =  req.compromise_occurrence_date.or(Some(rc.get_server_context().get_clock_source().now()));
+        mo.attributes.compromise_date =  req.compromise_occurrence_date.or(Some(rc.get_server_context().get_clock_source().now()));
     } else {
         mo.attributes.state = ObjectStateEnum::Deactivated;
         mo.attributes.deactivation_date = Some(rc.get_server_context().get_clock_source().now());
@@ -684,12 +684,17 @@ fn process_destroy_request<'a>(
         .get_store()
         .get(&req.unique_identifier)?;
 
-    // Compromised is not documented as as source state but it is required in SKLC-M-2-14
     if mo.attributes.state == ObjectStateEnum::PreActive
     || mo.attributes.state == ObjectStateEnum::Deactivated
     || mo.attributes.state == ObjectStateEnum::Compromised
     {
+        if mo.attributes.state == ObjectStateEnum::Compromised  {
+            mo.attributes.state = ObjectStateEnum::DestroyedCompromised;
+
+        } else {
+
         mo.attributes.state = ObjectStateEnum::Destroyed;
+        }
 
         mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());
 

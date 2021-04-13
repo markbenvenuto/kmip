@@ -3,55 +3,33 @@ use serde_bytes::ByteBuf;
 
 use crate::KmipResponseError;
 
-use aes::Aes128;
-use aes::NewBlockCipher;
+use aes::{Aes128, Aes192, Aes256};
 use block_modes::block_padding::{NoPadding, Pkcs7};
 use block_modes::{BlockMode, Cbc, Ecb};
 
-// fn encrypt_with_padding<T>(
-//     padding_method: PaddingMethod,
-//     key: &[u8],
-//     data: &[u8],
-//     nonce: &Option<ByteBuf>) {
-// match padding_method
+use hmac::{Hmac, Mac, NewMac};
+use sha2::Sha256;
 
-//     }
-
-// fn do_encrypt<T>(
-//     key: &[u8],
-//     data: &[u8],
-//     nonce: &Option<ByteBuf>,
-// ) -> Result<(Vec<u8>, Option<Vec<u8>>), KmipResponseError>
-// where T : BlockMode<_> {
-//     // ECB has no nonce
-//     let cipher =
-//         T::new_var(key, Default::default()).expect("Wrong key size");
-//     Ok((cipher.encrypt_vec(data), None))
-// // }
-
-// macro_rules! define_aes_impl {
-//     (
-//         $name:ident,
-//         $key_size:ty,
-//         $fixslice_keys:ty,
-//         $fixslice_key_schedule:path,
-//         $fixslice_decrypt:path,
-//         $fixslice_encrypt:path,
-//         $doc:expr
-//     ) => {
-//         #[doc=$doc]
-//         #[derive(Clone)]
-//         pub struct $name {
-//             keys: $fixslice_keys,
-//         }
-//         impl NewBlockCipher for $name {
-//             type KeySize = $key_size;
-
-//             #[inline]
-//             fn new(key: &GenericArray<u8, $key_size>) -> Self {
-//                 Self { keys: $fixslice_key_schedule(key) }
-//             }
-//         }
+macro_rules! encrypt_cipher_mode {
+    ($cipher: ty, $mode:ident, $padd: ident, $iv : expr, $data: ident, $key : ident) => {
+        match $padd {
+            PaddingMethod::None => {
+                type CipherAndMode = $mode<$cipher, NoPadding>;
+                let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
+                Ok((cipher.encrypt_vec($data), None))
+            }
+            PaddingMethod::PKCS5 => {
+                // Pkcs7 is a more general version of Pkcs5
+                type CipherAndMode = $mode<$cipher, Pkcs7>;
+                let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
+                Ok((cipher.encrypt_vec($data), None))
+            }
+            _ => Err(KmipResponseError::new(
+                "Cipher and padding is not supported",
+            )),
+        }
+    };
+}
 
 pub fn encrypt_block_cipher(
     algo: CryptographicAlgorithm,
@@ -67,40 +45,127 @@ pub fn encrypt_block_cipher(
                 // AES 128
                 return match block_cipher_mode {
                     BlockCipherMode::ECB => {
-                        match padding_method {
-                            PaddingMethod::None => {
-                                type Aes128Ecb = Ecb<Aes128, NoPadding>;
-                                // ECB has no nonce
-                                let cipher = Aes128Ecb::new_var(key, Default::default())
-                                    .expect("Wrong key size");
-                                Ok((cipher.encrypt_vec(data), None))
-                            }
-                            _ => Err(KmipResponseError::new("Ecb and padding is not supported")),
-                        }
+                        encrypt_cipher_mode!(
+                            Aes128,
+                            Ecb,
+                            padding_method,
+                            Default::default(),
+                            data,
+                            key
+                        )
                     }
-
+                    BlockCipherMode::CBC => {
+                        encrypt_cipher_mode!(
+                            Aes128,
+                            Cbc,
+                            padding_method,
+                            nonce
+                                .as_ref()
+                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .as_ref(),
+                            data,
+                            key
+                        )
+                    }
                     _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
                 };
-            } else if key.len() == 24 { // AES 192
-            } else if key.len() == 32 { // AES 256
+            } else if key.len() == 24 {
+                // AES 192
+                return match block_cipher_mode {
+                    BlockCipherMode::ECB => {
+                        encrypt_cipher_mode!(
+                            Aes192,
+                            Ecb,
+                            padding_method,
+                            Default::default(),
+                            data,
+                            key
+                        )
+                    }
+                    BlockCipherMode::CBC => {
+                        encrypt_cipher_mode!(
+                            Aes192,
+                            Cbc,
+                            padding_method,
+                            nonce
+                                .as_ref()
+                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .as_ref(),
+                            data,
+                            key
+                        )
+                    }
+                    _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
+                };
+            } else if key.len() == 32 {
+                // AES 256
+                return match block_cipher_mode {
+                    BlockCipherMode::ECB => {
+                        encrypt_cipher_mode!(
+                            Aes256,
+                            Ecb,
+                            padding_method,
+                            Default::default(),
+                            data,
+                            key
+                        )
+                    }
+                    BlockCipherMode::CBC => {
+                        encrypt_cipher_mode!(
+                            Aes256,
+                            Cbc,
+                            padding_method,
+                            nonce
+                                .as_ref()
+                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .as_ref(),
+                            data,
+                            key
+                        )
+                    }
+                    _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
+                };
             }
-            // let x = NewBlockCipher::<Aes128>::KeySize;
-            // if key.len() ==  x{
 
-            // }
-            // type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-
-            //     let mut buffer = [0u8; 32];
-            // // copy message to the buffer
-            // let pos = plaintext.len();
-
-            //     buffer[..pos].copy_from_slice(plaintext);
-            //     let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
             Ok((Vec::new(), None))
         }
 
         _ => Err(KmipResponseError::new("Algorithm is not supported")),
     }
+}
+
+// macro_rules! decrypt_cipher_mode_padding {
+//     ($cipher: ty, $mode:ty, $padd: ty, $data: ident, $key : ident) => {
+//         type CipherAndMode = $mode<$cipher, $padd>;
+//         // ECB has no nonce
+//         let cipher = CipherAndMode::new_var($key, Default::default())
+//             .expect("Wrong key size");
+//         Ok(cipher.decrypt_vec($data).expect("TODO - add eerror"))
+
+//     };
+// }
+
+macro_rules! decrypt_cipher_mode {
+    ($cipher: ty, $mode:ident, $padd: ident, $iv : expr, $data: ident, $key : ident) => {
+        match $padd {
+            PaddingMethod::None => {
+                // decrypt_cipher_mode_padding!($cipher, $mode, NoPadding, $data, $key)
+                type CipherAndMode = $mode<$cipher, NoPadding>;
+                let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
+                Ok(cipher.decrypt_vec($data).expect("TODO - add eerror"))
+            }
+            PaddingMethod::PKCS5 => {
+                // decrypt_cipher_mode_padding!($cipher, $mode, NoPadding, $data, $key)
+                // Pkcs7 is a more general version of Pkcs5
+                type CipherAndMode = $mode<$cipher, Pkcs7>;
+                let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
+                Ok(cipher.decrypt_vec($data).expect("TODO - add eerror"))
+            }
+            _ => Err(KmipResponseError::new(
+                "Cipher and padding is not supported",
+            )),
+        }
+    };
 }
 
 pub fn decrypt_block_cipher(
@@ -117,35 +182,88 @@ pub fn decrypt_block_cipher(
                 // AES 128
                 return match block_cipher_mode {
                     BlockCipherMode::ECB => {
-                        match padding_method {
-                            PaddingMethod::None => {
-                                type Aes128Ecb = Ecb<Aes128, NoPadding>;
-                                // ECB has no nonce
-                                let cipher = Aes128Ecb::new_var(key, Default::default())
-                                    .expect("Wrong key size");
-                                Ok(cipher.decrypt_vec(data).expect("TODO - add eerror"))
-                            }
-                            _ => Err(KmipResponseError::new("Ecb and padding is not supported")),
-                        }
+                        decrypt_cipher_mode!(
+                            Aes128,
+                            Ecb,
+                            padding_method,
+                            Default::default(),
+                            data,
+                            key
+                        )
                     }
-
+                    BlockCipherMode::CBC => {
+                        decrypt_cipher_mode!(
+                            Aes128,
+                            Cbc,
+                            padding_method,
+                            nonce
+                                .as_ref()
+                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .as_ref(),
+                            data,
+                            key
+                        )
+                    }
                     _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
                 };
-            } else if key.len() == 24 { // AES 192
-            } else if key.len() == 32 { // AES 256
+            } else if key.len() == 24 {
+                // AES 192
+                return match block_cipher_mode {
+                    BlockCipherMode::ECB => {
+                        decrypt_cipher_mode!(
+                            Aes192,
+                            Ecb,
+                            padding_method,
+                            Default::default(),
+                            data,
+                            key
+                        )
+                    }
+                    BlockCipherMode::CBC => {
+                        decrypt_cipher_mode!(
+                            Aes192,
+                            Cbc,
+                            padding_method,
+                            nonce
+                                .as_ref()
+                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .as_ref(),
+                            data,
+                            key
+                        )
+                    }
+                    _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
+                };
+            } else if key.len() == 32 {
+                // AES 256
+                return match block_cipher_mode {
+                    BlockCipherMode::ECB => {
+                        decrypt_cipher_mode!(
+                            Aes256,
+                            Ecb,
+                            padding_method,
+                            Default::default(),
+                            data,
+                            key
+                        )
+                    }
+                    BlockCipherMode::CBC => {
+                        decrypt_cipher_mode!(
+                            Aes256,
+                            Cbc,
+                            padding_method,
+                            nonce
+                                .as_ref()
+                                .ok_or(KmipResponseError::new("Missing IV"))?
+                                .as_ref(),
+                            data,
+                            key
+                        )
+                    }
+                    _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
+                };
             }
-            // let x = NewBlockCipher::<Aes128>::KeySize;
-            // if key.len() ==  x{
 
-            // }
-            // type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-
-            //     let mut buffer = [0u8; 32];
-            // // copy message to the buffer
-            // let pos = plaintext.len();
-
-            //     buffer[..pos].copy_from_slice(plaintext);
-            //     let ciphertext = cipher.encrypt(&mut buffer, pos).unwrap();
             Ok(Vec::new())
         }
 
@@ -153,8 +271,6 @@ pub fn decrypt_block_cipher(
     }
 }
 
-use hmac::{Hmac, Mac, NewMac};
-use sha2::Sha256;
 
 pub fn hmac(
     algo: CryptographicAlgorithm,
