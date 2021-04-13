@@ -174,7 +174,7 @@ impl ManagedAttributes {
             return Some(AttributesEnum::LastChangeDate(self.last_change_date));
         } else if name == "Cryptographic Usage Mask" {
             if let Some(m) = self.cryptographic_usage_mask {
-            return Some(AttributesEnum::CryptographicUsageMask(m));
+                return Some(AttributesEnum::CryptographicUsageMask(m));
             }
         }
 
@@ -232,7 +232,9 @@ impl ManagedObject {
                 //     // attributes.push(AttributesEnum::CryptographicUsageMask(params));
                 // }
 
-                attributes.push(AttributesEnum::CryptographicAlgorithm(s.cryptographic_algorithm));
+                attributes.push(AttributesEnum::CryptographicAlgorithm(
+                    s.cryptographic_algorithm,
+                ));
 
                 attributes.push(AttributesEnum::CryptographicLength(s.cryptographic_length));
 
@@ -240,7 +242,6 @@ impl ManagedObject {
             }
             ManagedObjectEnum::SecretData(_s) => {
                 attributes.push(AttributesEnum::ObjectType(ObjectTypeEnum::SecretData));
-
             }
         }
 
@@ -262,16 +263,17 @@ impl ManagedObject {
                 if name == "Cryptographic Length" {
                     return Some(AttributesEnum::CryptographicLength(s.cryptographic_length));
                 } else if name == "Cryptographic Algorithm" {
-                    return Some(AttributesEnum::CryptographicAlgorithm(s.cryptographic_algorithm));
+                    return Some(AttributesEnum::CryptographicAlgorithm(
+                        s.cryptographic_algorithm,
+                    ));
                 } else if name == "Object Type" {
                     return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
                 }
             }
             ManagedObjectEnum::SecretData(_s) => {
-           if name == "Object Type" {
-                return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
-            }
-
+                if name == "Object Type" {
+                    return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
+                }
             }
         }
 

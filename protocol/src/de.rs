@@ -80,10 +80,7 @@ pub fn read_type(reader: &mut dyn Read) -> TTLVResult<ItemType> {
 
 fn check_type_len(actual: u32, expected: u32) -> TTLVResult<()> {
     if actual != expected {
-        return Err(TTLVError::InvalidTypeLength {
-            actual,
-            expected,
-        });
+        return Err(TTLVError::InvalidTypeLength { actual, expected });
     }
 
     Ok(())
@@ -1035,16 +1032,14 @@ impl<'de, 'a, R: EncodingReader<'de>> MapAccess<'de> for MapParser<'a, 'de, R> {
             return Ok(None);
         }
 
-       seed.deserialize(&mut *self.de).map(Some)
-
+        seed.deserialize(&mut *self.de).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,
     {
-       seed.deserialize(&mut *self.de)
-
+        seed.deserialize(&mut *self.de)
     }
 }
 

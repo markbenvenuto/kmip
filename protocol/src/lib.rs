@@ -14,8 +14,8 @@ extern crate strum_macros;
 use serde_bytes::ByteBuf;
 use serde_enum::{Deserialize_enum, Serialize_enum};
 
-use chrono::{DateTime, NaiveDateTime};
 use chrono::Utc;
+use chrono::{DateTime, NaiveDateTime};
 use std::fmt;
 use std::io::{Cursor, Read};
 use std::str::FromStr;
@@ -113,7 +113,15 @@ pub enum Operation {
 }
 
 #[derive(
-    Debug, Serialize_enum, Deserialize_enum, EnumString, FromPrimitive, ToPrimitive, AsStaticStr, Clone, Copy
+    Debug,
+    Serialize_enum,
+    Deserialize_enum,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    AsStaticStr,
+    Clone,
+    Copy,
 )]
 #[repr(i32)]
 pub enum ObjectTypeEnum {
@@ -835,7 +843,7 @@ pub enum AttributesEnum {
 
     #[serde(rename = "Unique Identifier")]
     UniqueIdentifier(String),
-    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
@@ -995,7 +1003,11 @@ pub struct RevokeRequest {
     // TODO - the option datetime is messing with Serde
     // Serde thinks the field is required for deserialization even thought it is not
     // ByteBuf works - so look into how it work
-    #[serde(skip_serializing_if = "Option::is_none", with = "my_opt_date_format", rename = "CompromiseOccurrenceDate")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        with = "my_opt_date_format",
+        rename = "CompromiseOccurrenceDate"
+    )]
     pub compromise_occurrence_date: Option<DateTime<Utc>>,
     // #[serde(skip_serializing_if = "Option::is_none", rename = "CompromiseOccurrenceDate")]
     // pub compromise_occurrence_date: Option<String>,
@@ -1300,7 +1312,6 @@ impl Serialize for ResponseBatchItem {
                 field_count += 1;
                 serialize_message = true;
             }
-
         }
 
         //         if self.Operation.is_some() {
@@ -1326,11 +1337,10 @@ impl Serialize for ResponseBatchItem {
             ser_struct.serialize_field("Operation", &op)?;
         }
 
-
         if serialize_operation_enum {
-            ser_struct.serialize_field("Operation", &self.result_response_enum.as_ref().unwrap())?;
+            ser_struct
+                .serialize_field("Operation", &self.result_response_enum.as_ref().unwrap())?;
         }
-
 
         ser_struct.serialize_field("ResultStatus", &self.result_status)?;
 
@@ -1576,8 +1586,6 @@ impl<'de> Deserialize<'de> for ResponseBatchItem {
     }
 }
 
-
-
 impl<'de> Deserialize<'de> for RevokeRequest {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
@@ -1635,10 +1643,9 @@ impl<'de> Deserialize<'de> for RevokeRequest {
             where
                 V: MapAccess<'de>,
             {
-
-                let mut unique_identifier : Option<String> = None;
-                let mut revocation_reason : Option<RevocationReason> = None;
-                let mut compromise_occurrence_date : Option<DateTime<Utc>> = None;
+                let mut unique_identifier: Option<String> = None;
+                let mut revocation_reason: Option<RevocationReason> = None;
+                let mut compromise_occurrence_date: Option<DateTime<Utc>> = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -1656,9 +1663,11 @@ impl<'de> Deserialize<'de> for RevokeRequest {
                         }
                         Field::CompromiseOccurrenceDate => {
                             if compromise_occurrence_date.is_some() {
-                                return Err(serde::de::Error::duplicate_field("CompromiseOccurrenceDate"));
+                                return Err(serde::de::Error::duplicate_field(
+                                    "CompromiseOccurrenceDate",
+                                ));
                             }
-                            let a1 : i64 = map.next_value()?;
+                            let a1: i64 = map.next_value()?;
 
                             compromise_occurrence_date = Some(chrono::DateTime::<Utc>::from_utc(
                                 NaiveDateTime::from_timestamp(a1, 0),
@@ -1669,10 +1678,10 @@ impl<'de> Deserialize<'de> for RevokeRequest {
                     }
                 }
 
-                let unique_identifier =
-                    unique_identifier.ok_or_else(|| serde::de::Error::missing_field("UniqueIdentifier"))?;
-                let revocation_reason =
-                    revocation_reason.ok_or_else(|| serde::de::Error::missing_field("RevocationReason"))?;
+                let unique_identifier = unique_identifier
+                    .ok_or_else(|| serde::de::Error::missing_field("UniqueIdentifier"))?;
+                let revocation_reason = revocation_reason
+                    .ok_or_else(|| serde::de::Error::missing_field("RevocationReason"))?;
 
                 // TODO check for reason and message per KMIP rules
 
@@ -1693,14 +1702,12 @@ impl<'de> Deserialize<'de> for RevokeRequest {
     }
 }
 
-
 // impl Serialize for AttributesEnum {
 //     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
 //     where
 //         S: Serializer,
 //     {
 //         let mut state = serializer.serialize_struct("Attribute", 2)?;
-
 
 //         match &*self {
 //             AttributesEnum::CryptographicAlgorithm(i) => {
@@ -1867,8 +1874,7 @@ impl EnumResolver for KmipEnumResolver {
             }
             Tag::ResultStatus => {
                 let o: ResultStatus = num::FromPrimitive::from_i32(value).unwrap();
-                return
-                Ok(o.as_static().to_owned());
+                return Ok(o.as_static().to_owned());
             }
             Tag::ResultReason => {
                 let o: ResultReason = num::FromPrimitive::from_i32(value).unwrap();

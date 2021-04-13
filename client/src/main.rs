@@ -88,7 +88,6 @@ enum Command {
     },
 }
 
-
 fn run_xml<'a, T>(filename: &PathBuf, client: &mut Client<'a, T>)
 where
     T: 'a + Read + Write,

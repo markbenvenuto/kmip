@@ -1,13 +1,16 @@
 use serde::Serialize;
 use strum::AsStaticRef;
 
-use crate::{CryptographicUsageMask, chrono::TimeZone};
+use crate::{chrono::TimeZone, CryptographicUsageMask};
 use crate::{
     error::Result,
     ser::{EncodedWriter, Serializer},
     EnumResolver,
 };
-use std::{rc::Rc, str::{self, FromStr}};
+use std::{
+    rc::Rc,
+    str::{self, FromStr},
+};
 
 extern crate num;
 //#[macro_use]
@@ -81,14 +84,15 @@ impl EncodedWriter for NestedWriter {
         if tag == Tag::CryptographicUsageMask {
             let mut buffer = String::new();
 
-            let max_bit = f32::log2(CryptographicUsageMask::TranslateUnwrap as usize as f32) as usize;
+            let max_bit =
+                f32::log2(CryptographicUsageMask::TranslateUnwrap as usize as f32) as usize;
             for i in 0..max_bit {
-                let bit : i32  = 1 << i;
+                let bit: i32 = 1 << i;
                 if (v & bit) == 1 {
                     if buffer.is_empty() {
                         buffer.push(' ');
                     }
-                    let o : CryptographicUsageMask = num::FromPrimitive::from_i32(bit).unwrap();
+                    let o: CryptographicUsageMask = num::FromPrimitive::from_i32(bit).unwrap();
                     let s = o.as_static();
                     buffer.push_str(s);
                 }
@@ -108,8 +112,7 @@ impl EncodedWriter for NestedWriter {
     ) -> TTLVResult<()> {
         // TODO - write as hex string or camelCase per 5.4.1.6.7
 
-        let tag_result =
-            Tag::from_str(enum_name);
+        let tag_result = Tag::from_str(enum_name);
 
         if tag_result.is_err() {
             eprintln!("XML Serializer - could not conver tag {}", enum_name);
@@ -172,7 +175,6 @@ impl EncodedWriter for NestedWriter {
         self.writer
             .write(XmlEvent::end_element())
             .map_err(|_| TTLVError::XmlError)
-
     }
 }
 

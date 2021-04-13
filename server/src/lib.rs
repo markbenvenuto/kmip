@@ -210,7 +210,12 @@ impl KmipResponseError {
 
 impl fmt::Display for KmipResponseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "KMIP Response error ({}), : {}", self.reason.as_static(), self.msg)
+        write!(
+            f,
+            "KMIP Response error ({}), : {}",
+            self.reason.as_static(),
+            self.msg
+        )
     }
 }
 
@@ -229,7 +234,6 @@ impl From<bson::de::Error> for KmipResponseError {
 fn create_permission_denied() -> KmipResponseError {
     KmipResponseError::new_reason(ResultReason::PermissionDenied, "DENIED")
 }
-
 
 // fn find_one<T,S>(vec : Vec<T>) -> Option<S> {
 //     for x in vec {
@@ -325,23 +329,28 @@ fn merge_to_managed_attribute(
         }
         protocol::AttributesEnum::State(_) => {
             return Err(KmipResponseError::new(
-                "Cannot set 'State' via a client request"));
+                "Cannot set 'State' via a client request",
+            ));
         }
         protocol::AttributesEnum::InitialDate(_) => {
             return Err(KmipResponseError::new(
-                "Cannot set 'Initial Date' via a client request"));
+                "Cannot set 'Initial Date' via a client request",
+            ));
         }
         protocol::AttributesEnum::LastChangeDate(_) => {
             return Err(KmipResponseError::new(
-                "Cannot set 'Last Change Date' via a client request"));
+                "Cannot set 'Last Change Date' via a client request",
+            ));
         }
         protocol::AttributesEnum::ObjectType(_) => {
             return Err(KmipResponseError::new(
-                "Cannot set 'Object Type' via a client request"));
+                "Cannot set 'Object Type' via a client request",
+            ));
         }
         protocol::AttributesEnum::UniqueIdentifier(_) => {
             return Err(KmipResponseError::new(
-                "Cannot set 'Unique Identifier' via a client request"));
+                "Cannot set 'Unique Identifier' via a client request",
+            ));
         }
         _ => {
             return Err(KmipResponseError::new(&format!(
@@ -579,11 +588,11 @@ fn process_get_attributes_request(
         .get_store()
         .get(&req.unique_identifier)?;
 
-    let attributes = if req.attribute.len()  == 0 {
+    let attributes = if req.attribute.len() == 0 {
         // Get all the attributes
         mo.attributes.get_all_attributes()
     } else {
-        let mut attrs : Vec<AttributesEnum>  = Vec::new();
+        let mut attrs: Vec<AttributesEnum> = Vec::new();
         for name in req.attribute {
             let ga = mo.get_attribute(&name);
             if let Some(attr1) = ga {
@@ -594,15 +603,13 @@ fn process_get_attributes_request(
         attrs
     };
 
-
     let resp = GetAttributesResponse {
-        unique_identifier : req.unique_identifier,
-        attribute : attributes,
+        unique_identifier: req.unique_identifier,
+        attribute: attributes,
     };
 
     Ok(resp)
 }
-
 
 fn process_get_attribute_list_request(
     rc: &RequestContext,
@@ -616,8 +623,8 @@ fn process_get_attribute_list_request(
     let attribute_names = mo.get_attribute_list();
 
     let resp = GetAttributeListResponse {
-        unique_identifier : req.unique_identifier,
-        attribute : attribute_names,
+        unique_identifier: req.unique_identifier,
+        attribute: attribute_names,
     };
 
     Ok(resp)
@@ -638,7 +645,9 @@ fn process_activate_request<'a>(
 
         mo.attributes.activation_date = Some(rc.get_server_context().get_clock_source().now());
 
-        rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
+        rc.get_server_context()
+            .get_store()
+            .update(&req.unique_identifier, &mut mo)?;
     }
 
     let resp = ActivateResponse {
@@ -660,13 +669,17 @@ fn process_revoke_request<'a>(
     // TODO - record revocation code and reason text
     if req.revocation_reason.revocation_reason_code == RevocationReasonCode::KeyCompromise {
         mo.attributes.state = ObjectStateEnum::Compromised;
-        mo.attributes.compromise_date =  req.compromise_occurrence_date.or(Some(rc.get_server_context().get_clock_source().now()));
+        mo.attributes.compromise_date = req
+            .compromise_occurrence_date
+            .or(Some(rc.get_server_context().get_clock_source().now()));
     } else {
         mo.attributes.state = ObjectStateEnum::Deactivated;
         mo.attributes.deactivation_date = Some(rc.get_server_context().get_clock_source().now());
     }
 
-    rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
+    rc.get_server_context()
+        .get_store()
+        .update(&req.unique_identifier, &mut mo)?;
 
     let resp = RevokeResponse {
         unique_identifier: req.unique_identifier,
@@ -685,20 +698,20 @@ fn process_destroy_request<'a>(
         .get(&req.unique_identifier)?;
 
     if mo.attributes.state == ObjectStateEnum::PreActive
-    || mo.attributes.state == ObjectStateEnum::Deactivated
-    || mo.attributes.state == ObjectStateEnum::Compromised
+        || mo.attributes.state == ObjectStateEnum::Deactivated
+        || mo.attributes.state == ObjectStateEnum::Compromised
     {
-        if mo.attributes.state == ObjectStateEnum::Compromised  {
+        if mo.attributes.state == ObjectStateEnum::Compromised {
             mo.attributes.state = ObjectStateEnum::DestroyedCompromised;
-
         } else {
-
-        mo.attributes.state = ObjectStateEnum::Destroyed;
+            mo.attributes.state = ObjectStateEnum::Destroyed;
         }
 
         mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());
 
-        rc.get_server_context().get_store().update(&req.unique_identifier, &mut mo)?;
+        rc.get_server_context()
+            .get_store()
+            .update(&req.unique_identifier, &mut mo)?;
     } else {
         return Err(create_permission_denied());
     }
@@ -716,10 +729,7 @@ fn process_encrypt_request<'a>(
 ) -> std::result::Result<EncryptResponse, KmipResponseError> {
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
 
-    let mo = rc
-        .get_server_context()
-        .get_store()
-        .get(id)?;
+    let mo = rc.get_server_context().get_store().get(id)?;
 
     let sks = mo.get_symmetric_key()?;
 
@@ -778,10 +788,7 @@ fn process_decrypt_request(
 ) -> std::result::Result<DecryptResponse, KmipResponseError> {
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
 
-    let mo = rc
-        .get_server_context()
-        .get_store()
-        .get(id)?;
+    let mo = rc.get_server_context().get_store().get(id)?;
 
     let sks = mo.get_symmetric_key()?;
 
@@ -836,10 +843,7 @@ fn process_mac_request(
 ) -> std::result::Result<MACResponse, KmipResponseError> {
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
 
-    let mo = rc
-        .get_server_context()
-        .get_store()
-        .get(id)?;
+    let mo = rc.get_server_context().get_store().get(id)?;
 
     let sks = mo.get_symmetric_key()?;
 
@@ -876,10 +880,7 @@ fn process_mac_verify_request(
 ) -> std::result::Result<MACVerifyResponse, KmipResponseError> {
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
 
-    let mo = rc
-        .get_server_context()
-        .get_store()
-        .get(id)?;
+    let mo = rc.get_server_context().get_store().get(id)?;
 
     let sks = mo.get_symmetric_key()?;
 
@@ -930,7 +931,7 @@ fn create_ok_response(
             result_reason: Some(protocol::ResultReason::GeneralFailure),
             result_message: None,
             response_payload: Some(op),
-            result_response_enum : None,
+            result_response_enum: None,
         },
     };
 
@@ -957,7 +958,7 @@ fn create_error_response(
             result_reason: Some(e.reason),
             result_message: Some(e.msg.to_owned()),
             response_payload: None,
-            result_response_enum : Some(request_operation)
+            result_response_enum: Some(request_operation),
         },
     };
 
@@ -1010,7 +1011,8 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         }
         RequestBatchItem::GetAttributeList(x) => {
             info!("Got Get Request");
-            process_get_attribute_list_request(&rc, x).map(|r| ResponseOperationEnum::GetAttributeList(r))
+            process_get_attribute_list_request(&rc, x)
+                .map(|r| ResponseOperationEnum::GetAttributeList(r))
         }
         RequestBatchItem::Activate(x) => {
             info!("Got Activate Request");
@@ -1046,9 +1048,11 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         std::result::Result::Ok(t) => {
             create_ok_response(t, rc.get_server_context().get_clock_source())
         }
-        std::result::Result::Err(e) => {
-            create_error_response(&e, request_operation, rc.get_server_context().get_clock_source())
-        }
+        std::result::Result::Err(e) => create_error_response(
+            &e,
+            request_operation,
+            rc.get_server_context().get_clock_source(),
+        ),
     };
 
     rm.response_header.protocol_version.protocol_version_major = request
@@ -1074,8 +1078,7 @@ mod tests {
     use protocol::{KmipEnumResolver, RequestMessage};
 
     use crate::{
-        process_kmip_request, store::KmipStore, RequestContext, ServerContext,
-        TestClockSource,
+        process_kmip_request, store::KmipStore, RequestContext, ServerContext, TestClockSource,
     };
 
     #[test]

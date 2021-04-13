@@ -271,7 +271,6 @@ pub fn decrypt_block_cipher(
     }
 }
 
-
 pub fn hmac(
     algo: CryptographicAlgorithm,
     key: &[u8],

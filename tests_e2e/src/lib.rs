@@ -282,9 +282,9 @@ mod tests {
         let mut writer = minidom::quick_xml::Writer::new_with_indent(buf, ' ' as u8, 4);
         root.to_writer(&mut writer).unwrap();
 
-         std::str::from_utf8(&writer.into_inner())
-                .unwrap()
-                .to_string()
+        std::str::from_utf8(&writer.into_inner())
+            .unwrap()
+            .to_string()
     }
 
     fn assert_xml_eq(left: &str, right: &str) {
@@ -292,7 +292,7 @@ mod tests {
             let left_xml = pretty_print_xml(left);
             let right_xml = pretty_print_xml(right);
 
-            assert_diff!{&left_xml, &right_xml, "\n", 0};
+            assert_diff! {&left_xml, &right_xml, "\n", 0};
         }
     }
 
@@ -1476,17 +1476,16 @@ mod tests {
     //  https://docs.oasis-open.org/kmip/profiles/v1.4/os/test-cases/kmip-v1.4/mandatory/SKLC-M-1-14.xml
     #[test]
     fn e2e_test_xml_sklc_m_1_14() {
-
-      /*
-       *           <!-- TODO - add digest support <Attribute>
-            <AttributeName type="TextString" value="Digest"/>
-            <AttributeValue>
-              <HashingAlgorithm type="Enumeration" value="SHA_256"/>
-              <DigestValue type="ByteString" value="bc12861408b8ac72cdb3b2748ad342b7dc519bd109046a1b931fdaed73591f29"/>
-              <KeyFormatType type="Enumeration" value="Raw"/>
-            </AttributeValue>
-          </Attribute> -->
-       */
+        /*
+        *           <!-- TODO - add digest support <Attribute>
+             <AttributeName type="TextString" value="Digest"/>
+             <AttributeValue>
+               <HashingAlgorithm type="Enumeration" value="SHA_256"/>
+               <DigestValue type="ByteString" value="bc12861408b8ac72cdb3b2748ad342b7dc519bd109046a1b931fdaed73591f29"/>
+               <KeyFormatType type="Enumeration" value="Raw"/>
+             </AttributeValue>
+           </Attribute> -->
+        */
         let conv = r#"
     #"
     <KMIP>
@@ -1672,21 +1671,20 @@ mod tests {
         run_e2e_xml_conversation(conv);
     }
 
-        // Create + Destroy + Revoke
+    // Create + Destroy + Revoke
     //  https://docs.oasis-open.org/kmip/profiles/v1.4/os/test-cases/kmip-v1.4/mandatory/SKLC-M-2-14.xml
     #[test]
     fn e2e_test_xml_sklc_m_2_14() {
-
-      /*
-          <Attribute>
-            <AttributeName type="TextString" value="Digest"/>
-            <AttributeValue>
-              <HashingAlgorithm type="Enumeration" value="SHA_256"/>
-              <DigestValue type="ByteString" value="bc12861408b8ac72cdb3b2748ad342b7dc519bd109046a1b931fdaed73591f29"/>
-              <KeyFormatType type="Enumeration" value="Raw"/>
-            </AttributeValue>
-          </Attribute>
-       */
+        /*
+           <Attribute>
+             <AttributeName type="TextString" value="Digest"/>
+             <AttributeValue>
+               <HashingAlgorithm type="Enumeration" value="SHA_256"/>
+               <DigestValue type="ByteString" value="bc12861408b8ac72cdb3b2748ad342b7dc519bd109046a1b931fdaed73591f29"/>
+               <KeyFormatType type="Enumeration" value="Raw"/>
+             </AttributeValue>
+           </Attribute>
+        */
         let conv = r#"
     #"
     <KMIP>
@@ -2059,11 +2057,10 @@ mod tests {
         run_e2e_xml_conversation(conv);
     }
 
-        // Register + Ecb + PKCS5
+    // Register + Ecb + PKCS5
     //  https://docs.oasis-open.org/kmip/profiles/v1.4/os/test-cases/kmip-v1.4/mandatory/CS-BC-M-8-14.xml
     #[test]
     fn e2e_test_xml_cs_bc_m_8_14() {
-
         let conv = r#"
     #"
     <KMIP>
@@ -2291,13 +2288,10 @@ mod tests {
         run_e2e_xml_conversation(conv);
     }
 
-
-
-        // Register + Cbc + PKCS5
+    // Register + Cbc + PKCS5
     //  https://docs.oasis-open.org/kmip/profiles/v1.4/os/test-cases/kmip-v1.4/mandatory/CS-BC-M-10-14.xml
     #[test]
     fn e2e_test_xml_cs_bc_m_10_14() {
-
         let conv = r#"
     #"
     <KMIP>
@@ -2526,5 +2520,4 @@ mod tests {
     "#;
         run_e2e_xml_conversation(conv);
     }
-
-  } // mod tests
+} // mod tests
