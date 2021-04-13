@@ -69,13 +69,6 @@ where
         });
 
         let mut bytes = create_ok_request(req);
-        // TODO - validate
-        // let req = match object_type {
-        //     ObjectTypeEnum::SymmetricKey => {
-
-        //     }
-        //     _ => { unimplemented!() }
-        // };
 
         let rsp = self.make_request(&mut bytes);
         if let ResponseOperationEnum::Create(x) = rsp {

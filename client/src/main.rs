@@ -71,6 +71,9 @@ enum Command {
         /// TODO
         #[structopt(name = "algo", long = "algo", value_name = "algo")]
         algo: CryptographicAlgorithm,
+
+        #[structopt(name = "length", long = "length")]
+        length: i32,
     },
     #[structopt(name = "get")]
     /// Get an item by id
@@ -155,8 +158,8 @@ fn main() {
     let mut client = Client::create_from_stream(&mut tls);
 
     match args.cmd {
-        Command::CreateSymmetricKey { algo } => {
-            let response = client.create_symmetric_key(CryptographicAlgorithm::AES, 128);
+        Command::CreateSymmetricKey { algo , length} => {
+            let response = client.create_symmetric_key(algo, length);
 
             println!("Response: {:#?} ", response);
         }
