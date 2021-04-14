@@ -14,12 +14,9 @@ use structopt::StructOpt;
 extern crate minidom;
 use minidom::Element;
 
-#[macro_use]
 extern crate log;
 
-use rustls;
 use rustls::Session;
-use webpki;
 
 use protocol::*;
 
@@ -183,7 +180,7 @@ fn main() {
     let mut client = Client::create_from_stream(&mut tls);
 
     match args.cmd {
-        Command::CreateSymmetricKey { algo , length} => {
+        Command::CreateSymmetricKey { algo, length } => {
             let response = client.create_symmetric_key(algo, length);
 
             println!("Response: {:#?} ", response);
@@ -200,7 +197,13 @@ fn main() {
         }
 
         Command::Revoke { id, reason } => {
-            let response = client.revoke(&id, RevocationReason{revocation_reason_code: reason, revocation_message: None});
+            let response = client.revoke(
+                &id,
+                RevocationReason {
+                    revocation_reason_code: reason,
+                    revocation_message: None,
+                },
+            );
 
             println!("Response: {:#?} ", response);
         }

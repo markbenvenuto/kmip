@@ -12,8 +12,6 @@ use std::{
     thread,
 };
 
-
-
 #[cfg(test)]
 use difference::assert_diff;
 
@@ -22,8 +20,8 @@ use kmip_client::Client;
 
 #[cfg(test)]
 use kmip_server::{
-    handle_client, store::KmipStore, ServerContext,
-    test_util::TestClockSource, test_util::TestRngSource,
+    handle_client, store::KmipStore, test_util::TestClockSource, test_util::TestRngSource,
+    ServerContext,
 };
 
 #[cfg(test)]

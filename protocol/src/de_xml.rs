@@ -17,8 +17,8 @@ use crate::kmip_enums::*;
 
 extern crate hex;
 use crate::de::EnumResolver;
-use std::str::FromStr;
 use crate::TTLVError;
+use std::str::FromStr;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 

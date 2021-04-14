@@ -1,4 +1,3 @@
-
 use chrono::NaiveDateTime;
 use chrono::Utc;
 
@@ -9,6 +8,12 @@ pub struct TestClockSource {}
 impl TestClockSource {
     pub fn new() -> TestClockSource {
         TestClockSource {}
+    }
+}
+
+impl Default for TestClockSource {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -26,10 +31,16 @@ impl TestRngSource {
     }
 }
 
+impl Default for TestRngSource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RngSource for TestRngSource {
-        fn gen(&self, len: usize) -> Vec<u8> {
-            let mut v  = Vec::new();
-            v.resize(len, 0);
-            v
+    fn gen(&self, len: usize) -> Vec<u8> {
+        let mut v = Vec::new();
+        v.resize(len, 0);
+        v
     }
 }

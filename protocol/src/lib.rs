@@ -1,7 +1,4 @@
-
-#![allow(
-    clippy::upper_case_acronyms
-)]
+#![allow(clippy::upper_case_acronyms)]
 
 #[macro_use]
 extern crate num_derive;
@@ -61,7 +58,6 @@ pub use de::read_type;
 
 pub use kmip_enums::ItemType;
 pub use kmip_enums::Tag;
-
 
 #[derive(
     FromPrimitive, ToPrimitive, Serialize_enum, Deserialize_enum, Debug, EnumString, AsStaticStr,
@@ -123,7 +119,7 @@ pub enum Operation {
     AsStaticStr,
     Clone,
     Copy,
-    PartialEq
+    PartialEq,
 )]
 #[repr(i32)]
 pub enum ObjectTypeEnum {
@@ -575,7 +571,9 @@ pub enum ResultStatus {
     OperationUndone = 0x00000003,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, Copy, Clone, Display)]
+#[derive(
+    Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, Copy, Clone, Display,
+)]
 #[repr(i32)]
 pub enum ResultReason {
     ItemNotFound = 0x00000001,

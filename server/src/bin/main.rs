@@ -33,10 +33,10 @@ use std::path::PathBuf;
 use std::string::ToString;
 use std::thread;
 
-use kmip_server::{ClockSource, handle_client};
-use kmip_server::ServerContext;
-use kmip_server::{store::KmipStore};
 use kmip_server::crypto::rng::SecureRngSource;
+use kmip_server::store::KmipStore;
+use kmip_server::ServerContext;
+use kmip_server::{handle_client, ClockSource};
 // use bson;
 
 #[derive(Debug, EnumString)]
@@ -133,13 +133,17 @@ impl PreciseClockSource {
     }
 }
 
+impl Default for PreciseClockSource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClockSource for PreciseClockSource {
     fn now(&self) -> chrono::DateTime<Utc> {
         Utc::now()
     }
 }
-
-
 
 fn main() {
     env_logger::init();

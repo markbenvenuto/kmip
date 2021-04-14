@@ -23,6 +23,12 @@ impl KmipMemoryStore {
     }
 }
 
+impl Default for KmipMemoryStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KmipStoreProvider for KmipMemoryStore {
     fn add(&self, id: &str, doc: bson::Document) {
         let r = self

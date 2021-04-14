@@ -25,9 +25,8 @@ pub enum ClientError {
     #[error("ttlv protocol serialization error")]
     TTLVProtocol(String),
 
-
     #[error("operation pending, reason {0}")]
-    OperationPending (ResultReason),
+    OperationPending(ResultReason),
 
     #[error("operation undone, reason {0}")]
     OperationUndone(ResultReason),
@@ -35,14 +34,10 @@ pub enum ClientError {
     #[error("operation failed, reason {0}, message '{1}'")]
     OperationFailed(ResultReason, String),
 
-
     #[error("the data for key `{0}` is not available")]
     Redaction(String),
     #[error("invalid header (expected {expected:?}, found {found:?})")]
-    InvalidHeader {
-        expected: String,
-        found: String,
-    },
+    InvalidHeader { expected: String, found: String },
     #[error("unknown client error")]
     Unknown,
 }
@@ -105,7 +100,7 @@ where
         attributes: Vec<AttributesEnum>,
     ) -> std::result::Result<CreateResponse, ClientError> {
         let req = RequestBatchItem::Create(CreateRequest {
-            object_type: object_type,
+            object_type,
             template_attribute: vec![TemplateAttribute {
                 name: None,
                 attribute: attributes,
@@ -122,7 +117,7 @@ where
         }
     }
 
-    pub fn get(&mut self, id: &str) ->  std::result::Result<GetResponse, ClientError>  {
+    pub fn get(&mut self, id: &str) -> std::result::Result<GetResponse, ClientError> {
         let req = RequestBatchItem::Get(GetRequest {
             unique_identifier: id.to_owned(),
             key_format_type: None,
@@ -140,7 +135,7 @@ where
         }
     }
 
-    pub fn activate(&mut self, id: &str) -> std::result::Result<ActivateResponse, ClientError>  {
+    pub fn activate(&mut self, id: &str) -> std::result::Result<ActivateResponse, ClientError> {
         let req = RequestBatchItem::Activate(ActivateRequest {
             unique_identifier: id.to_owned(),
         });
@@ -155,7 +150,11 @@ where
         }
     }
 
-    pub fn revoke(&mut self, id: &str, revocation_reason: RevocationReason) -> std::result::Result<RevokeResponse, ClientError>  {
+    pub fn revoke(
+        &mut self,
+        id: &str,
+        revocation_reason: RevocationReason,
+    ) -> std::result::Result<RevokeResponse, ClientError> {
         let req = RequestBatchItem::Revoke(RevokeRequest {
             unique_identifier: id.to_owned(),
             revocation_reason: revocation_reason,
@@ -172,7 +171,7 @@ where
         }
     }
 
-    pub fn destroy(&mut self, id: &str) -> std::result::Result<DestroyResponse, ClientError>  {
+    pub fn destroy(&mut self, id: &str) -> std::result::Result<DestroyResponse, ClientError> {
         let req = RequestBatchItem::Destroy(DestroyRequest {
             unique_identifier: id.to_owned(),
         });
@@ -187,7 +186,10 @@ where
         }
     }
 
-    pub fn make_request(&mut self, bytes: &mut [u8]) -> std::result::Result<ResponseOperationEnum,ClientError>  {
+    pub fn make_request(
+        &mut self,
+        bytes: &mut [u8],
+    ) -> std::result::Result<ResponseOperationEnum, ClientError> {
         self.stream.write_all(bytes).unwrap();
 
         debug!("Waiting for data....");
@@ -205,15 +207,26 @@ where
         //println!("Response: {:?} ", response);
 
         if let Some(payload) = response.batch_item.response_payload {
-            return Ok(payload)
+            return Ok(payload);
         } else {
-            let reason = response.batch_item.result_reason.unwrap_or_else(|| ResultReason::InvalidMessage);
+            let reason = response
+                .batch_item
+                .result_reason
+                .unwrap_or(ResultReason::InvalidMessage);
             return match response.batch_item.result_status {
-                ResultStatus::Success => {unimplemented!("Something is wrong")},
+                ResultStatus::Success => {
+                    unimplemented!("Something is wrong")
+                }
                 ResultStatus::OperationUndone => Err(ClientError::OperationUndone(reason)),
                 ResultStatus::OperationPending => Err(ClientError::OperationPending(reason)),
-                ResultStatus::OperationFailed => Err(ClientError::OperationFailed(reason, response.batch_item.result_message.unwrap_or_else(|| String::new()))),
-            }
+                ResultStatus::OperationFailed => Err(ClientError::OperationFailed(
+                    reason,
+                    response
+                        .batch_item
+                        .result_message
+                        .unwrap_or_else(|| String::new()),
+                )),
+            };
         }
     }
 
@@ -221,8 +234,7 @@ where
         let k = Rc::new(KmipEnumResolver {});
 
         let request =
-            protocol::from_xml_bytes::<RequestMessage>(xml_str.as_bytes(), k.clone().as_ref())
-                .unwrap();
+            protocol::from_xml_bytes::<RequestMessage>(xml_str.as_bytes(), k.as_ref()).unwrap();
 
         let bytes = protocol::to_bytes(&request, k.clone()).unwrap();
 
@@ -240,7 +252,7 @@ where
         protocol::to_print(&msg);
 
         // TODO validate request
-        let response = protocol::from_bytes::<ResponseMessage>(&msg, k.clone().as_ref()).unwrap();
+        let response = protocol::from_bytes::<ResponseMessage>(&msg, k.as_ref()).unwrap();
 
         //println!("Response: {:?} ", response);
 

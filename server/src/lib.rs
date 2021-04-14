@@ -46,8 +46,8 @@ use std::string::ToString;
 extern crate bson;
 
 pub mod crypto;
-pub mod test_util;
 pub mod store;
+pub mod test_util;
 
 use protocol::*;
 
@@ -101,7 +101,7 @@ impl ServerContext {
             inner: Arc::new(Mutex::new(ServerContextInner { count: 0 })),
             store,
             clock_source,
-            rng_source
+            rng_source,
         }
     }
 
@@ -202,7 +202,6 @@ impl From<bson::de::Error> for KmipResponseError {
         KmipResponseError::new(&format!("BSON error: {}", e))
     }
 }
-
 
 impl From<protocol::Error> for KmipResponseError {
     fn from(e: protocol::Error) -> Self {
@@ -393,7 +392,10 @@ fn process_create_request(
             let crypt_len = sks.cryptographic_length;
             // TODO - validate crypt len
 
-            let key = rc.get_server_context().get_rng_source().gen((crypt_len / 8) as usize);
+            let key = rc
+                .get_server_context()
+                .get_rng_source()
+                .gen((crypt_len / 8) as usize);
 
             sks.symmetric_key.key_block.key_value.key_material = key;
 
@@ -410,12 +412,12 @@ fn process_create_request(
             if let bson::Bson::Document(d1) = d {
                 rc.get_server_context().get_store().add(id.as_ref(), d1);
 
-                return Ok(CreateResponse {
+                Ok(CreateResponse {
                     object_type: ObjectTypeEnum::SymmetricKey,
                     unique_identifier: id,
-                });
+                })
             } else {
-                return Err(KmipResponseError::new("Barff"));
+                Err(KmipResponseError::new("Barff"))
             }
         }
         _ => Err(KmipResponseError::new("Unsupported type for create")),
@@ -460,12 +462,12 @@ fn process_register_request(
             if let bson::Bson::Document(d1) = d {
                 rc.get_server_context().get_store().add(id.as_ref(), d1);
 
-                return Ok(RegisterResponse {
+                Ok(RegisterResponse {
                     unique_identifier: id,
                     template_attribute: None,
-                });
+                })
             } else {
-                return Err(KmipResponseError::new("Barff"));
+                Err(KmipResponseError::new("Barff"))
             }
         }
         ObjectTypeEnum::SymmetricKey => {
@@ -490,17 +492,20 @@ fn process_register_request(
             merge_to_symmetric_key(&mut ma, &mut sks, &req.template_attribute)?;
 
             if sks.cryptographic_algorithm == CryptographicAlgorithm::UNKNOWN {
-                sks.cryptographic_algorithm =
-                    sks.symmetric_key.key_block.cryptographic_algorithm.ok_or_else(
-                        || KmipResponseError::new("cryptographic_algorithm was not set"),
-                    )?;
+                sks.cryptographic_algorithm = sks
+                    .symmetric_key
+                    .key_block
+                    .cryptographic_algorithm
+                    .ok_or_else(|| {
+                    KmipResponseError::new("cryptographic_algorithm was not set")
+                })?;
             }
             if sks.cryptographic_length == 0 {
                 sks.cryptographic_length = sks
                     .symmetric_key
                     .key_block
                     .cryptographic_length
-                    .ok_or_else( || KmipResponseError::new("cryptographic_length was not set"))?;
+                    .ok_or_else(|| KmipResponseError::new("cryptographic_length was not set"))?;
             }
 
             let id = rc.get_server_context().get_store().gen_id();
@@ -516,12 +521,12 @@ fn process_register_request(
             if let bson::Bson::Document(d1) = d {
                 rc.get_server_context().get_store().add(id.as_ref(), d1);
 
-                return Ok(RegisterResponse {
+                Ok(RegisterResponse {
                     unique_identifier: id,
                     template_attribute: None,
-                });
+                })
             } else {
-                return Err(KmipResponseError::new("Barff"));
+                Err(KmipResponseError::new("Barff"))
             }
         }
         _ => Err(KmipResponseError::new("Unsupported type for register")),
@@ -548,7 +553,7 @@ fn process_get_request(
         ManagedObjectEnum::SymmetricKey(x) => {
             let mut key = x.symmetric_key;
             // TODO - check this merge logic
-            key.key_block.cryptographic_algorithm =  Some(x.cryptographic_algorithm);
+            key.key_block.cryptographic_algorithm = Some(x.cryptographic_algorithm);
             key.key_block.cryptographic_length = Some(x.cryptographic_length);
 
             resp.object_type = ObjectTypeEnum::SymmetricKey;
@@ -756,7 +761,7 @@ fn process_encrypt_request<'a>(
         &req.data,
         &req.iv_counter_nonce,
         random_iv.unwrap_or(false),
-        rc.get_server_context().get_rng_source()
+        rc.get_server_context().get_rng_source(),
     )?;
 
     let resp = EncryptResponse {
@@ -846,7 +851,8 @@ fn process_mac_request(
         cryptographic_algorithm = params.cryptographic_algorithm.or(cryptographic_algorithm);
     }
 
-    let algo = cryptographic_algorithm.ok_or_else(|| KmipResponseError::new("Algorithm is required"))?;
+    let algo =
+        cryptographic_algorithm.ok_or_else(|| KmipResponseError::new("Algorithm is required"))?;
 
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
     //req.iv_counter_nonce.map(|x| x.as_ref()))?;
@@ -883,7 +889,8 @@ fn process_mac_verify_request(
         cryptographic_algorithm = params.cryptographic_algorithm.or(cryptographic_algorithm);
     }
 
-    let algo = cryptographic_algorithm.ok_or_else(|| KmipResponseError::new("Algorithm is required"))?;
+    let algo =
+        cryptographic_algorithm.ok_or_else(|| KmipResponseError::new("Algorithm is required"))?;
 
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
     //req.iv_counter_nonce.map(|x| x.as_ref()))?;
@@ -959,7 +966,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
 
     let request_ret = protocol::from_bytes::<RequestMessage>(&buf, k.as_ref());
 
-    if let Err(e)  = request_ret {
+    if let Err(e) = request_ret {
         // If we fail to decode, we just return a very generic error
         let rm = create_error_response(
             &KmipResponseError::from(e),
@@ -1011,8 +1018,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         }
         RequestBatchItem::GetAttributeList(x) => {
             info!("Got Get Request");
-            process_get_attribute_list_request(&rc, x)
-                .map(ResponseOperationEnum::GetAttributeList)
+            process_get_attribute_list_request(&rc, x).map(ResponseOperationEnum::GetAttributeList)
         }
         RequestBatchItem::Activate(x) => {
             info!("Got Activate Request");
@@ -1078,8 +1084,8 @@ mod tests {
     use protocol::{KmipEnumResolver, RequestMessage};
 
     use crate::{
-        process_kmip_request, store::KmipStore, RequestContext, ServerContext,
-        test_util::TestClockSource, test_util::TestRngSource,
+        process_kmip_request, store::KmipStore, test_util::TestClockSource,
+        test_util::TestRngSource, RequestContext, ServerContext,
     };
 
     #[test]

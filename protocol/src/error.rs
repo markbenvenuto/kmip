@@ -80,9 +80,7 @@ impl std::convert::From<TTLVError> for Error {
     }
 }
 
-
-
-    // TODO - switch TTLVError to thiserror
+// TODO - switch TTLVError to thiserror
 #[derive(Debug, Error)]
 pub enum TTLVError {
     #[error("invalid ttlv type: {}", byte)]
@@ -112,10 +110,7 @@ pub enum TTLVError {
     #[error("invalid xml write")]
     XmlError,
 
-    #[error(
-        "unexpected type, expected {:?}, actual {:?}",
-        expected, actual
-    )]
+    #[error("unexpected type, expected {:?}, actual {:?}", expected, actual)]
     UnexpectedType {
         expected: ItemType,
         actual: ItemType,

@@ -79,7 +79,7 @@ pub fn encrypt_block_cipher(
     data: &[u8],
     nonce: &Option<ByteBuf>,
     random_iv: bool,
-    rng_source: &dyn RngSource
+    rng_source: &dyn RngSource,
 ) -> Result<(Vec<u8>, Option<Vec<u8>>), KmipResponseError> {
     match algo {
         CryptographicAlgorithm::AES => {

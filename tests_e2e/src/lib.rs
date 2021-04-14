@@ -1,4 +1,3 @@
-
 #[macro_use]
 extern crate lazy_static;
 
@@ -8,13 +7,11 @@ mod util;
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        sync::Arc,
-    };
+    use std::sync::Arc;
 
     use kmip_server::{
-        process_kmip_request, store::KmipStore, RequestContext, ServerContext,
-        test_util::TestClockSource, test_util::TestRngSource,
+        process_kmip_request, store::KmipStore, test_util::TestClockSource,
+        test_util::TestRngSource, RequestContext, ServerContext,
     };
 
     use crate::util::{run_e2e_client_test, run_e2e_xml_conversation};
@@ -41,7 +38,6 @@ mod tests {
         println!("Hello");
     }
 
-
     #[test]
     fn e2e_test_10_create() {
         run_e2e_client_test(1, |mut client| {
@@ -54,7 +50,6 @@ mod tests {
 
     // https://docs.oasis-open.org/kmip/testcases/v1.2/kmip-testcases-v1.2.html
     // has test cases for 1.0, 1.1 and 1.2
-
 
     #[test]
     fn e2e_test_xml_tc_311_10() {

@@ -15,6 +15,12 @@ impl SecureRngSource {
     }
 }
 
+impl Default for SecureRngSource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RngSource for SecureRngSource {
     fn gen(&self, len: usize) -> Vec<u8> {
         let mut a: Vec<u8> = Vec::new();

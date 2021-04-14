@@ -20,7 +20,6 @@ use pretty_hex::*;
 use crate::kmip_enums::*;
 use crate::TTLVError;
 
-
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
 fn compute_padding(len: usize) -> usize {
