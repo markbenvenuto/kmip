@@ -135,7 +135,7 @@ fn main() {
     //args.log.log_all(args.verbose.log_level());
 
     info!("starting up");
-    warn!("oops, nothing implemented!");
+    // warn!("oops, nothing implemented!");
 
     // let cfg = confy::load::<MyConfig>("qrb").unwrap();
 

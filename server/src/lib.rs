@@ -573,8 +573,13 @@ fn process_get_request(
 
     match mo.payload {
         ManagedObjectEnum::SymmetricKey(x) => {
+            let mut key = x.symmetric_key;
+            // TODO - check this merge logic
+            key.key_block.cryptographic_algorithm =  Some(x.cryptographic_algorithm);
+            key.key_block.cryptographic_length = Some(x.cryptographic_length);
+
             resp.object_type = ObjectTypeEnum::SymmetricKey;
-            resp.symmetric_key = Some(x.symmetric_key);
+            resp.symmetric_key = Some(key);
         }
         ManagedObjectEnum::SecretData(x) => {
             resp.object_type = ObjectTypeEnum::SecretData;
