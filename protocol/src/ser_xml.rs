@@ -19,10 +19,8 @@ extern crate num_traits;
 
 extern crate byteorder;
 
-//use self::enums;
 use crate::kmip_enums::*;
-
-use crate::failures::*;
+use crate::TTLVError;
 
 use xml::writer::{EmitterConfig, XmlEvent};
 

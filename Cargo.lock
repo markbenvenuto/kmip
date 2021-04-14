@@ -1527,8 +1527,6 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "chrono",
- "failure",
- "failure_derive",
  "hex",
  "log",
  "num",
@@ -1541,6 +1539,7 @@ dependencies = [
  "serde_enum",
  "strum",
  "strum_macros",
+ "thiserror",
  "xml-rs",
 ]
 

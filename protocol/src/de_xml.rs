@@ -15,10 +15,10 @@ extern crate byteorder;
 
 use crate::kmip_enums::*;
 
-use crate::failures::*;
 extern crate hex;
 use crate::de::EnumResolver;
 use std::str::FromStr;
+use crate::TTLVError;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 

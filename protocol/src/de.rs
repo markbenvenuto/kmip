@@ -18,8 +18,8 @@ use byteorder::{BigEndian, ReadBytesExt};
 use pretty_hex::*;
 
 use crate::kmip_enums::*;
+use crate::TTLVError;
 
-use crate::failures::*;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 

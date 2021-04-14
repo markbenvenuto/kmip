@@ -1,8 +1,11 @@
 use std;
 use std::fmt::{self, Display};
 
-use crate::failures::TTLVError;
+use thiserror::Error;
+
 use serde::{de, ser};
+
+use crate::kmip_enums::ItemType;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -75,4 +78,46 @@ impl std::convert::From<TTLVError> for Error {
     fn from(e: TTLVError) -> Self {
         Error::TTLVError(format!("ttlv error: {}", e))
     }
+}
+
+
+
+    // TODO - switch TTLVError to thiserror
+#[derive(Debug, Error)]
+pub enum TTLVError {
+    #[error("invalid ttlv type: {}", byte)]
+    InvalidType { byte: u8 },
+
+    #[error("invalid ttlv tag prefix: {}", byte)]
+    InvalidTagPrefix { byte: u8 },
+
+    #[error("invalid ttlv tag: {}", tag)]
+    InvalidTag { tag: u32 },
+
+    #[error("invalid ttlv len {}, expected {}", actual, expected)]
+    InvalidTypeLength { actual: u32, expected: u32 },
+
+    #[error("invalid ttlv tag name: {}", name)]
+    InvalidTagName { name: String },
+
+    #[error("invalid write {}, {}", count, error)]
+    BadWrite { count: usize, error: std::io::Error },
+
+    #[error("invalid read {}, {}", count, error)]
+    BadRead { count: usize, error: std::io::Error },
+
+    #[error("invalid ttlv string")]
+    BadString,
+
+    #[error("invalid xml write")]
+    XmlError,
+
+    #[error(
+        "unexpected type, expected {:?}, actual {:?}",
+        expected, actual
+    )]
+    UnexpectedType {
+        expected: ItemType,
+        actual: ItemType,
+    },
 }

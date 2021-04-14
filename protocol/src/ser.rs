@@ -19,7 +19,8 @@ use byteorder::{BigEndian, WriteBytesExt};
 //use self::enums;
 use crate::kmip_enums::*;
 
-use crate::failures::*;
+use crate::TTLVError;
+
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 

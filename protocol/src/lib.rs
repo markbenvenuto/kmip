@@ -28,16 +28,11 @@ use std::str::FromStr;
 mod de;
 mod de_xml;
 mod error;
-mod failures;
 mod kmip_enums;
 mod my_date_format;
 mod my_opt_date_format;
 mod ser;
 mod ser_xml;
-
-#[macro_use]
-extern crate failure_derive;
-extern crate failure;
 
 #[macro_use]
 extern crate log;
@@ -56,7 +51,7 @@ pub use ser::to_bytes;
 pub use ser_xml::to_xml_bytes;
 
 pub use de::to_print;
-pub use failures::TTLVError;
+pub use error::TTLVError;
 
 pub use de::EnumResolver;
 
