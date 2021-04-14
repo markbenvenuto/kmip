@@ -946,7 +946,7 @@ pub struct GetAttributesRequest {
     pub unique_identifier: String,
 
     #[serde(rename = "AttributeName")]
-    pub attribute: Vec<String>,
+    pub attribute: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

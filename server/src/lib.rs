@@ -599,12 +599,12 @@ fn process_get_attributes_request(
         .get_store()
         .get(&req.unique_identifier)?;
 
-    let attributes = if req.attribute.is_empty() {
+    let attributes = if req.attribute.is_none() {
         // Get all the attributes
         mo.attributes.get_all_attributes()
     } else {
         let mut attrs: Vec<AttributesEnum> = Vec::new();
-        for name in req.attribute {
+        for name in req.attribute.unwrap() {
             let ga = mo.get_attribute(&name);
             if let Some(attr1) = ga {
                 attrs.push(attr1);
@@ -988,7 +988,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         // If we fail to decode, we just return a very generic error
         let rm = create_error_response(
             &KmipResponseError::from(e),
-            Operation::DiscoverVersions,
+            Operation::Cancel,
             rc.get_server_context().get_clock_source(),
         );
 
