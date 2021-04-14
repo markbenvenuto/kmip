@@ -32,7 +32,6 @@ extern crate confy;
 
 extern crate chrono;
 
-use chrono::NaiveDateTime;
 use chrono::Utc;
 
 use std::net::SocketAddr;
@@ -46,10 +45,8 @@ use std::string::ToString;
 #[macro_use(doc)]
 extern crate bson;
 
-extern crate ring;
-use ring::rand::*;
-
-mod crypto;
+pub mod crypto;
+pub mod test_util;
 pub mod store;
 
 use protocol::*;
@@ -74,22 +71,12 @@ where
     stream.write_all(response.as_slice()).unwrap();
 }
 
+pub trait RngSource {
+    fn gen(&self, len: usize) -> Vec<u8>;
+}
+
 pub trait ClockSource {
     fn now(&self) -> chrono::DateTime<Utc>;
-}
-
-pub struct TestClockSource {}
-
-impl TestClockSource {
-    pub fn new() -> TestClockSource {
-        TestClockSource {}
-    }
-}
-
-impl ClockSource for TestClockSource {
-    fn now(&self) -> chrono::DateTime<Utc> {
-        chrono::DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(123, 0), Utc)
-    }
 }
 
 struct ServerContextInner {
@@ -101,17 +88,20 @@ pub struct ServerContext {
     inner: Arc<Mutex<ServerContextInner>>,
     store: Arc<KmipStore>,
     clock_source: Arc<dyn ClockSource + Send + Sync>,
+    rng_source: Arc<dyn RngSource + Send + Sync>,
 }
 
 impl ServerContext {
     pub fn new(
         store: Arc<KmipStore>,
         clock_source: Arc<dyn ClockSource + Send + Sync>,
+        rng_source: Arc<dyn RngSource + Send + Sync>,
     ) -> ServerContext {
         ServerContext {
             inner: Arc::new(Mutex::new(ServerContextInner { count: 0 })),
             store,
             clock_source,
+            rng_source
         }
     }
 
@@ -122,26 +112,9 @@ impl ServerContext {
     fn get_clock_source(&self) -> &dyn ClockSource {
         self.clock_source.as_ref()
     }
-}
 
-///////////////////////
-
-lazy_static! {
-    static ref GLOBAL_RAND: SystemRandom = SystemRandom::new();
-}
-
-struct KmipCrypto;
-
-impl KmipCrypto {
-    // TODO - is there a secure vector?
-    fn gen_rand_bytes(len: usize) -> Vec<u8> {
-        let mut a: Vec<u8> = Vec::new();
-        a.resize(len, 0);
-        GLOBAL_RAND
-            .fill(a.as_mut())
-            .expect("Random number generator failed");
-
-        a
+    fn get_rng_source(&self) -> &dyn RngSource {
+        self.rng_source.as_ref()
     }
 }
 
@@ -420,7 +393,7 @@ fn process_create_request(
             let crypt_len = sks.cryptographic_length;
             // TODO - validate crypt len
 
-            let key = KmipCrypto::gen_rand_bytes((crypt_len / 8) as usize);
+            let key = rc.get_server_context().get_rng_source().gen((crypt_len / 8) as usize);
 
             sks.symmetric_key.key_block.key_value.key_material = key;
 
@@ -782,6 +755,8 @@ fn process_encrypt_request<'a>(
         key,
         &req.data,
         &req.iv_counter_nonce,
+        random_iv.unwrap_or(false),
+        rc.get_server_context().get_rng_source()
     )?;
 
     let resp = EncryptResponse {
@@ -1103,7 +1078,8 @@ mod tests {
     use protocol::{KmipEnumResolver, RequestMessage};
 
     use crate::{
-        process_kmip_request, store::KmipStore, RequestContext, ServerContext, TestClockSource,
+        process_kmip_request, store::KmipStore, RequestContext, ServerContext,
+        test_util::TestClockSource, test_util::TestRngSource,
     };
 
     #[test]
@@ -1168,8 +1144,9 @@ mod tests {
         ];
 
         let clock_source = Arc::new(TestClockSource::new());
+        let rng_source = Arc::new(TestRngSource::new());
         let store = Arc::new(KmipStore::new_mem(clock_source.clone()));
-        let server_context = ServerContext::new(store, clock_source);
+        let server_context = ServerContext::new(store, clock_source, rng_source);
 
         let mut rc = RequestContext::new(&server_context);
         process_kmip_request(&mut rc, bytes.as_slice());
@@ -1205,8 +1182,9 @@ mod tests {
         ];
 
         let clock_source = Arc::new(TestClockSource::new());
+        let rng_source = Arc::new(TestRngSource::new());
         let store = Arc::new(KmipStore::new_mem(clock_source.clone()));
-        let server_context = ServerContext::new(store, clock_source);
+        let server_context = ServerContext::new(store, clock_source, rng_source);
 
         let mut rc = RequestContext::new(&server_context);
         process_kmip_request(&mut rc, bytes.as_slice());

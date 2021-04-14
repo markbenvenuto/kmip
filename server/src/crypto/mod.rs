@@ -1,7 +1,7 @@
 use protocol::{BlockCipherMode, CryptographicAlgorithm, PaddingMethod, ValidityIndicator};
 use serde_bytes::ByteBuf;
 
-use crate::KmipResponseError;
+use crate::{KmipResponseError, RngSource};
 
 use aes::{Aes128, Aes192, Aes256};
 use block_modes::block_padding::{NoPadding, Pkcs7};
@@ -15,6 +15,8 @@ use sha2::Sha224;
 use sha2::Sha256;
 use sha2::Sha384;
 use sha2::Sha512;
+
+pub mod rng;
 
 macro_rules! encrypt_cipher_mode {
     ($cipher: ty, $mode:ident, $padd: ident, $iv : expr, $data: ident, $key : ident) => {
@@ -39,6 +41,36 @@ macro_rules! encrypt_cipher_mode {
     };
 }
 
+fn get_iv(
+    required_iv_size: usize,
+    nonce: &Option<ByteBuf>,
+    random_iv: bool,
+    rng_source: &dyn RngSource,
+) -> Result<Vec<u8>, KmipResponseError> {
+    match nonce {
+        Some(bytes) => {
+            if bytes.len() != required_iv_size {
+                return Err(KmipResponseError::new(&format!(
+                    "Wrong IV size {}, expected {}",
+                    bytes.len(),
+                    required_iv_size
+                )));
+            }
+
+            Ok(bytes.to_vec())
+        }
+        None => {
+            match random_iv {
+                true => {
+                    // Generate IV
+                    Ok(rng_source.gen(required_iv_size))
+                }
+                false => Err(KmipResponseError::new("Missing IV")),
+            }
+        }
+    }
+}
+
 pub fn encrypt_block_cipher(
     algo: CryptographicAlgorithm,
     block_cipher_mode: BlockCipherMode,
@@ -46,6 +78,8 @@ pub fn encrypt_block_cipher(
     key: &[u8],
     data: &[u8],
     nonce: &Option<ByteBuf>,
+    random_iv: bool,
+    rng_source: &dyn RngSource
 ) -> Result<(Vec<u8>, Option<Vec<u8>>), KmipResponseError> {
     match algo {
         CryptographicAlgorithm::AES => {
@@ -63,20 +97,9 @@ pub fn encrypt_block_cipher(
                         )
                     }
                     BlockCipherMode::CBC => {
-                        let iv = nonce
-                            .as_ref()
-                            .ok_or_else(|| KmipResponseError::new("Missing IV"))?
-                            .as_ref();
+                        let iv = get_iv(128 / 8, nonce, random_iv, rng_source)?;
 
-                        if iv.len() != (128 / 8) {
-                            return Err(KmipResponseError::new(&format!(
-                                "Wrong IV size {}, expected {}",
-                                iv.len(),
-                                (128 / 8)
-                            )));
-                        }
-
-                        encrypt_cipher_mode!(Aes128, Cbc, padding_method, iv, data, key)
+                        encrypt_cipher_mode!(Aes128, Cbc, padding_method, &iv, data, key)
                     }
                     _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
                 };
@@ -94,20 +117,9 @@ pub fn encrypt_block_cipher(
                         )
                     }
                     BlockCipherMode::CBC => {
-                        let iv = nonce
-                            .as_ref()
-                            .ok_or_else(|| KmipResponseError::new("Missing IV"))?
-                            .as_ref();
+                        let iv = get_iv(128 / 8, nonce, random_iv, rng_source)?;
 
-                        if iv.len() != (128 / 8) {
-                            return Err(KmipResponseError::new(&format!(
-                                "Wrong IV size {}, expected {}",
-                                iv.len(),
-                                (128 / 8)
-                            )));
-                        }
-
-                        encrypt_cipher_mode!(Aes192, Cbc, padding_method, iv, data, key)
+                        encrypt_cipher_mode!(Aes192, Cbc, padding_method, &iv, data, key)
                     }
                     _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
                 };
@@ -125,20 +137,9 @@ pub fn encrypt_block_cipher(
                         )
                     }
                     BlockCipherMode::CBC => {
-                        let iv = nonce
-                            .as_ref()
-                            .ok_or_else(|| KmipResponseError::new("Missing IV"))?
-                            .as_ref();
+                        let iv = get_iv(128 / 8, nonce, random_iv, rng_source)?;
 
-                        if iv.len() != (128 / 8) {
-                            return Err(KmipResponseError::new(&format!(
-                                "Wrong IV size {}, expected {}",
-                                iv.len(),
-                                (128 / 8)
-                            )));
-                        }
-
-                        encrypt_cipher_mode!(Aes256, Cbc, padding_method, iv, data, key)
+                        encrypt_cipher_mode!(Aes256, Cbc, padding_method, &iv, data, key)
                     }
                     _ => Err(KmipResponseError::new("Cipher Mode is not supported")),
                 };

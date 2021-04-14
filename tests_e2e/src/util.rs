@@ -1,4 +1,4 @@
-
+#[cfg(test)]
 use std::{
     fs,
     io::BufReader,
@@ -12,23 +12,38 @@ use std::{
     thread,
 };
 
+
+
+#[cfg(test)]
 use difference::assert_diff;
+
+#[cfg(test)]
 use kmip_client::Client;
+
+#[cfg(test)]
 use kmip_server::{
-    handle_client, process_kmip_request, store::KmipStore, RequestContext, ServerContext,
-    TestClockSource,
+    handle_client, store::KmipStore, ServerContext,
+    test_util::TestClockSource, test_util::TestRngSource,
 };
+
+#[cfg(test)]
 use minidom::Element;
+
+#[cfg(test)]
 use rustls::{ClientSession, NoClientAuth, Stream};
+
+#[cfg(test)]
 use std::env;
 
 extern crate kmip_client;
 extern crate kmip_server;
 
+#[cfg(test)]
 struct PortAllocator {
     start: u16,
 }
 
+#[cfg(test)]
 impl PortAllocator {
     fn new() -> Self {
         PortAllocator { start: 7000 }
@@ -41,16 +56,19 @@ impl PortAllocator {
     }
 }
 
+#[cfg(test)]
 lazy_static! {
     static ref GLOBAL_PORT_ALLOCATOR: Mutex<PortAllocator> = Mutex::new(PortAllocator::new());
 }
 
+#[cfg(test)]
 fn load_certs(filename: &PathBuf) -> Vec<rustls::Certificate> {
     let certfile = fs::File::open(filename).expect("cannot open certificate file");
     let mut reader = BufReader::new(certfile);
     rustls::internal::pemfile::certs(&mut reader).unwrap()
 }
 
+#[cfg(test)]
 fn load_private_key(filename: &PathBuf) -> rustls::PrivateKey {
     let rsa_keys = {
         let keyfile = fs::File::open(filename).expect("cannot open private key file");
@@ -75,6 +93,7 @@ fn load_private_key(filename: &PathBuf) -> rustls::PrivateKey {
     }
 }
 
+#[cfg(test)]
 fn get_test_data_dir() -> PathBuf {
     let path = env::current_dir().unwrap();
     eprintln!("The current directory is {}", path.display());
@@ -84,6 +103,7 @@ fn get_test_data_dir() -> PathBuf {
 }
 
 // TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write it
+#[cfg(test)]
 fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port: u16, count: i32) {
     let root_dir = get_test_data_dir();
     let server_cert_file = root_dir.join("server.pem");
@@ -108,8 +128,9 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
         .unwrap();
 
     let clock_source = Arc::new(TestClockSource::new());
+    let rng_source = Arc::new(TestRngSource::new());
     let store = Arc::new(KmipStore::new_mem(clock_source.clone()));
-    let server_context = Arc::new(ServerContext::new(store, clock_source));
+    let server_context = Arc::new(ServerContext::new(store, clock_source, rng_source));
     let sc = Arc::new(server_config);
 
     start_barrier.wait();
@@ -139,6 +160,7 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
     end_barrier.wait();
 }
 
+#[cfg(test)]
 fn run_with_client<F>(port: u16, mut func: F)
 where
     F: FnMut(Client<Stream<ClientSession, TcpStream>>),
@@ -161,6 +183,7 @@ where
     func(a);
 }
 
+#[cfg(test)]
 pub fn run_e2e_client_test<F>(count: i32, func: F)
 where
     F: FnMut(Client<Stream<ClientSession, TcpStream>>),
@@ -186,6 +209,7 @@ where
     t1.join().unwrap();
 }
 
+#[cfg(test)]
 fn pretty_print_xml(s: &str) -> String {
     let mut file = minidom::quick_xml::Reader::from_str(s);
     file.trim_text(true);
@@ -200,6 +224,7 @@ fn pretty_print_xml(s: &str) -> String {
         .to_string()
 }
 
+#[cfg(test)]
 fn assert_xml_eq(left: &str, right: &str) {
     if left != right {
         let left_xml = pretty_print_xml(left);
@@ -209,6 +234,7 @@ fn assert_xml_eq(left: &str, right: &str) {
     }
 }
 
+#[cfg(test)]
 pub fn run_e2e_xml_conversation(conv: &str) {
     let mut file = minidom::quick_xml::Reader::from_str(conv);
     file.trim_text(true);

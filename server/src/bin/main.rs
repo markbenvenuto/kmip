@@ -1,5 +1,6 @@
 extern crate env_logger;
 extern crate log;
+use chrono::Utc;
 use log::{info, warn};
 
 #[macro_use]
@@ -32,10 +33,10 @@ use std::path::PathBuf;
 use std::string::ToString;
 use std::thread;
 
-use kmip_server::handle_client;
+use kmip_server::{ClockSource, handle_client};
 use kmip_server::ServerContext;
-use kmip_server::{store::KmipStore, TestClockSource};
-
+use kmip_server::{store::KmipStore};
+use kmip_server::crypto::rng::SecureRngSource;
 // use bson;
 
 #[derive(Debug, EnumString)]
@@ -124,9 +125,23 @@ fn load_private_key(filename: &PathBuf) -> rustls::PrivateKey {
     }
 }
 
-fn main() {
-    println!("Hello, world!");
+pub struct PreciseClockSource {}
 
+impl PreciseClockSource {
+    pub fn new() -> PreciseClockSource {
+        PreciseClockSource {}
+    }
+}
+
+impl ClockSource for PreciseClockSource {
+    fn now(&self) -> chrono::DateTime<Utc> {
+        Utc::now()
+    }
+}
+
+
+
+fn main() {
     env_logger::init();
 
     let args = CmdLine::from_args();
@@ -161,7 +176,8 @@ fn main() {
         .set_single_cert(server_certs, privkey)
         .expect("Failed to set certificate");
 
-    let clock_source = Arc::new(TestClockSource::new());
+    let clock_source = Arc::new(PreciseClockSource::new());
+    let rng_source = Arc::new(SecureRngSource::new());
 
     let store: Arc<KmipStore> = match args.store {
         StoreType::Memory => {
@@ -175,7 +191,7 @@ fn main() {
         }
     };
 
-    let server_context = Arc::new(ServerContext::new(store, clock_source));
+    let server_context = Arc::new(ServerContext::new(store, clock_source, rng_source));
     let sc = Arc::new(server_config);
 
     for stream in listener.incoming() {

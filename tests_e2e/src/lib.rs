@@ -14,7 +14,7 @@ mod tests {
 
     use kmip_server::{
         process_kmip_request, store::KmipStore, RequestContext, ServerContext,
-        TestClockSource,
+        test_util::TestClockSource, test_util::TestRngSource,
     };
 
     use crate::util::{run_e2e_client_test, run_e2e_xml_conversation};
@@ -25,9 +25,9 @@ mod tests {
     #[test]
     fn test_10_create() {
         let clock_source = Arc::new(TestClockSource::new());
+        let rng_source = Arc::new(TestRngSource::new());
         let store = Arc::new(KmipStore::new_mem(clock_source.clone()));
-
-        let server_context = ServerContext::new(store, clock_source);
+        let server_context = ServerContext::new(store, clock_source, rng_source);
 
         let mut rc = RequestContext::new(&server_context);
 
