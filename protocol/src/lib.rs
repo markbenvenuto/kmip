@@ -128,6 +128,7 @@ pub enum Operation {
     AsStaticStr,
     Clone,
     Copy,
+    PartialEq
 )]
 #[repr(i32)]
 pub enum ObjectTypeEnum {
@@ -579,7 +580,7 @@ pub enum ResultStatus {
     OperationUndone = 0x00000003,
 }
 
-#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, Copy, Clone)]
+#[derive(Debug, Serialize_enum, Deserialize_enum, FromPrimitive, AsStaticStr, Copy, Clone, Display)]
 #[repr(i32)]
 pub enum ResultReason {
     ItemNotFound = 0x00000001,

@@ -31,7 +31,7 @@ struct PortAllocator {
 
 impl PortAllocator {
     fn new() -> Self {
-        PortAllocator { start: 6000 }
+        PortAllocator { start: 7000 }
     }
 
     fn allocate(&mut self) -> u16 {

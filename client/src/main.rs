@@ -75,13 +75,38 @@ enum Command {
         #[structopt(name = "length", long = "length")]
         length: i32,
     },
+
     #[structopt(name = "get")]
-    /// Get an item by id
+    /// Get an object by id
     Get {
         /// ID of thing to get
-        //#[structopt(short = "p")]
         id: String,
     },
+
+    #[structopt(name = "activate")]
+    /// Activate an object by id
+    Activate {
+        /// ID of thing to activate
+        id: String,
+    },
+
+    #[structopt(name = "revoke")]
+    /// Activate an object by id
+    Revoke {
+        /// ID of thing to revoke
+        id: String,
+
+        /// Reason for revocation
+        reason: RevocationReasonCode,
+    },
+
+    #[structopt(name = "destroy")]
+    /// Activate an object by id
+    Destroy {
+        /// ID of thing to destroy
+        id: String,
+    },
+
     #[structopt(name = "xml")]
     /// Run an xml file against the server for testing purposes
     RunXml {
@@ -168,11 +193,27 @@ fn main() {
 
             println!("Response: {:#?} ", response);
         }
+        Command::Activate { id } => {
+            let response = client.activate(&id);
+
+            println!("Response: {:#?} ", response);
+        }
+
+        Command::Revoke { id, reason } => {
+            let response = client.revoke(&id, RevocationReason{revocation_reason_code: reason, revocation_message: None});
+
+            println!("Response: {:#?} ", response);
+        }
+
+        Command::Destroy { id } => {
+            let response = client.destroy(&id);
+
+            println!("Response: {:#?} ", response);
+        }
+
         Command::RunXml { file } => {
             run_xml(&file, &mut client);
-        } // _ => {
-          //     unimplemented!();
-          // }
+        }
     };
 
     let ciphersuite = tls.sess.get_negotiated_ciphersuite().unwrap();

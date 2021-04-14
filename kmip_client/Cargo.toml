@@ -16,3 +16,4 @@ num = "0.4.0"
 num-traits = "0.2.12"
 num-derive = "0.3.3"
 
+thiserror="1.0.24"
