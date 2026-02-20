@@ -63,7 +63,6 @@ tokio  = { workspace = true }
 block-modes  = { workspace = true }
 aes  = { workspace = true }
 
-crypto-mac  = { workspace = true }
 digest  = { workspace = true }
 hmac  = { workspace = true }
 
