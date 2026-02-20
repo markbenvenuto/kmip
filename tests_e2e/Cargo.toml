@@ -3,30 +3,31 @@ name = "tests_e2e"
 version = "0.1.0"
 authors = ["Mark Benvenuto <mark.benvenuto@mongodb.com>"]
 edition = "2018"
+license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-kmip_client = {path="../kmip_client"}
+kmip_client = { workspace = true }
 kmip_server = {path="../server"}
-protocol = {path="../protocol"}
+protocol =  { workspace = true }
 
-log= "0.4.14"
+log =  { workspace = true }
 
-hex = "0.4.3"
-# pretty-hex = "0.1.1"
+hex  =  { workspace = true }
+# pretty-hex  =  { workspace = true }
 
-# num = "0.2.0"
-# num-traits = "0.2"
-# num-derive = "0.3.0"
+# num  =  { workspace = true }
+# num-traits  =  { workspace = true }
+# num-derive  =  { workspace = true }
 
-rustls = "0.19.0"
+rustls  =  { workspace = true }
 
-webpki = "0.21.3"
+webpki  =  { workspace = true }
 
-minidom = "0.12.0"
+minidom  =  { workspace = true }
 
-difference="2.0.0"
+difference=    { workspace = true }
 
 # crossbeam-channel="0.5.0"
-lazy_static = "1.4.0"
+lazy_static  =  { workspace = true }

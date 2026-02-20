@@ -1,34 +1,36 @@
 [package]
 name = "protocol"
-version = "0.1.0"
 authors = ["Mark Benvenuto <mark.benvenuto@mongodb.com>"]
-edition = "2018"
+license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde_enum = {path="../serde_enum"}
+serde_enum = { workspace = true }
 
-serde = "1.0.123"
-serde_derive = "1.0.123"
-serde_bytes = "0.11.5"
+serde = { workspace = true }
+serde_derive = { workspace = true }
+serde_bytes = { workspace = true }
 
-num = "0.4.0"
-num-traits = "0.2.12"
-num-derive = "0.3.3"
+num = { workspace = true }
+num-traits = { workspace = true }
+num-derive = { workspace = true }
 
-strum = "0.20.0"
-strum_macros = "0.20.1"
+strum = { workspace = true }
+strum_macros = { workspace = true }
 
-chrono = { version = "0.4.19", features = ["serde"] }
+chrono = { workspace = true, features = ["serde"] }
 
-log = "0.4.11"
+log = { workspace = true }
 
-byteorder = "1.4.3"
+byteorder = { workspace = true }
 
-pretty-hex = "0.2.1"
-hex = "0.4.2"
+pretty-hex = { workspace = true }
+hex = { workspace = true }
 
-xml-rs = "0.8.3"
+xml-rs = { workspace = true }
 
-thiserror="1.0.24"
+thiserror = { workspace = true }

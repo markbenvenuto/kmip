@@ -1,58 +1,57 @@
 [package]
 name = "kmip_server"
-version = "0.1.0"
 authors = ["Mark Benvenuto <mark.benvenuto@mongodb.com>"]
-edition = "2018"
+license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde_enum = {path="../serde_enum"}
-protocol = {path="../protocol"}
+serde_enum = { workspace = true }
+protocol =  { workspace = true }
+byteorder  = { workspace = true }
 
-byteorder = "1.3.4"
+serde  = { workspace = true }
+serde_derive  = { workspace = true }
+pretty-hex  = { workspace = true }
+serde_bytes  = { workspace = true }
 
-serde = "1.0.125"
-serde_derive = "1.0.125"
-pretty-hex = "0.2.1"
-#serde-transcode = "1.1.0"
-#serde_json = "1.0.40"
-serde_bytes = "0.11.5"
+thiserror  = { workspace = true }
 
-thiserror = "1.0.24"
+structopt  = { workspace = true }
+clap-verbosity-flag  = { workspace = true }
+clap-log-flag  = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
 
-structopt = "0.3.20"
-clap-verbosity-flag = "0.3.1"
-clap-log-flag = "0.2.1"
-log= "0.4.11"
-env_logger= "0.8.1"
+confy  = { workspace = true }
 
-confy = "0.4.0"
-
-num = "0.4.0"
-num-traits = "0.2.12"
-num-derive = "0.3.2"
+num  = { workspace = true }
+num-traits  = { workspace = true }
+num-derive  = { workspace = true }
 
 
-rustls = "0.19.0"
-mio = "0.7.3"
+rustls  = { workspace = true }
+mio  = { workspace = true }
 
-ring = "0.16.15"
+ring  = { workspace = true }
 
-vecio = "0.1.0"
+vecio  = { workspace = true }
 
-strum = "0.20.0"
-strum_macros = "0.20.1"
+strum  = { workspace = true }
+strum_macros  = { workspace = true }
 
-chrono = { version = "0.4.19", features = ["serde"] }
+chrono  = { workspace = true }
 
-lazy_static = "1.4.0"
+lazy_static  = { workspace = true }
 
-bson = "1.2.0"
+bson  = { workspace = true }
 
-mongodb = "1.2.0"
-futures = "0.3.13"
-tokio = "1.4.0"
+mongodb  = { workspace = true }
+futures  = { workspace = true }
+tokio  = { workspace = true }
 
 # TODO - consider https://github.com/rust-cli/human-panic
 
@@ -61,12 +60,11 @@ tokio = "1.4.0"
 
 # Crypto
 # https://github.com/RustCrypto
-block-modes = "0.7.0"
-aes = "0.6.0"
+block-modes  = { workspace = true }
+aes  = { workspace = true }
 
-crypto-mac = "0.10.0"
-digest = "0.9.0"
-hmac = "0.10.1"
+crypto-mac  = { workspace = true }
+digest  = { workspace = true }
+hmac  = { workspace = true }
 
-sha2 = "0.9.3"
-#sha3 = "0.9.1"
+sha2  = { workspace = true }

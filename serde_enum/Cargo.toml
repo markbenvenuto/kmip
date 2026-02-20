@@ -1,9 +1,12 @@
 [package]
 name = "serde_enum"
-version = "0.1.0"
 authors = ["Mark Benvenuto <mark.benvenuto@mongodb.com>"]
-edition = "2018"
+license = "MIT OR Apache-2.0"
 description = "Fork of serde-repr 0.1.4 from https://github.com/dtolnay/serde-repr"
+version.workspace = true
+edition.workspace = true
+publish = false
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,4 +17,3 @@ proc-macro = true
 proc-macro2 = "1.0.17"
 quote = "1.0.9"
 syn = "1.0.64"
-
