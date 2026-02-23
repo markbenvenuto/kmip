@@ -20,7 +20,7 @@ serde_bytes  = { workspace = true }
 
 thiserror  = { workspace = true }
 
-structopt  = { workspace = true }
+clap  = { workspace = true }
 clap-verbosity-flag  = { workspace = true }
 clap-log-flag  = { workspace = true }
 log = { workspace = true }
@@ -67,3 +67,4 @@ digest  = { workspace = true }
 hmac  = { workspace = true }
 
 sha2  = { workspace = true }
+webpki-roots  = { workspace = true }

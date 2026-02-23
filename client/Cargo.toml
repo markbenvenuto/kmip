@@ -13,7 +13,8 @@ publish = false
 protocol  = { workspace = true }
 kmip_client  = { workspace = true }
 
-structopt  = { workspace = true }
+clap  = { workspace = true }
+hex  = { workspace = true }
 clap-verbosity-flag  = { workspace = true }
 clap-log-flag  = { workspace = true }
 log = { workspace = true }
@@ -27,6 +28,7 @@ rustls  = { workspace = true }
 mio  = { workspace = true }
 
 webpki  = { workspace = true }
+webpki-roots  = { workspace = true }
 
 #quick-xml  = { workspace = true }
 minidom  = { workspace = true }

@@ -13,6 +13,7 @@ use pretty_hex::*;
 // use protocol::{CryptographicAlgorithm, KmipEnumResolver, ProtocolVersion, RequestBatchItem, RequestHeader, RequestMessage};
 
 use protocol::*;
+use serde_bytes::ByteBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -58,7 +59,7 @@ fn create_ok_request(op: RequestBatchItem) -> std::result::Result<Vec<u8>, Clien
         request_header: RequestHeader {
             protocol_version: ProtocolVersion {
                 protocol_version_major: 1,
-                protocol_version_minor: 0,
+                protocol_version_minor: 2,
             },
             client_correlation_value: None,
             batch_count: 1,
@@ -186,16 +187,65 @@ where
         }
     }
 
+    pub fn encrypt(
+        &mut self,
+        id: &str,
+        data: &[u8],
+    ) -> std::result::Result<EncryptResponse, ClientError> {
+        let req = RequestBatchItem::Encrypt(EncryptRequest {
+            unique_identifier: Some(id.to_owned()),
+            data: data.to_vec(),
+            cryptographic_parameters: None,
+            iv_counter_nonce: None,
+        });
+
+        let mut bytes = create_ok_request(req)?;
+
+        let rsp = self.make_request(&mut bytes)?;
+        if let ResponseOperationEnum::Encrypt(x) = rsp {
+            return Ok(x);
+        } else {
+            panic!();
+        }
+    }
+
+    pub fn decrypt(
+        &mut self,
+        id: &str,
+        iv: &[u8],
+        data: &[u8],
+    ) -> std::result::Result<DecryptResponse, ClientError> {
+        let req = RequestBatchItem::Decrypt(DecryptRequest {
+            unique_identifier: Some(id.to_owned()),
+            data: data.to_vec(),
+            cryptographic_parameters: None,
+            iv_counter_nonce: Some(ByteBuf::from(iv)),
+        });
+
+        let mut bytes = create_ok_request(req)?;
+
+        let rsp = self.make_request(&mut bytes)?;
+        if let ResponseOperationEnum::Decrypt(x) = rsp {
+            return Ok(x);
+        } else {
+            panic!();
+        }
+    }
+
     pub fn make_request(
         &mut self,
         bytes: &mut [u8],
     ) -> std::result::Result<ResponseOperationEnum, ClientError> {
+        println!("Request bytes:");
+        protocol::to_print(bytes);
+
         self.stream.write_all(bytes).unwrap();
 
         debug!("Waiting for data....");
 
         let msg = read_msg(&mut self.stream)?;
 
+        println!("Response bytes:");
         info!("Response Message: {:?}", msg.hex_dump());
 
         protocol::to_print(&msg);

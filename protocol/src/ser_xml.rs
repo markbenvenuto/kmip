@@ -1,11 +1,11 @@
 use serde::Serialize;
 use strum::AsStaticRef;
 
-use crate::{chrono::TimeZone, CryptographicUsageMask};
+use crate::{CryptographicUsageMask, chrono::TimeZone};
 use crate::{
+    EnumResolver,
     error::Result,
     ser::{EncodedWriter, Serializer},
-    EnumResolver,
 };
 use std::{
     rc::Rc,
@@ -19,8 +19,8 @@ extern crate num_traits;
 
 extern crate byteorder;
 
-use crate::kmip_enums::*;
 use crate::TTLVError;
+use crate::kmip_enums::*;
 
 use xml::writer::{EmitterConfig, XmlEvent};
 
@@ -128,6 +128,15 @@ impl EncodedWriter for NestedWriter {
         )
     }
 
+    fn write_string_enumeration(
+        &mut self,
+        enum_name: &str,
+        enum_value: &str,
+        enum_resolver: &dyn EnumResolver,
+    ) -> TTLVResult<()> {
+        todo!()
+    }
+
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
         self.write_element(self.tag.unwrap().as_ref(), "LongInteger", &v.to_string())
     }
@@ -195,7 +204,7 @@ where
 mod tests {
     use std::rc::Rc;
 
-    use crate::{chrono::TimeZone, EnumResolver, TTLVError, Tag};
+    use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
     use chrono::Utc;
 
     use crate::my_date_format;

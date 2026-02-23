@@ -4,8 +4,8 @@ mod option_datefmt;
 
 use std::sync::Arc;
 
-use chrono::serde::ts_milliseconds;
 use chrono::Utc;
+use chrono::serde::ts_milliseconds;
 
 pub use crate::store::mongodb::KmipMongoDBStore;
 use crate::{ClockSource, KmipResponseError};
@@ -331,7 +331,7 @@ impl KmipStore {
         }
         let doc = doc_maybe.unwrap();
 
-        let mo: ManagedObject = bson::from_bson(bson::Bson::Document(doc))?;
+        let mo: ManagedObject = bson::deserialize_from_bson(bson::Bson::Document(doc))?;
 
         Ok(mo)
     }
@@ -343,7 +343,7 @@ impl KmipStore {
     ) -> std::result::Result<(), KmipResponseError> {
         mo.attributes.last_change_date = self.clock.now();
 
-        let d = bson::to_bson(&mo).unwrap();
+        let d = bson::serialize_to_bson(&mo).unwrap();
 
         if let bson::Bson::Document(d1) = d {
             self.store.update_bson(id, d1);

@@ -1,7 +1,5 @@
 #[cfg(test)]
 use std::{
-    fs,
-    io::BufReader,
     net,
     net::TcpListener,
     net::{IpAddr, Ipv4Addr, TcpStream},
@@ -28,7 +26,7 @@ use kmip_server::{
 use minidom::Element;
 
 #[cfg(test)]
-use rustls::{ClientSession, NoClientAuth, Stream};
+use rustls::{ClientConnection, Stream};
 
 #[cfg(test)]
 use std::env;
@@ -60,38 +58,6 @@ lazy_static! {
 }
 
 #[cfg(test)]
-fn load_certs(filename: &PathBuf) -> Vec<rustls::Certificate> {
-    let certfile = fs::File::open(filename).expect("cannot open certificate file");
-    let mut reader = BufReader::new(certfile);
-    rustls::internal::pemfile::certs(&mut reader).unwrap()
-}
-
-#[cfg(test)]
-fn load_private_key(filename: &PathBuf) -> rustls::PrivateKey {
-    let rsa_keys = {
-        let keyfile = fs::File::open(filename).expect("cannot open private key file");
-        let mut reader = BufReader::new(keyfile);
-        rustls::internal::pemfile::rsa_private_keys(&mut reader)
-            .expect("file contains invalid rsa private key")
-    };
-
-    let pkcs8_keys = {
-        let keyfile = fs::File::open(filename).expect("cannot open private key file");
-        let mut reader = BufReader::new(keyfile);
-        rustls::internal::pemfile::pkcs8_private_keys(&mut reader)
-            .expect("file contains invalid pkcs8 private key (encrypted keys not supported)")
-    };
-
-    // prefer to load pkcs8 keys
-    if !pkcs8_keys.is_empty() {
-        pkcs8_keys[0].clone()
-    } else {
-        assert!(!rsa_keys.is_empty());
-        rsa_keys[0].clone()
-    }
-}
-
-#[cfg(test)]
 fn get_test_data_dir() -> PathBuf {
     let path = env::current_dir().unwrap();
     eprintln!("The current directory is {}", path.display());
@@ -103,6 +69,11 @@ fn get_test_data_dir() -> PathBuf {
 // TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write it
 #[cfg(test)]
 fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port: u16, count: i32) {
+    use rustls::{
+        pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer},
+        ServerConfig,
+    };
+
     let root_dir = get_test_data_dir();
     let server_cert_file = root_dir.join("server.pem");
     let server_key_file = root_dir.join("server.key");
@@ -112,17 +83,12 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
     let addr: net::SocketAddr = net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
 
     let listener = TcpListener::bind(&addr).expect("cannot listen on port");
-    let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
 
-    let mut server_certs = load_certs(&server_cert_file);
-    let privkey = load_private_key(&server_key_file);
-
-    let mut ca_certs = load_certs(&ca_cert_file);
-
-    server_certs.append(&mut ca_certs);
-
-    server_config
-        .set_single_cert(server_certs, privkey)
+    let server_cert = CertificateDer::from_pem_file(server_cert_file).unwrap();
+    let server_cert_private_key = PrivateKeyDer::from_pem_file(server_key_file).unwrap();
+    let server_config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![server_cert], server_cert_private_key)
         .unwrap();
 
     let clock_source = Arc::new(TestClockSource::new());
@@ -138,7 +104,7 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
             Ok(mut stream) => {
                 println!("new client!");
                 let sc2 = sc.clone();
-                let mut tls_session = rustls::ServerSession::new(&sc2);
+                let mut tls_session = rustls::ServerConnection::new(sc2).unwrap();
                 let mut tls = rustls::Stream::new(&mut tls_session, &mut stream);
 
                 let mut req_count = count;
@@ -161,20 +127,36 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
 #[cfg(test)]
 fn run_with_client<F>(port: u16, mut func: F)
 where
-    F: FnMut(Client<Stream<ClientSession, TcpStream>>),
+    F: FnMut(Client<Stream<ClientConnection, TcpStream>>),
 {
-    let mut config = rustls::ClientConfig::new();
+    use std::convert::TryFrom;
+
+    use rustls::{
+        pki_types::{pem::PemObject, CertificateDer, ServerName},
+        ClientConfig, RootCertStore,
+    };
 
     let root_dir = get_test_data_dir();
     let ca_cert_file = root_dir.join("ca.pem");
-    let certfile = fs::File::open(ca_cert_file).expect("Cannot open CA file");
-    let mut reader = BufReader::new(certfile);
-    config.root_store.add_pem_file(&mut reader).unwrap();
 
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
-    let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
+    let mut root_store = RootCertStore {
+        roots: webpki_roots::TLS_SERVER_ROOTS.into(),
+    };
+
+    let cert = CertificateDer::from_pem_file(ca_cert_file).unwrap();
+
+    root_store.add(cert).unwrap();
+
+    let config = ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_no_client_auth();
+
+    let dns_name = ServerName::try_from("localhost").expect("invalid DNS name");
+    let rc_config = Arc::new(config);
+    let mut client =
+        rustls::ClientConnection::new(rc_config, dns_name).expect("Valid TLS connection setup");
     let mut sock = TcpStream::connect(("localhost", port)).unwrap();
-    let mut tls = rustls::Stream::new(&mut sess, &mut sock);
+    let mut tls = rustls::Stream::new(&mut client, &mut sock);
 
     //let kmip_stream = StreamAdapter::new(&mut tls);
     let a = Client::create_from_stream(&mut tls);
@@ -184,7 +166,7 @@ where
 #[cfg(test)]
 pub fn run_e2e_client_test<F>(count: i32, func: F)
 where
-    F: FnMut(Client<Stream<ClientSession, TcpStream>>),
+    F: FnMut(Client<Stream<ClientConnection, TcpStream>>),
 {
     //let ssf = SharedStreamFactory::new();
 

@@ -2,14 +2,14 @@ extern crate env_logger;
 extern crate log;
 use chrono::Utc;
 use log::{info, warn};
+use rustls::pki_types::pem::PemObject;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 #[macro_use]
 extern crate serde_derive;
 
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
-extern crate structopt;
-use structopt::StructOpt;
 
 extern crate strum;
 #[macro_use]
@@ -21,109 +21,76 @@ extern crate chrono;
 
 use std::{net::IpAddr, net::Ipv4Addr, sync::Arc};
 
-use rustls;
+use rustls::{self, RootCertStore, ServerConfig, ServerConnection};
 
-use rustls::NoClientAuth;
-
-use std::fs;
-use std::io::BufReader;
+use clap::Parser;
 use std::net;
 use std::net::TcpListener;
 use std::path::PathBuf;
-use std::string::ToString;
 use std::thread;
 
+use kmip_server::ServerContext;
 use kmip_server::crypto::rng::SecureRngSource;
 use kmip_server::store::KmipStore;
-use kmip_server::ServerContext;
-use kmip_server::{handle_client, ClockSource};
+use kmip_server::{ClockSource, handle_client};
 // use bson;
 
-#[derive(Debug, EnumString)]
+#[derive(Debug, Clone, EnumString)]
 enum StoreType {
     Memory,
     MongoDB,
 }
 
 /// Search for a pattern in a file and display the lines that contain it.
-#[derive(Debug, StructOpt)]
-#[structopt(global_settings(&[structopt::clap::AppSettings::ColoredHelp]))]
+#[derive(Debug, Parser)]
+#[command(name = "server")]
+#[command(about = "KMIP server", long_about = None)]
 struct CmdLine {
-    #[structopt(flatten)]
+    #[command(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
 
     // #[structopt(flatten)]
     // log: clap_log_flag::Log,
-    #[structopt(name = "debug", short = "d", long = "debug")]
+    #[arg(name = "debug", short = 'd', long = "debug")]
     /// Debug output
     debug: bool,
 
     /// Server PEM Certificate
-    #[structopt(parse(from_os_str), name = "serverCert", long = "serverCert")]
+    #[arg(name = "serverCert", long = "serverCert")]
     server_cert_file: PathBuf,
 
     /// Server Key Certificate
-    #[structopt(parse(from_os_str), name = "serverKey", long = "serverKey")]
+    #[arg(name = "serverKey", long = "serverKey")]
     server_key_file: PathBuf,
 
     /// CA Certificate File
-    #[structopt(parse(from_os_str), name = "caFile", long = "caFile")]
+    #[arg(name = "caFile", long = "caFile")]
     ca_cert_file: PathBuf,
 
     /// Port to listen on
-    #[structopt(name = "port", long = "port", default_value = "5696")]
+    #[arg(name = "port", long = "port", default_value = "5696")]
     port: u16,
 
     /// Store to use
-    #[structopt(name = "store", long = "store", default_value = "Memory")]
+    #[arg(name = "store", long = "store", default_value = "Memory")]
     store: StoreType,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct MyConfig {
-    version: u8,
-    api_key: String,
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// struct MyConfig {
+//     version: u8,
+//     api_key: String,
+// }
 
-/// `MyConfig` implements `Default`
-impl ::std::default::Default for MyConfig {
-    fn default() -> Self {
-        Self {
-            version: 0,
-            api_key: "".into(),
-        }
-    }
-}
-
-fn load_certs(filename: &PathBuf) -> Vec<rustls::Certificate> {
-    let certfile = fs::File::open(filename).expect("cannot open certificate file");
-    let mut reader = BufReader::new(certfile);
-    rustls::internal::pemfile::certs(&mut reader).unwrap()
-}
-
-fn load_private_key(filename: &PathBuf) -> rustls::PrivateKey {
-    let rsa_keys = {
-        let keyfile = fs::File::open(filename).expect("cannot open private key file");
-        let mut reader = BufReader::new(keyfile);
-        rustls::internal::pemfile::rsa_private_keys(&mut reader)
-            .expect("file contains invalid rsa private key")
-    };
-
-    let pkcs8_keys = {
-        let keyfile = fs::File::open(filename).expect("cannot open private key file");
-        let mut reader = BufReader::new(keyfile);
-        rustls::internal::pemfile::pkcs8_private_keys(&mut reader)
-            .expect("file contains invalid pkcs8 private key (encrypted keys not supported)")
-    };
-
-    // prefer to load pkcs8 keys
-    if !pkcs8_keys.is_empty() {
-        pkcs8_keys[0].clone()
-    } else {
-        assert!(!rsa_keys.is_empty());
-        rsa_keys[0].clone()
-    }
-}
+// /// `MyConfig` implements `Default`
+// impl ::std::default::Default for MyConfig {
+//     fn default() -> Self {
+//         Self {
+//             version: 0,
+//             api_key: "".into(),
+//         }
+//     }
+// }
 
 pub struct PreciseClockSource {}
 
@@ -148,7 +115,7 @@ impl ClockSource for PreciseClockSource {
 fn main() {
     env_logger::init();
 
-    let args = CmdLine::from_args();
+    let args = CmdLine::parse();
     println!("{:?}", args);
 
     //args.log.log_all(args.verbose.log_level());
@@ -167,18 +134,20 @@ fn main() {
     //TODO addr.set_port(args.flag_port.unwrap_or(5696));
 
     let listener = TcpListener::bind(&addr).expect("cannot listen on port");
-    let mut server_config = rustls::ServerConfig::new(NoClientAuth::new());
 
-    let mut server_certs = load_certs(&args.server_cert_file);
-    let privkey = load_private_key(&args.server_key_file);
+    let mut root_store = RootCertStore {
+        roots: webpki_roots::TLS_SERVER_ROOTS.into(),
+    };
+    let ca_cert = CertificateDer::from_pem_file(args.ca_cert_file).unwrap();
 
-    let mut ca_certs = load_certs(&args.ca_cert_file);
+    root_store.add(ca_cert).unwrap();
 
-    server_certs.append(&mut ca_certs);
-
-    server_config
-        .set_single_cert(server_certs, privkey)
-        .expect("Failed to set certificate");
+    let server_cert = CertificateDer::from_pem_file(args.server_cert_file).unwrap();
+    let server_cert_private_key = PrivateKeyDer::from_pem_file(args.server_key_file).unwrap();
+    let server_config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![server_cert], server_cert_private_key)
+        .unwrap();
 
     let clock_source = Arc::new(PreciseClockSource::new());
     let rng_source = Arc::new(SecureRngSource::new());
@@ -206,7 +175,7 @@ fn main() {
                 let server_context2 = server_context.clone();
 
                 thread::spawn(move || {
-                    let mut tls_session = rustls::ServerSession::new(&sc2);
+                    let mut tls_session = ServerConnection::new(sc2).unwrap();
                     let mut tls = rustls::Stream::new(&mut tls_session, &mut stream);
 
                     loop {

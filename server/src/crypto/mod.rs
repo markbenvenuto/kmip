@@ -7,7 +7,6 @@ use aes::{Aes128, Aes192, Aes256};
 use block_modes::block_padding::{NoPadding, Pkcs7};
 use block_modes::{BlockMode, Cbc, Ecb};
 
-use crypto_mac::generic_array::ArrayLength;
 use digest::{BlockInput, FixedOutput, Reset, Update};
 
 use hmac::{Hmac, Mac, NewMac};
@@ -63,7 +62,7 @@ fn get_iv(
             match random_iv {
                 true => {
                     // Generate IV
-                    Ok(rng_source.gen(required_iv_size))
+                    Ok(rng_source.generate(required_iv_size))
                 }
                 false => Err(KmipResponseError::new("Missing IV")),
             }
@@ -292,7 +291,6 @@ pub fn decrypt_block_cipher(
 fn do_hmac<D>(key: &[u8], data: &[u8]) -> Result<Vec<u8>, KmipResponseError>
 where
     D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
-    D::BlockSize: ArrayLength<u8>,
 {
     // Create HMAC-SHA256 instance which implements `Mac` trait
     let mut mac = Hmac::<D>::new_varkey(key).expect("HMAC can take key of any size");
@@ -332,7 +330,6 @@ fn do_hmac_verify<D>(
 ) -> Result<ValidityIndicator, KmipResponseError>
 where
     D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
-    D::BlockSize: ArrayLength<u8>,
 {
     // Create HMAC-SHA256 instance which implements `Mac` trait
     let mut mac = Hmac::<D>::new_varkey(key).expect("HMAC can take key of any size");

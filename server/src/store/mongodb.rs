@@ -1,10 +1,7 @@
 use std::sync::Mutex;
 
-use bson::Document;
-use futures::StreamExt;
-use mongodb::*;
-
 use crate::store::KmipStoreProvider;
+use mongodb::{Client, Collection};
 
 struct KmipMongoDBStoreInner {
     counter: i32,
@@ -25,7 +22,7 @@ impl KmipMongoDBStore {
         }
     }
 
-    fn make_connection(&self) -> Collection {
+    fn make_connection(&self) -> Collection<bson::Document> {
         let uri = self.inner.lock().unwrap().uri.clone();
         // TODO - make async
         let client = futures::executor::block_on(Client::with_uri_str(&uri)).unwrap();
@@ -42,7 +39,7 @@ impl KmipStoreProvider for KmipMongoDBStore {
     fn add(&self, _id: &str, doc: bson::Document) {
         let collection = self.make_connection();
 
-        collection.insert_one(doc, None);
+        collection.insert_one(doc).run().unwrap();
     }
 
     // TODO - improve
@@ -59,32 +56,36 @@ impl KmipStoreProvider for KmipMongoDBStore {
     fn get(&self, id: &str) -> Option<bson::Document> {
         let collection = self.make_connection();
 
-        let filter = doc! {
+        let filter = mongodb::bson::doc! {
             "_id" : id
         };
 
-        let cursor = collection.find(Some(filter), None);
-
         // TODO - make async
-        let cur = futures::executor::block_on(cursor).unwrap();
-        let mut results: Vec<mongodb::error::Result<Document>> =
-            futures::executor::block_on(cur.collect());
-        if results.is_empty() {
-            return None;
-        }
+        // let cursor = collection.find(filter);
 
-        assert_eq!(results.len(), 1);
+        // let cur = futures::executor::block_on(cursor).unwrap();
+        // let mut results: Vec<mongodb::error::Result<bson::Document>> =
+        //     futures::executor::block_on(cur.collect());
+        // if results.is_empty() {
+        //     return None;
+        // }
+        // let mut results: Vec<mongodb::error::Result<bson::Document>> =
+        //     cursor.run().unwrap().collect();
 
-        Some(results.remove(0).unwrap())
+        // assert_eq!(results.len(), 1);
+
+        // Some(results.remove(0).unwrap())
+        let doc = collection.find_one(filter).run().unwrap();
+        doc
     }
 
     fn update_bson(&self, id: &str, doc: bson::Document) {
         let collection = self.make_connection();
 
-        let filter = doc! {
+        let filter = mongodb::bson::doc! {
             "_id" : id
         };
 
-        collection.find_one_and_replace(doc, filter, None);
+        collection.find_one_and_replace(filter, doc).run().unwrap();
     }
 }

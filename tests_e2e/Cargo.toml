@@ -24,6 +24,7 @@ hex  =  { workspace = true }
 rustls  =  { workspace = true }
 
 webpki  =  { workspace = true }
+webpki-roots  =  { workspace = true }
 
 minidom  =  { workspace = true }
 

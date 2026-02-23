@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 protocol = { workspace = true }
 log = { workspace = true }
+serde_bytes = { workspace = true }
 
 pretty-hex  = { workspace = true }
 

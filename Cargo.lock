@@ -319,6 +319,7 @@ dependencies = [
  "indexmap",
  "js-sys",
  "rand",
+ "serde",
  "serde_bytes",
  "simdutf8",
  "thiserror 2.0.18",
@@ -426,7 +427,7 @@ dependencies = [
  "failure",
  "log",
  "pretty_env_logger",
- "structopt 0.2.18",
+ "structopt",
 ]
 
 [[package]]
@@ -445,8 +446,10 @@ version = "4.5.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24a241312cea5059b13574bb9b3861cabf758b879c15190b37b6d6fd63ab6876"
 dependencies = [
+ "anstream",
  "anstyle",
  "clap_lex",
+ "strsim 0.11.1",
 ]
 
 [[package]]
@@ -471,10 +474,12 @@ checksum = "3a822ea5bc7590f9d40f1ba12c0dc3c2760f3482c6984db1573ad11031420831"
 name = "client"
 version = "0.1.0"
 dependencies = [
+ "clap 4.5.60",
  "clap-log-flag",
  "clap-verbosity-flag",
  "confy",
  "env_logger 0.11.9",
+ "hex",
  "kmip_client",
  "log",
  "minidom",
@@ -482,8 +487,8 @@ dependencies = [
  "pretty-hex",
  "protocol",
  "rustls",
- "structopt 0.3.26",
  "webpki",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -1393,6 +1398,7 @@ dependencies = [
  "num-traits",
  "pretty-hex",
  "protocol",
+ "serde_bytes",
  "thiserror 2.0.18",
 ]
 
@@ -1405,6 +1411,7 @@ dependencies = [
  "bson 3.1.0",
  "byteorder",
  "chrono",
+ "clap 4.5.60",
  "clap-log-flag",
  "clap-verbosity-flag",
  "confy",
@@ -1428,12 +1435,12 @@ dependencies = [
  "serde_derive",
  "serde_enum",
  "sha2 0.9.9",
- "structopt 0.3.26",
  "strum",
  "strum_macros",
  "thiserror 2.0.18",
  "tokio",
  "vecio",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -1713,13 +1720,13 @@ checksum = "cf97ec579c3c42f953ef76dbf8d55ac91fb219dde70e49aa4a6b7d74e9919050"
 
 [[package]]
 name = "num-derive"
-version = "0.3.3"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "876a53fff98e03a936a674b29568b0e605f06b29372c2489ff4de23f1949743d"
+checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
 dependencies = [
  "proc-macro2 1.0.106",
  "quote 1.0.44",
- "syn 1.0.109",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -1902,30 +1909,6 @@ checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
 dependencies = [
  "proc-macro2 1.0.106",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "proc-macro-error"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
-dependencies = [
- "proc-macro-error-attr",
- "proc-macro2 1.0.106",
- "quote 1.0.44",
- "syn 1.0.109",
- "version_check",
-]
-
-[[package]]
-name = "proc-macro-error-attr"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
-dependencies = [
- "proc-macro2 1.0.106",
- "quote 1.0.44",
- "version_check",
 ]
 
 [[package]]
@@ -2422,18 +2405,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16c2cdbf9cc375f15d1b4141bc48aeef444806655cd0e904207edc8d68d86ed7"
 dependencies = [
  "clap 2.34.0",
- "structopt-derive 0.2.18",
-]
-
-[[package]]
-name = "structopt"
-version = "0.3.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c6b5c64445ba8094a6ab0c3cd2ad323e07171012d9c98b0b15651daf1787a10"
-dependencies = [
- "clap 2.34.0",
- "lazy_static",
- "structopt-derive 0.4.18",
+ "structopt-derive",
 ]
 
 [[package]]
@@ -2446,19 +2418,6 @@ dependencies = [
  "proc-macro2 0.4.30",
  "quote 0.6.13",
  "syn 0.15.44",
-]
-
-[[package]]
-name = "structopt-derive"
-version = "0.4.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcb5ae327f9cc13b68763b5749770cb9e048a99bd9dfdfa58d0cf05d5f64afe0"
-dependencies = [
- "heck 0.3.3",
- "proc-macro-error",
- "proc-macro2 1.0.106",
- "quote 1.0.44",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -2582,6 +2541,7 @@ dependencies = [
  "protocol",
  "rustls",
  "webpki",
+ "webpki-roots",
 ]
 
 [[package]]

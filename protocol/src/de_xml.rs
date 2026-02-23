@@ -16,8 +16,8 @@ extern crate byteorder;
 use crate::kmip_enums::*;
 
 extern crate hex;
-use crate::de::EnumResolver;
 use crate::TTLVError;
+use crate::de::EnumResolver;
 use std::str::FromStr;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
@@ -417,10 +417,10 @@ mod tests {
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
-    use crate::my_date_format;
     use crate::EnumResolver;
     use crate::TTLVError;
-    use crate::{de_xml::from_xml_bytes, Tag};
+    use crate::my_date_format;
+    use crate::{Tag, de_xml::from_xml_bytes};
 
     struct TestEnumResolver;
 
@@ -499,10 +499,10 @@ mod tests {
         #[derive(Deserialize, Debug)]
         struct CRTCoefficient {
             #[serde(rename = "BatchCount")]
-            pub batch_count: Vec<i32>,
+            pub _batch_count: Vec<i32>,
 
             #[serde(rename = "ProtocolVersionMinor")]
-            pub version: i32,
+            pub _version: i32,
         }
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient><BatchCount type=\"Integer\" value=\"102\" /><BatchCount type=\"Integer\" value=\"119\" /><BatchCount type=\"Integer\" value=\"136\" /><ProtocolVersionMinor type=\"Integer\" value=\"1\" /></CRTCoefficient>";
@@ -516,7 +516,7 @@ mod tests {
         #[derive(Deserialize, Debug)]
         struct CRTCoefficient {
             #[serde(with = "my_date_format", rename = "BatchCount")]
-            batch_count: chrono::DateTime<Utc>,
+            _batch_count: chrono::DateTime<Utc>,
         }
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><CRTCoefficient><BatchCount type=\"DateTime\" value=\"1973-11-29T21:20:00+00:00\" /></CRTCoefficient>";
@@ -530,17 +530,17 @@ mod tests {
         #[derive(Deserialize, Debug)]
         struct RequestHeader {
             #[serde(rename = "ProtocolVersionMajor")]
-            pub protocol_version_major: i32,
+            pub _protocol_version_major: i32,
             #[serde(rename = "BatchCount")]
-            pub batch_count: i32,
+            pub _batch_count: i32,
         }
 
         #[derive(Deserialize, Debug)]
         struct RequestMessage {
             #[serde(rename = "RequestHeader")]
-            request_header: RequestHeader,
+            _request_header: RequestHeader,
             #[serde(rename = "UniqueIdentifier")]
-            unique_identifier: String,
+            _unique_identifier: String,
         }
 
         let good = "<?xml version=\"1.0\" encoding=\"utf-8\"?><RequestMessage><RequestHeader><ProtocolVersionMajor type=\"Integer\" value=\"3\" /><BatchCount type=\"Integer\" value=\"4\" /></RequestHeader><UniqueIdentifier type=\"TextString\" value=\"\" /></RequestMessage>";

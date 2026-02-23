@@ -3,8 +3,8 @@ use std::io::Read;
 
 use std::string::ToString;
 
-use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::Deserialize;
+use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 
 use crate::error::{Error, Result};
 
@@ -17,8 +17,8 @@ extern crate byteorder;
 use byteorder::{BigEndian, ReadBytesExt};
 use pretty_hex::*;
 
-use crate::kmip_enums::*;
 use crate::TTLVError;
+use crate::kmip_enums::*;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
@@ -392,7 +392,7 @@ struct NestedReader<'a> {
 }
 
 impl<'a> EncodingReader<'a> for NestedReader<'a> {
-    fn new(buf: &'a [u8]) -> NestedReader {
+    fn new(buf: &'a [u8]) -> NestedReader<'a> {
         NestedReader {
             end_positions: Vec::new(),
             cur: Cursor::new(buf),
@@ -1164,12 +1164,12 @@ mod tests {
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
-    use crate::{de::to_print, Tag};
+    use crate::{Tag, de::to_print};
 
-    use crate::de::from_bytes;
-    use crate::my_date_format;
     use crate::EnumResolver;
     use crate::TTLVError;
+    use crate::de::from_bytes;
+    use crate::my_date_format;
 
     struct TestEnumResolver;
 
@@ -1249,7 +1249,7 @@ mod tests {
         #[derive(Deserialize, Debug)]
         struct CRTCoefficient {
             #[serde(rename = "BatchCount")]
-            pub batch_count: Vec<i32>,
+            pub _batch_count: Vec<i32>,
         }
 
         let good = vec![
@@ -1288,17 +1288,17 @@ mod tests {
         #[derive(Deserialize, Debug)]
         struct RequestHeader {
             #[serde(rename = "ProtocolVersionMajor")]
-            pub protocol_version_major: i32,
+            pub _protocol_version_major: i32,
             #[serde(rename = "BatchCount")]
-            pub batch_count: i32,
+            pub _batch_count: i32,
         }
 
         #[derive(Deserialize, Debug)]
         struct RequestMessage {
             #[serde(rename = "RequestHeader")]
-            request_header: RequestHeader,
+            _request_header: RequestHeader,
             #[serde(rename = "UniqueIdentifier")]
-            unique_identifier: String,
+            _unique_identifier: String,
         }
 
         let good = vec![

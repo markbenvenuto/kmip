@@ -38,7 +38,7 @@ impl Default for TestRngSource {
 }
 
 impl RngSource for TestRngSource {
-    fn gen(&self, len: usize) -> Vec<u8> {
+    fn generate(&self, len: usize) -> Vec<u8> {
         let mut v = Vec::new();
         v.resize(len, 0);
         v

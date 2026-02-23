@@ -1,93 +1,94 @@
 use std::sync::Arc;
 
-use std::fs;
-use std::io::BufReader;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::PathBuf;
 
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
-extern crate structopt;
-use structopt::StructOpt;
 
 extern crate minidom;
 use minidom::Element;
 
 extern crate log;
 
-use rustls::Session;
-
-use protocol::*;
-
+use clap::{Parser, Subcommand};
 use kmip_client::Client;
+use protocol::*;
+use rustls::ClientConfig;
+use rustls::RootCertStore;
+use rustls::crypto::CryptoProvider;
+use rustls::pki_types::pem::PemObject;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 
 /// Search for a pattern in a file and display the lines that contain it.
-#[derive(Debug, StructOpt)]
-#[structopt(global_settings(&[structopt::clap::AppSettings::ColoredHelp]))]
+#[derive(Debug, Parser)]
+#[command(name = "client")]
+#[command(about = "KMIP client Tool", long_about = None)]
+// #[arg(global_settings(&[arg::clap::AppSettings::ColoredHelp]))]
 struct CmdLine {
-    #[structopt(flatten)]
+    #[command(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
 
-    // #[structopt(flatten)]
+    // #[arg(flatten)]
     // log: clap_log_flag::Log,
-    #[structopt(name = "debug", short = "d", long = "debug")]
+    #[arg(name = "debug", short = 'd', long = "debug")]
     /// Debug output
     debug: bool,
 
     /// Client PEM Certificate
-    #[structopt(parse(from_os_str), name = "clientCert", long = "clientCert")]
+    #[arg(name = "clientCert", long = "clientCert")]
     client_cert_file: PathBuf,
 
     /// Client Key Certificate
-    #[structopt(parse(from_os_str), name = "clientKey", long = "clientKey")]
+    #[arg(name = "clientKey", long = "clientKey")]
     client_key_file: PathBuf,
 
     /// CA Certificate File
-    #[structopt(parse(from_os_str), name = "caFile", long = "caFile")]
+    #[arg(name = "caFile", long = "caFile")]
     ca_cert_file: PathBuf,
 
     /// Host name to connect to
-    #[structopt(name = "host", long = "host", default_value = "localhost")]
+    #[arg(name = "host", long = "host", default_value = "localhost")]
     host: String,
 
     /// Port to connect to
-    #[structopt(name = "port", long = "port", default_value = "5696")]
+    #[arg(name = "port", long = "port", default_value = "5696")]
     port: u16,
 
-    #[structopt(subcommand)] // Note that we mark a field as a subcommand
+    #[command(subcommand)] // Note that we mark a field as a subcommand
     cmd: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clone, Subcommand)]
 enum Command {
-    #[structopt(name = "createsymmetrickey")]
+    #[command(name = "createsymmetrickey")]
     /// Create a symmetric key
     CreateSymmetricKey {
         // TODO
         /// TODO
-        #[structopt(name = "algo", long = "algo", value_name = "algo")]
+        #[arg(name = "algo", long = "algo", value_name = "algo")]
         algo: CryptographicAlgorithm,
 
-        #[structopt(name = "length", long = "length")]
+        #[arg(name = "length", long = "length")]
         length: i32,
     },
 
-    #[structopt(name = "get")]
+    #[command(name = "get")]
     /// Get an object by id
     Get {
         /// ID of thing to get
         id: String,
     },
 
-    #[structopt(name = "activate")]
+    #[command(name = "activate")]
     /// Activate an object by id
     Activate {
         /// ID of thing to activate
         id: String,
     },
 
-    #[structopt(name = "revoke")]
+    #[command(name = "revoke")]
     /// Activate an object by id
     Revoke {
         /// ID of thing to revoke
@@ -97,18 +98,41 @@ enum Command {
         reason: RevocationReasonCode,
     },
 
-    #[structopt(name = "destroy")]
+    #[command(name = "destroy")]
     /// Activate an object by id
     Destroy {
         /// ID of thing to destroy
         id: String,
     },
 
-    #[structopt(name = "xml")]
+    #[command(name = "encrypt")]
+    /// Encrypt some data with a key
+    Encrypt {
+        /// ID of key
+        id: String,
+
+        /// data to encrypt in hex
+        data: String,
+    },
+
+    #[command(name = "decrypt")]
+    /// Decrypt some data with a key
+    Decrypt {
+        /// ID of key
+        id: String,
+
+        /// iv to decrypt in hex
+        iv: String,
+
+        /// data to decrypt in hex
+        data: String,
+    },
+
+    #[command(name = "xml")]
     /// Run an xml file against the server for testing purposes
     RunXml {
         /// Path to XML file to run
-        #[structopt(parse(from_os_str), name = "file", long = "file")]
+        #[arg(name = "file", long = "file")]
         file: PathBuf,
     },
 }
@@ -149,8 +173,12 @@ fn main() {
 
     env_logger::init();
 
-    let args = CmdLine::from_args();
+    let args = CmdLine::parse();
     println!("{:?}", args);
+
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .unwrap();
 
     //args.log.log_all(Option::Some(args.verbose.log_level()));
 
@@ -159,22 +187,39 @@ fn main() {
 
     // TODO - add client auth
 
-    let mut config = rustls::ClientConfig::new();
-    //config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+    let mut root_store = RootCertStore {
+        roots: webpki_roots::TLS_SERVER_ROOTS.into(),
+    };
 
-    let certfile = fs::File::open(args.ca_cert_file).expect("Cannot open CA file");
-    let mut reader = BufReader::new(certfile);
-    config.root_store.add_pem_file(&mut reader).unwrap();
+    let ca_cert = CertificateDer::from_pem_file(args.ca_cert_file).unwrap();
+
+    root_store.add(ca_cert).unwrap();
+
+    let client_cert = CertificateDer::from_pem_file(args.client_cert_file).unwrap();
+    let client_key = PrivateKeyDer::from_pem_file(args.client_key_file).unwrap();
+
+    let config = ClientConfig::builder()
+        .with_root_certificates(root_store)
+        .with_client_auth_cert(vec![client_cert], client_key)
+        .unwrap();
+
+    // let config = config_builder
+    //config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
 
     // let mut server_certs = load_certs(args.serverCertFile.as_ref());
     // let privkey = load_private_key(args.serverKeyFile.as_ref());
 
     // let mut ca_certs = load_certs(args.caCertFile.as_ref());
 
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str(&args.host).unwrap();
-    let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
+    // let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
+    let dns_name = ServerName::try_from(args.host.clone()).expect("invalid DNS name");
+    let rc_config = Arc::new(config);
+    let mut client =
+        rustls::ClientConnection::new(rc_config, dns_name).expect("Valid TLS connection setup");
+    // let mut conn = Arc::new(config).connect(dns_name).build().unwrap();
+
     let mut sock = TcpStream::connect((args.host.as_str(), args.port)).unwrap();
-    let mut tls = rustls::Stream::new(&mut sess, &mut sock);
+    let mut tls = rustls::Stream::new(&mut client, &mut sock);
 
     //let kmip_stream = StreamAdapter::new(&mut tls);
     let mut client = Client::create_from_stream(&mut tls);
@@ -195,7 +240,6 @@ fn main() {
 
             println!("Response: {:#?} ", response);
         }
-
         Command::Revoke { id, reason } => {
             let response = client.revoke(
                 &id,
@@ -207,23 +251,37 @@ fn main() {
 
             println!("Response: {:#?} ", response);
         }
-
         Command::Destroy { id } => {
             let response = client.destroy(&id);
 
             println!("Response: {:#?} ", response);
         }
-
         Command::RunXml { file } => {
             run_xml(&file, &mut client);
         }
+        Command::Encrypt { id, data } => {
+            let data = hex::decode(data).unwrap();
+            let response = client.encrypt(&id, &data);
+
+            println!("Response: {:#?} ", response);
+            println!("Data: {:?}", hex::encode(response.unwrap().data));
+            // println!("IV: {:?}", hex::encode(response.unwrap().iv_counter_nonce.unwrap_or)));
+        }
+        Command::Decrypt { id, iv, data } => {
+            let iv = hex::decode(iv).unwrap();
+            let data = hex::decode(data).unwrap();
+            let response = client.decrypt(&id, &iv, &data);
+
+            println!("Response: {:#?} ", response);
+            println!("Data: {:?}", hex::encode(response.unwrap().data));
+        }
     };
 
-    let ciphersuite = tls.sess.get_negotiated_ciphersuite().unwrap();
+    let ciphersuite = tls.conn.negotiated_cipher_suite().unwrap();
     writeln!(
         &mut std::io::stderr(),
         "Current ciphersuite: {:?}",
-        ciphersuite.suite
+        ciphersuite.suite()
     )
     .unwrap();
 }

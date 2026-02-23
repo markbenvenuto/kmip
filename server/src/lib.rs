@@ -21,7 +21,6 @@ use std::{io::Read, io::Write, rc::Rc};
 
 extern crate clap_log_flag;
 extern crate clap_verbosity_flag;
-extern crate structopt;
 
 extern crate strum;
 extern crate strum_macros;
@@ -41,9 +40,6 @@ use std::sync::Mutex;
 use std::error::Error;
 use std::fmt;
 use std::string::ToString;
-
-#[macro_use(doc)]
-extern crate bson;
 
 pub mod crypto;
 pub mod store;
@@ -72,7 +68,7 @@ where
 }
 
 pub trait RngSource {
-    fn gen(&self, len: usize) -> Vec<u8>;
+    fn generate(&self, len: usize) -> Vec<u8>;
 }
 
 pub trait ClockSource {
@@ -80,11 +76,13 @@ pub trait ClockSource {
 }
 
 struct ServerContextInner {
+    #[allow(dead_code)]
     count: i32,
 }
 
 #[derive(Clone)]
 pub struct ServerContext {
+    #[allow(dead_code)]
     inner: Arc<Mutex<ServerContextInner>>,
     store: Arc<KmipStore>,
     clock_source: Arc<dyn ClockSource + Send + Sync>,
@@ -120,6 +118,7 @@ impl ServerContext {
 
 pub struct RequestContext<'a> {
     //store: &'a mut KmipStore,
+    #[allow(dead_code)]
     peer_addr: Option<SocketAddr>,
     server_context: &'a ServerContext,
     // TODO - add support for  ID Placeholder value when processing batches of requests
@@ -137,9 +136,9 @@ impl<'a> RequestContext<'a> {
         self.server_context
     }
 
-    fn set_peer_addr(&mut self, addr: SocketAddr) {
-        self.peer_addr = Some(addr);
-    }
+    // fn set_peer_addr(&mut self, addr: SocketAddr) {
+    //     self.peer_addr = Some(addr);
+    // }
 
     fn get_id_placeholder<'b>(
         &self,
@@ -197,8 +196,8 @@ impl Error for KmipResponseError {
     }
 }
 
-impl From<bson::de::Error> for KmipResponseError {
-    fn from(e: bson::de::Error) -> Self {
+impl From<bson::error::Error> for KmipResponseError {
+    fn from(e: bson::error::Error) -> Self {
         KmipResponseError::new(&format!("BSON error: {}", e))
     }
 }
@@ -395,7 +394,7 @@ fn process_create_request(
             let key = rc
                 .get_server_context()
                 .get_rng_source()
-                .gen((crypt_len / 8) as usize);
+                .generate((crypt_len / 8) as usize);
 
             sks.symmetric_key.key_block.key_value.key_material = key;
 
@@ -406,7 +405,7 @@ fn process_create_request(
                 attributes: ma,
             };
 
-            let d = bson::to_bson(&mo).unwrap();
+            let d = bson::serialize_to_bson(&mo).unwrap();
             eprintln!("BSON {:?}", d);
 
             if let bson::Bson::Document(d1) = d {
@@ -457,7 +456,7 @@ fn process_register_request(
             };
 
             eprintln!("Storing Secret Data");
-            let d = bson::to_bson(&mo).unwrap();
+            let d = bson::serialize_to_bson(&mo).unwrap();
 
             if let bson::Bson::Document(d1) = d {
                 rc.get_server_context().get_store().add(id.as_ref(), d1);
@@ -516,7 +515,7 @@ fn process_register_request(
             };
 
             println!("MO: {:?}", mo);
-            let d = bson::to_bson(&mo).unwrap();
+            let d = bson::serialize_to_bson(&mo).unwrap();
             eprintln!("BSON {:?}", d);
             if let bson::Bson::Document(d1) = d {
                 rc.get_server_context().get_store().add(id.as_ref(), d1);
@@ -1084,8 +1083,8 @@ mod tests {
     use protocol::{KmipEnumResolver, RequestMessage};
 
     use crate::{
-        process_kmip_request, store::KmipStore, test_util::TestClockSource,
-        test_util::TestRngSource, RequestContext, ServerContext,
+        RequestContext, ServerContext, process_kmip_request, store::KmipStore,
+        test_util::TestClockSource, test_util::TestRngSource,
     };
 
     #[test]

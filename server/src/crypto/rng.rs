@@ -22,7 +22,7 @@ impl Default for SecureRngSource {
 }
 
 impl RngSource for SecureRngSource {
-    fn gen(&self, len: usize) -> Vec<u8> {
+    fn generate(&self, len: usize) -> Vec<u8> {
         let mut a: Vec<u8> = Vec::new();
         a.resize(len, 0);
         GLOBAL_RAND

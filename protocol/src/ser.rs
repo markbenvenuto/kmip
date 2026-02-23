@@ -1,11 +1,11 @@
-use serde::{ser, Serialize};
+use serde::{Serialize, ser};
 use std::{io::Write, rc::Rc};
 
 use std::str::FromStr;
 
 use crate::{
-    error::{Error, Result},
     EnumResolver,
+    error::{Error, Result},
 };
 
 extern crate num;
@@ -258,6 +258,14 @@ pub trait EncodedWriter {
         v: i32,
         enum_resolver: &dyn EnumResolver,
     ) -> TTLVResult<()>;
+
+    fn write_string_enumeration(
+        &mut self,
+        enum_name: &str,
+        enum_value: &str,
+        enum_resolver: &dyn EnumResolver,
+    ) -> TTLVResult<()>;
+
     fn write_i64(&mut self, v: i64) -> TTLVResult<()>;
     fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()>;
 
@@ -362,6 +370,17 @@ impl EncodedWriter for NestedWriter {
     ) -> TTLVResult<()> {
         write_enumeration(&mut self.vec, v)
     }
+
+    fn write_string_enumeration(
+        &mut self,
+        _enum_name: &str,
+        enum_value: &str,
+        enum_resolver: &dyn EnumResolver,
+    ) -> TTLVResult<()> {
+        let v = enum_resolver.resolve_enum_str(self.tag.unwrap(), enum_value)?;
+        write_enumeration(&mut self.vec, v)
+    }
+
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
         write_i64(&mut self.vec, v)
     }
@@ -512,6 +531,7 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     // get the idea. For example it would emit invalid JSON if the input string
     // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<()> {
+        println!("MCB SS: {:?}", v);
         self.output.write_optional_tag()?;
         self.output.write_string(v)?;
         Ok(())
@@ -563,11 +583,16 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     // typically use the name.
     fn serialize_unit_variant(
         self,
-        _name: &'static str,
+        name: &'static str,
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<()> {
-        self.serialize_str(variant)
+        println!("MCB UV: {:?} - {:?}", name, variant);
+        self.output.write_optional_tag()?;
+        self.output
+            .write_string_enumeration(name, variant, self.enum_resolver.as_ref())?;
+        // self.serialize_str(variant)
+        Ok(())
     }
 
     // As is done here, serializers are encouraged to treat newtype structs as
@@ -576,6 +601,7 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
+        println!("MCB SNS: {:?}", _name);
         if _name == "my_date" {
             let mut mydate_serializer = MyDateSerializer::new(&mut self.output);
             return value.serialize(&mut mydate_serializer);
@@ -696,7 +722,7 @@ impl<'a, W: EncodedWriter> ser::Serializer for &'a mut Serializer<W> {
         // let t =  Tag::from_str(name).map_err(|_| TTLVError::InvalidTagName {
         //         name: name.to_owned() } )?;
 
-        println!("serializing: {:?} - {:?}", name, t);
+        println!("serializing struct: {:?} - {:?}", name, t);
 
         self.output.write_tag_enum(t)?;
 
@@ -863,7 +889,7 @@ impl<'a, W: EncodedWriter> ser::SerializeStruct for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
-        println!("serializing {:?}", key);
+        println!("serializing field: {:?}", key);
         let tag = Tag::from_str(key).map_err(|_| TTLVError::InvalidTagName {
             name: key.to_owned(),
         })?;
@@ -1703,7 +1729,7 @@ impl<'a, W: EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSeriali
 mod tests {
     use std::rc::Rc;
 
-    use crate::{chrono::TimeZone, EnumResolver, TTLVError, Tag};
+    use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
     use chrono::Utc;
 
     //use pretty_hex::hex_dump;
