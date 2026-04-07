@@ -212,14 +212,14 @@ where
     pub fn decrypt(
         &mut self,
         id: &str,
-        iv: &[u8],
+        iv: &Option<ByteBuf>,
         data: &[u8],
     ) -> std::result::Result<DecryptResponse, ClientError> {
         let req = RequestBatchItem::Decrypt(DecryptRequest {
             unique_identifier: Some(id.to_owned()),
             data: data.to_vec(),
             cryptographic_parameters: None,
-            iv_counter_nonce: Some(ByteBuf::from(iv)),
+            iv_counter_nonce: iv.clone(),
         });
 
         let mut bytes = create_ok_request(req)?;

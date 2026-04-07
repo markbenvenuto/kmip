@@ -27,6 +27,7 @@ pretty-hex  = { workspace = true }
 rustls  = { workspace = true }
 mio  = { workspace = true }
 
+serde_bytes = { workspace = true }
 webpki  = { workspace = true }
 webpki-roots  = { workspace = true }
 

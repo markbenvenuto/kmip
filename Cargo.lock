@@ -487,6 +487,7 @@ dependencies = [
  "pretty-hex",
  "protocol",
  "rustls",
+ "serde_bytes",
  "webpki",
  "webpki-roots",
 ]

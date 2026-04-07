@@ -20,6 +20,7 @@ use rustls::RootCertStore;
 use rustls::crypto::CryptoProvider;
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
+use serde_bytes::ByteBuf;
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, Parser)]
@@ -121,11 +122,11 @@ enum Command {
         /// ID of key
         id: String,
 
-        /// iv to decrypt in hex
-        iv: String,
-
         /// data to decrypt in hex
         data: String,
+
+        /// iv to decrypt in hex
+        iv: Option<String>,
     },
 
     #[command(name = "xml")]
@@ -268,7 +269,7 @@ fn main() {
             // println!("IV: {:?}", hex::encode(response.unwrap().iv_counter_nonce.unwrap_or)));
         }
         Command::Decrypt { id, iv, data } => {
-            let iv = hex::decode(iv).unwrap();
+            let iv = iv.map(|x| ByteBuf::from(hex::decode(x).unwrap()));
             let data = hex::decode(data).unwrap();
             let response = client.decrypt(&id, &iv, &data);
 
