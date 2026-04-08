@@ -17,9 +17,11 @@ use kmip_client::Client;
 use protocol::*;
 use rustls::ClientConfig;
 use rustls::RootCertStore;
+use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::crypto::CryptoProvider;
 use rustls::pki_types::pem::PemObject;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime};
+use rustls::{DigitallySignedStruct, SignatureScheme};
 use serde_bytes::ByteBuf;
 
 /// Search for a pattern in a file and display the lines that contain it.
@@ -45,9 +47,13 @@ struct CmdLine {
     #[arg(name = "clientKey", long = "clientKey")]
     client_key_file: PathBuf,
 
-    /// CA Certificate File
+    /// CA Certificate File (required unless --insecure is set)
     #[arg(name = "caFile", long = "caFile")]
-    ca_cert_file: PathBuf,
+    ca_cert_file: Option<PathBuf>,
+
+    /// Skip TLS server certificate verification (unsafe, for testing only)
+    #[arg(name = "insecure", long = "insecure")]
+    insecure: bool,
 
     /// Host name to connect to
     #[arg(name = "host", long = "host", default_value = "localhost")]
@@ -138,6 +144,43 @@ enum Command {
     },
 }
 
+#[derive(Debug)]
+struct NoVerifier;
+
+impl ServerCertVerifier for NoVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: UnixTime,
+    ) -> std::result::Result<ServerCertVerified, rustls::Error> {
+        Ok(ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> std::result::Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> std::result::Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        rustls::crypto::aws_lc_rs::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
+}
+
 fn run_xml<'a, T>(filename: &PathBuf, client: &mut Client<'a, T>)
 where
     T: 'a + Read + Write,
@@ -188,21 +231,29 @@ fn main() {
 
     // TODO - add client auth
 
-    let mut root_store = RootCertStore {
-        roots: webpki_roots::TLS_SERVER_ROOTS.into(),
-    };
-
-    let ca_cert = CertificateDer::from_pem_file(args.ca_cert_file).unwrap();
-
-    root_store.add(ca_cert).unwrap();
-
     let client_cert = CertificateDer::from_pem_file(args.client_cert_file).unwrap();
     let client_key = PrivateKeyDer::from_pem_file(args.client_key_file).unwrap();
 
-    let config = ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_client_auth_cert(vec![client_cert], client_key)
+    let config = if args.insecure {
+        ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(NoVerifier))
+            .with_client_auth_cert(vec![client_cert], client_key)
+            .unwrap()
+    } else {
+        let mut root_store = RootCertStore {
+            roots: webpki_roots::TLS_SERVER_ROOTS.into(),
+        };
+        let ca_cert = CertificateDer::from_pem_file(
+            args.ca_cert_file.expect("--caFile is required unless --insecure is set"),
+        )
         .unwrap();
+        root_store.add(ca_cert).unwrap();
+        ClientConfig::builder()
+            .with_root_certificates(root_store)
+            .with_client_auth_cert(vec![client_cert], client_key)
+            .unwrap()
+    };
 
     // let config = config_builder
     //config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);

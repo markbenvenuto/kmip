@@ -92,8 +92,12 @@ pub enum TTLVError {
     #[error("invalid ttlv tag: {}", tag)]
     InvalidTag { tag: u32 },
 
-    #[error("invalid ttlv len {}, expected {}", actual, expected)]
-    InvalidTypeLength { actual: u32, expected: u32 },
+    #[error("invalid ttlv len {}, expected {} for {}", actual, expected, context)]
+    InvalidTypeLength {
+        actual: u32,
+        expected: u32,
+        context: String,
+    },
 
     #[error("invalid ttlv tag name: {}", name)]
     InvalidTagName { name: String },

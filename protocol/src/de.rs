@@ -77,9 +77,13 @@ pub fn read_type(reader: &mut dyn Read) -> TTLVResult<ItemType> {
     Err(TTLVError::InvalidType { byte: i })
 }
 
-fn check_type_len(actual: u32, expected: u32) -> TTLVResult<()> {
+fn check_type_len(actual: u32, expected: u32, context: &str) -> TTLVResult<()> {
     if actual != expected {
-        return Err(TTLVError::InvalidTypeLength { actual, expected });
+        return Err(TTLVError::InvalidTypeLength {
+            actual,
+            expected,
+            context: context.to_string(),
+        });
     }
 
     Ok(())
@@ -87,7 +91,13 @@ fn check_type_len(actual: u32, expected: u32) -> TTLVResult<()> {
 
 fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
-    check_type_len(len, 4)?;
+
+    // Work around a bug in a particular implementation that is serializing Enumeration as 8 bytes, sigh. They are otherwise writing it correctly though
+    if len == 8 {
+        // Ignore incorrect length for now, sadness
+    } else {
+        check_type_len(len, 4, "Enumeration")?;
+    }
 
     let v = reader
         .read_i32::<BigEndian>()
@@ -105,7 +115,13 @@ fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<i32> {
 
 fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
-    check_type_len(len, 4)?;
+
+    // Work around a bug in a particular implementation that is serializing Integer as 8 bytes, sigh. They are otherwise writing it correctly though
+    if len == 8 {
+        // Ignore incorrect length for now, sadness
+    } else {
+        check_type_len(len, 4, "Integer")?;
+    }
 
     let v = reader
         .read_i32::<BigEndian>()
@@ -123,7 +139,7 @@ fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
 
 fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
     let len = read_len(reader)?;
-    check_type_len(len, 8)?;
+    check_type_len(len, 8, "LongInteger")?;
 
     let v = reader
         .read_i64::<BigEndian>()
@@ -134,7 +150,7 @@ fn read_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
 
 fn read_datetime_i64(reader: &mut dyn Read) -> TTLVResult<i64> {
     let len = read_len(reader)?;
-    check_type_len(len, 8)?;
+    check_type_len(len, 8, "DateTime")?;
 
     let v = reader
         .read_i64::<BigEndian>()
@@ -1166,10 +1182,10 @@ mod tests {
     //use pretty_hex::hex_dump;
     use crate::{Tag, de::to_print};
 
-    use crate::EnumResolver;
-    use crate::TTLVError;
     use crate::de::from_bytes;
     use crate::my_date_format;
+    use crate::{EnumResolver, KmipEnumResolver};
+    use crate::{ResponseMessage, TTLVError};
 
     struct TestEnumResolver;
 
