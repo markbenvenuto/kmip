@@ -1,0 +1,28 @@
+[package]
+name = "ttlv"
+authors = ["Mark Benvenuto <mark.benvenuto@mongodb.com>"]
+license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+num = { workspace = true }
+num-traits = { workspace = true }
+num-derive = { workspace = true }
+
+strum = { workspace = true }
+strum_macros = { workspace = true }
+
+chrono = { workspace = true, features = ["serde"] }
+
+log = { workspace = true }
+
+byteorder = { workspace = true }
+
+pretty-hex = { workspace = true }
+hex = { workspace = true }
+
+xml-rs = { workspace = true }
+
+thiserror = { workspace = true }

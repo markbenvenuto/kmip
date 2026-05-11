@@ -1,5 +1,9 @@
 #![allow(clippy::unreadable_literal)]
 
+use chrono::Utc;
+use num_derive::{FromPrimitive, ToPrimitive};
+use strum_macros::{AsRefStr, EnumString};
+
 #[derive(FromPrimitive, Debug, EnumString, PartialEq, Copy, Clone)]
 pub enum ItemType {
     Structure = 0x01,
@@ -11,7 +15,35 @@ pub enum ItemType {
     TextString = 0x07,
     ByteString = 0x08,
     DateTime = 0x09,
+    // One second resolution
     Interval = 0x0A,
+    // DateTimeExtended = 0x0B, // KMIP 2.0 addition
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Value {
+    pub tag: Tag,
+    pub value: ValueType,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValueType {
+    StructureBegin(u32), // Length in bytes of the structure
+    StructureEnd,        // Not a read type, tells parser that reading a nested struct is done
+    Integer(i32),
+    LongInteger(i64),
+    // BigInteger(BigInteger),
+    Enumeration(u32),
+    Boolean(bool),
+    TextString(String),
+    ByteString(Vec<u8>),
+    DateTime(i64), // TODO - use better types
+    Interval(u32), // TODO - use better types
+}
+
+#[derive(Debug)]
+pub struct BigInteger {
+    pub bytes: Vec<u8>,
 }
 
 #[derive(FromPrimitive, ToPrimitive, EnumString, AsRefStr, Debug, Copy, Clone, PartialEq)]

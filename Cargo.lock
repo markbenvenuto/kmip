@@ -2739,6 +2739,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ttlv"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "chrono",
+ "hex",
+ "log",
+ "num",
+ "num-derive",
+ "num-traits",
+ "pretty-hex",
+ "strum",
+ "strum_macros",
+ "thiserror 2.0.18",
+ "xml-rs",
+]
+
+[[package]]
 name = "typed-builder"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
