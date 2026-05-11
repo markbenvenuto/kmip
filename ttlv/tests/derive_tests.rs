@@ -354,4 +354,10 @@ fn test_enum_serialize_tag_override() {
     assert_eq!(writer.get_vector(), expected);
 }
 
-// test_enum_serialize_round_trip: skipped until TtlvEnumDeserialize is implemented
+#[test]
+#[ignore = "TtlvEnumDeserialize not yet implemented"]
+fn test_enum_serialize_round_trip() {
+    // Will serialize CryptographicAlgorithm::Aes, then deserialize via TtlvEnumDeserialize,
+    // and assert the round-trip produces the original variant.
+    todo!("implement after TtlvEnumDeserialize lands")
+}

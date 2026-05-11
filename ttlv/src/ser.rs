@@ -287,6 +287,9 @@ pub fn ser_write_long_integer(writer: &mut dyn EncodedWriter, tag: Tag, v: i64) 
 
 pub fn ser_write_enumeration(writer: &mut dyn EncodedWriter, tag: Tag, v: u32) -> TTLVResult<()> {
     writer.write_tag(tag)?;
+    // FIXME: KMIP enumerations are unsigned 4-byte integers but write_i32_enumeration takes i32;
+    // values >= 0x8000_0000 will be written sign-extended. All current KMIP enum values fit in
+    // the lower 31 bits so this is benign today, but will need fixing when high-value enums land.
     writer.write_i32_enumeration(v as i32)
 }
 
