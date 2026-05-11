@@ -1,4 +1,5 @@
-use ttlv::{Reader, TtlvDeserialize};
+use ttlv::ser::EncodedWriter;
+use ttlv::{NestedWriter, Reader, TtlvDeserialize, TtlvSerialize};
 
 // ── Basic required-fields struct ─────────────────────────────────────────────
 // Mirrors the hand-written parse_request_header / parse_request_message from de.rs
@@ -135,6 +136,127 @@ fn test_derive_vec_two() {
     assert_eq!(msg.batch_items.len(), 2);
     assert_eq!(msg.batch_items[0].batch_count, 3);
     assert_eq!(msg.batch_items[1].batch_count, 4);
+}
+
+// ── TtlvSerialize round-trip tests ───────────────────────────────────────────
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "RequestHeader")]
+struct SerHeader {
+    protocol_version_major: i32,
+    batch_count: i32,
+}
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "RequestMessage")]
+struct SerMessage {
+    #[ttlv(tag = "RequestHeader")]
+    request_header: SerHeader,
+    unique_identifier: String,
+}
+
+#[test]
+fn test_serialize_round_trip() {
+    let original = SerMessage {
+        request_header: SerHeader {
+            protocol_version_major: 3,
+            batch_count: 4,
+        },
+        unique_identifier: String::new(),
+    };
+
+    let mut writer = NestedWriter::new();
+    original.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+
+    let mut reader = Reader::new(&bytes);
+    let decoded = SerMessage::parse(&mut reader).unwrap();
+    assert_eq!(original, decoded);
+}
+
+#[test]
+fn test_serialize_matches_known_bytes() {
+    // Known encoding of RequestMessage { RequestHeader { pvm=3, bc=4 }, uid="" }
+    // from test_de_struct2 in de.rs
+    let expected = [
+        66u8, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0,
+        0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7,
+        0, 0, 0, 0,
+    ];
+    let msg = SerMessage {
+        request_header: SerHeader {
+            protocol_version_major: 3,
+            batch_count: 4,
+        },
+        unique_identifier: String::new(),
+    };
+    let mut writer = NestedWriter::new();
+    msg.serialize(&mut writer).unwrap();
+    assert_eq!(writer.get_vector(), expected);
+}
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "ResponseHeader")]
+struct SerOptHeader {
+    protocol_version_major: i32,
+    batch_count: Option<i32>,
+}
+
+#[test]
+fn test_serialize_option_absent() {
+    let hdr = SerOptHeader {
+        protocol_version_major: 1,
+        batch_count: None,
+    };
+    let mut writer = NestedWriter::new();
+    hdr.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let mut reader = Reader::new(&bytes);
+    let decoded = SerOptHeader::parse(&mut reader).unwrap();
+    assert_eq!(hdr, decoded);
+}
+
+#[test]
+fn test_serialize_option_present() {
+    let hdr = SerOptHeader {
+        protocol_version_major: 1,
+        batch_count: Some(99),
+    };
+    let mut writer = NestedWriter::new();
+    hdr.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let mut reader = Reader::new(&bytes);
+    let decoded = SerOptHeader::parse(&mut reader).unwrap();
+    assert_eq!(hdr, decoded);
+}
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "BatchItem")]
+struct SerBatchItem {
+    batch_count: i32,
+}
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "ResponseMessage")]
+struct SerResponseMessage {
+    #[ttlv(tag = "BatchItem")]
+    batch_items: Vec<SerBatchItem>,
+}
+
+#[test]
+fn test_serialize_vec_round_trip() {
+    let msg = SerResponseMessage {
+        batch_items: vec![
+            SerBatchItem { batch_count: 10 },
+            SerBatchItem { batch_count: 20 },
+        ],
+    };
+    let mut writer = NestedWriter::new();
+    msg.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let mut reader = Reader::new(&bytes);
+    let decoded = SerResponseMessage::parse(&mut reader).unwrap();
+    assert_eq!(msg, decoded);
 }
 
 // ── Tag override on struct ────────────────────────────────────────────────────
