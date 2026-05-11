@@ -21,7 +21,9 @@ use chrono::{DateTime, NaiveDateTime};
 use std::fmt;
 use std::io::{Cursor, Read};
 use std::str::FromStr;
+use ttlv::Tag;
 use ttlv::TtlvEnumDeserialize;
+use ttlv::TtlvTaggedEnumDeserialize;
 use ttlv::kmip_enums::ItemType;
 use ttlv_derive::TtlvDeserialize;
 
@@ -848,49 +850,63 @@ pub struct RevocationReason {
 //     Attribute : AttributeStruct,
 // }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvTaggedEnumDeserialize)]
 #[serde(
     rename = "Attribute",
     tag = "AttributeName",
     content = "AttributeValue"
 )]
+#[ttlv(tag = "Attribute")]
+#[ttlv(discriminator_tag = "AttributeName")]
 pub enum AttributesEnum {
     #[serde(rename = "Cryptographic Algorithm")]
     // TODO - use CryptographicAlgorithm as the type but serde calls deserialize_identifier
     // and we do not have enough context to realize it is CryptographicAlgorithm, we think it is AttributeValue
+    #[ttlv(discriminator = Tag::CryptographicAlgorithm)]
     CryptographicAlgorithm(CryptographicAlgorithm),
 
     #[serde(rename = "Cryptographic Length")]
+    #[ttlv(discriminator = Tag::CryptographicLength)]
     CryptographicLength(i32),
 
     #[serde(rename = "Cryptographic Usage Mask")]
+    #[ttlv(discriminator = Tag::CryptographicUsageMask)]
     CryptographicUsageMask(i32),
 
     #[serde(with = "my_date_format", rename = "Activation Date")]
+    #[ttlv(discriminator = Tag::ActivationDate)]
     ActivationDate(DateTime<Utc>),
 
     #[serde(with = "my_date_format", rename = "Deactivation Date")]
+    #[ttlv(discriminator = Tag::DeactivationDate)]
     DeactivationDate(DateTime<Utc>),
 
     #[serde(rename = "Name")]
+    #[ttlv(discriminator = Tag::Name)]
     Name(Name),
 
     #[serde(rename = "Cryptographic Parameters")]
+    #[ttlv(discriminator = Tag::CryptographicParameters)]
     CryptographicParameters(CryptographicParameters),
 
     #[serde(rename = "State")]
+    #[ttlv(discriminator = Tag::State)]
     State(State),
 
     #[serde(with = "my_date_format", rename = "Initial Date")]
+    #[ttlv(discriminator = Tag::InitialDate)]
     InitialDate(DateTime<Utc>),
 
     #[serde(with = "my_date_format", rename = "Last Change Date")]
+    #[ttlv(discriminator = Tag::LastChangeDate)]
     LastChangeDate(DateTime<Utc>),
 
     #[serde(rename = "Object Type")]
+    #[ttlv(discriminator = Tag::ObjectType)]
     ObjectType(ObjectType),
 
     #[serde(rename = "Unique Identifier")]
+    #[ttlv(discriminator = Tag::UniqueIdentifier)]
     UniqueIdentifier(String),
 }
 
