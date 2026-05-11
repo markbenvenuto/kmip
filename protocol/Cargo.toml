@@ -34,3 +34,6 @@ hex = { workspace = true }
 xml-rs = { workspace = true }
 
 thiserror = { workspace = true }
+
+ttlv = { workspace = true }
+ttlv_derive = { workspace = true }

@@ -1949,6 +1949,8 @@ dependencies = [
  "strum",
  "strum_macros",
  "thiserror 2.0.18",
+ "ttlv",
+ "ttlv_derive",
  "xml-rs",
 ]
 
@@ -2753,7 +2755,18 @@ dependencies = [
  "strum",
  "strum_macros",
  "thiserror 2.0.18",
+ "ttlv_derive",
  "xml-rs",
+]
+
+[[package]]
+name = "ttlv_derive"
+version = "0.1.0"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2 1.0.106",
+ "quote 1.0.44",
+ "syn 2.0.117",
 ]
 
 [[package]]

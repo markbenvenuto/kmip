@@ -9,8 +9,7 @@ use syn::{
 #[proc_macro_derive(TtlvDeserialize, attributes(ttlv))]
 pub fn derive_ttlv_deserialize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    derive_impl(input)
-        .unwrap_or_else(|e| e.to_compile_error().into())
+    derive_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
 }
 
 fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
@@ -19,9 +18,19 @@ fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let fields = match &input.data {
         Data::Struct(s) => match &s.fields {
             Fields::Named(f) => &f.named,
-            _ => return Err(syn::Error::new_spanned(name, "TtlvDeserialize requires named fields")),
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "TtlvDeserialize requires named fields",
+                ));
+            }
         },
-        _ => return Err(syn::Error::new_spanned(name, "TtlvDeserialize can only be derived for structs")),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                name,
+                "TtlvDeserialize can only be derived for structs",
+            ));
+        }
     };
 
     let struct_tag = struct_tag_tokens(&input)?;
@@ -76,7 +85,11 @@ fn find_ttlv_tag_attr(attrs: &[syn::Attribute]) -> syn::Result<Option<String>> {
         }
         let nv: syn::MetaNameValue = attr.parse_args()?;
         if nv.path.is_ident("tag") {
-            if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = nv.value {
+            if let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(s),
+                ..
+            }) = nv.value
+            {
                 return Ok(Some(s.value()));
             }
         }
@@ -150,6 +163,8 @@ fn value_expr(ty: &Type, tag: &proc_macro2::TokenStream) -> syn::Result<proc_mac
         Ok(quote! { ::ttlv::__private::expect_enumeration(reader, #tag)? })
     } else if is_named(ty, "String") {
         Ok(quote! { ::ttlv::__private::expect_text_string(reader, #tag)? })
+    } else if is_named(ty, "DateTime") {
+        Ok(quote! { ::ttlv::__private::expect_datetime(reader, #tag)? })
     } else {
         // Assume T: TtlvDeserialize (nested struct)
         Ok(quote! { <#ty as ::ttlv::__private::TtlvDeserialize>::parse(reader)? })
@@ -163,7 +178,9 @@ fn is_named(ty: &Type, name: &str) -> bool {
     if let Type::Path(tp) = ty {
         if tp.qself.is_none() {
             if let Some(seg) = tp.path.segments.last() {
-                return seg.ident == name && matches!(seg.arguments, PathArguments::None);
+                // eprintln!("mcb name {:?}", seg.ident);
+                // return seg.ident == name && matches!(seg.arguments, PathArguments::None);
+                return seg.ident == name;
             }
         }
     }

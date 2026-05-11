@@ -7,6 +7,8 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+ttlv_derive = { workspace = true }
+
 num = { workspace = true }
 num-traits = { workspace = true }
 num-derive = { workspace = true }

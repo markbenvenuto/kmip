@@ -21,6 +21,7 @@ use chrono::{DateTime, NaiveDateTime};
 use std::fmt;
 use std::io::{Cursor, Read};
 use std::str::FromStr;
+use ttlv_derive::TtlvDeserialize;
 
 mod de;
 mod de_xml;
@@ -603,7 +604,7 @@ pub enum ResultReason {
     GeneralFailure = 0x00000100,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
 pub struct KeyValue {
     #[serde(with = "serde_bytes", rename = "KeyMaterial")]
     pub key_material: Vec<u8>,
@@ -1171,7 +1172,7 @@ pub enum RequestBatchItem {
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, TtlvDeserialize)]
 pub struct ProtocolVersion {
     #[serde(rename = "ProtocolVersionMajor")]
     pub protocol_version_major: i32,
@@ -1180,7 +1181,7 @@ pub struct ProtocolVersion {
     pub protocol_version_minor: i32,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, TtlvDeserialize)]
 pub struct RequestHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
@@ -1206,7 +1207,7 @@ pub struct RequestMessage {
     pub batch_item: RequestBatchItem,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, TtlvDeserialize)]
 pub struct ResponseHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
