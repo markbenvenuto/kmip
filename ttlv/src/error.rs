@@ -101,4 +101,7 @@ pub enum TTLVError {
 
     #[error("invalid xml read")]
     XmlReadError,
+
+    #[error("enum variant for tag {:?} cannot be converted to u32", tag)]
+    EnumConvertFailed { tag: Tag },
 }

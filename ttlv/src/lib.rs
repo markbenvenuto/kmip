@@ -26,4 +26,5 @@ pub mod __private {
         ser_write_enumeration, ser_write_integer, ser_write_long_integer,
         ser_write_structure_begin, ser_write_structure_end, ser_write_text_string,
     };
+    pub use ::num::ToPrimitive;
 }
