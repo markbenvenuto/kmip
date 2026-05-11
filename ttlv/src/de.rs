@@ -434,7 +434,7 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
-    fn new(buf: &'a [u8]) -> Self {
+    pub fn new(buf: &'a [u8]) -> Self {
         Self {
             len: buf.len() as u64,
             cur: Cursor::new(buf),
@@ -442,7 +442,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    fn read(&mut self) -> Option<TTLVResult<Value>> {
+    pub fn read(&mut self) -> Option<TTLVResult<Value>> {
         let position = self.cur.position();
         // println!("position: {position}");
 
@@ -481,6 +481,50 @@ impl<'a> Reader<'a> {
                 Some(Ok(x))
             }
         }
+    }
+}
+
+pub fn expect_structure_begin(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<()> {
+    let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
+    if token.tag != expected_tag {
+        return Err(TTLVError::UnexpectedTag { expected: expected_tag, actual: token.tag });
+    }
+    match token.value {
+        ValueType::StructureBegin(_) => Ok(()),
+        _ => Err(TTLVError::WrongValueType { tag: token.tag }),
+    }
+}
+
+pub fn expect_structure_end(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<()> {
+    let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
+    if token.tag != expected_tag {
+        return Err(TTLVError::UnexpectedTag { expected: expected_tag, actual: token.tag });
+    }
+    match token.value {
+        ValueType::StructureEnd => Ok(()),
+        _ => Err(TTLVError::WrongValueType { tag: token.tag }),
+    }
+}
+
+pub fn expect_integer(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<i32> {
+    let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
+    if token.tag != expected_tag {
+        return Err(TTLVError::UnexpectedTag { expected: expected_tag, actual: token.tag });
+    }
+    match token.value {
+        ValueType::Integer(v) => Ok(v),
+        _ => Err(TTLVError::WrongValueType { tag: token.tag }),
+    }
+}
+
+pub fn expect_text_string(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<String> {
+    let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
+    if token.tag != expected_tag {
+        return Err(TTLVError::UnexpectedTag { expected: expected_tag, actual: token.tag });
+    }
+    match token.value {
+        ValueType::TextString(s) => Ok(s),
+        _ => Err(TTLVError::WrongValueType { tag: token.tag }),
     }
 }
 
@@ -728,9 +772,36 @@ fn read_to_end(buf: &[u8]) -> TTLVResult<Vec<Value>> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        de::{read_to_end, to_print},
+        de::{expect_integer, expect_structure_begin, expect_structure_end, expect_text_string, read_to_end, to_print, Reader},
+        error::TTLVError,
         kmip_enums::{Tag, Value, ValueType},
     };
+
+    struct RequestHeader {
+        protocol_version_major: i32,
+        batch_count: i32,
+    }
+
+    struct RequestMessage {
+        request_header: RequestHeader,
+        unique_identifier: String,
+    }
+
+    fn parse_request_header(reader: &mut Reader<'_>) -> Result<RequestHeader, TTLVError> {
+        expect_structure_begin(reader, Tag::RequestHeader)?;
+        let protocol_version_major = expect_integer(reader, Tag::ProtocolVersionMajor)?;
+        let batch_count = expect_integer(reader, Tag::BatchCount)?;
+        expect_structure_end(reader, Tag::RequestHeader)?;
+        Ok(RequestHeader { protocol_version_major, batch_count })
+    }
+
+    fn parse_request_message(reader: &mut Reader<'_>) -> Result<RequestMessage, TTLVError> {
+        expect_structure_begin(reader, Tag::RequestMessage)?;
+        let request_header = parse_request_header(reader)?;
+        let unique_identifier = expect_text_string(reader, Tag::UniqueIdentifier)?;
+        expect_structure_end(reader, Tag::RequestMessage)?;
+        Ok(RequestMessage { request_header, unique_identifier })
+    }
 
     #[test]
     fn test_primitive_to_print() {
@@ -1157,4 +1228,18 @@ mod tests {
     //     let r: TestEnumResolver = TestEnumResolver {};
     //     let _a = from_bytes::<RequestMessage>(&good, &r).unwrap();
     // }
+
+    #[test]
+    fn test_parse_request_message() {
+        let bytes = [
+            66, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4,
+            0, 0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0,
+            148, 7, 0, 0, 0, 0,
+        ];
+        let mut reader = Reader::new(&bytes);
+        let msg = parse_request_message(&mut reader).unwrap();
+        assert_eq!(msg.request_header.protocol_version_major, 3);
+        assert_eq!(msg.request_header.batch_count, 4);
+        assert_eq!(msg.unique_identifier, "");
+    }
 }
