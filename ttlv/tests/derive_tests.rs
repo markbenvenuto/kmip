@@ -285,3 +285,73 @@ fn test_derive_struct_tag_override() {
     assert_eq!(hdr.protocol_version_major, 7);
     assert_eq!(hdr.batch_count, 8);
 }
+
+// ── TtlvEnumSerialize tests ──────────────────────────────────────────────────
+
+#[derive(ttlv::TtlvEnumSerialize, num_derive::ToPrimitive, Debug, PartialEq, Clone, Copy)]
+enum CryptographicAlgorithm {
+    Aes = 3,
+    TripleDes = 6,
+}
+
+#[test]
+fn test_enum_serialize_known_bytes() {
+    // CryptographicAlgorithm::Aes = 3, Tag::CryptographicAlgorithm = 0x420028
+    // Expected wire format:
+    //   tag:    0x42 0x00 0x28
+    //   type:   0x05  (Enumeration)
+    //   length: 0x00 0x00 0x00 0x04
+    //   value:  0x00 0x00 0x00 0x03
+    //   pad:    0x00 0x00 0x00 0x00
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let mut writer = NestedWriter::new();
+    CryptographicAlgorithm::Aes.serialize(&mut writer).unwrap();
+    assert_eq!(writer.get_vector(), expected);
+}
+
+#[derive(TtlvSerialize)]
+#[ttlv(tag = "BatchItem")]
+struct CryptoParamsSer {
+    cryptographic_algorithm: CryptographicAlgorithm,
+}
+
+#[test]
+fn test_enum_serialize_in_struct() {
+    // BatchItem (0x42000F) structure containing CryptographicAlgorithm::Aes
+    // Structure header:  tag 0x42000F, type Structure (0x01), length 0x10 (16)
+    // Enum field:        tag 0x420028, type Enum (0x05), length 4, value 3, pad 4
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x0F, 0x01, 0x00, 0x00, 0x00, 0x10,
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let params = CryptoParamsSer {
+        cryptographic_algorithm: CryptographicAlgorithm::Aes,
+    };
+    let mut writer = NestedWriter::new();
+    params.serialize(&mut writer).unwrap();
+    assert_eq!(writer.get_vector(), expected);
+}
+
+#[derive(ttlv::TtlvEnumSerialize, num_derive::ToPrimitive, Debug, PartialEq, Clone, Copy)]
+#[ttlv(tag = "BatchCount")]
+enum CryptoAlgorithmAlt {
+    Aes = 3,
+}
+
+#[test]
+fn test_enum_serialize_tag_override() {
+    // Same variant value (3) but Tag::BatchCount (0x42000D) used via #[ttlv(tag)]
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x0D, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let mut writer = NestedWriter::new();
+    CryptoAlgorithmAlt::Aes.serialize(&mut writer).unwrap();
+    assert_eq!(writer.get_vector(), expected);
+}
+
+// test_enum_serialize_round_trip: skipped until TtlvEnumDeserialize is implemented

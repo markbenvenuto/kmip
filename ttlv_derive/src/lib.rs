@@ -12,6 +12,12 @@ pub fn derive_ttlv_serialize(input: TokenStream) -> TokenStream {
     serialize_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
 }
 
+#[proc_macro_derive(TtlvEnumSerialize, attributes(ttlv))]
+pub fn derive_ttlv_enum_serialize(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    enum_serialize_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
+}
+
 #[proc_macro_derive(TtlvDeserialize, attributes(ttlv))]
 pub fn derive_ttlv_deserialize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -338,6 +344,41 @@ fn serialize_field_statement(field: &syn::Field) -> syn::Result<proc_macro2::Tok
     let val = direct_field_value(ty, name);
     let expr = write_expr(ty, &tag, val)?;
     Ok(quote! { #expr })
+}
+
+// ── TtlvEnumSerialize implementation ─────────────────────────────────────────
+
+fn enum_serialize_impl(input: DeriveInput) -> syn::Result<TokenStream> {
+    let name = &input.ident;
+
+    match &input.data {
+        Data::Enum(_) => {}
+        _ => {
+            return Err(syn::Error::new_spanned(
+                name,
+                "TtlvEnumSerialize can only be derived for enums",
+            ));
+        }
+    }
+
+    let enum_tag = struct_tag_tokens(&input)?;
+
+    let expanded = quote! {
+        impl ::ttlv::__private::TtlvSerialize for #name {
+            fn serialize(
+                &self,
+                writer: &mut dyn ::ttlv::__private::EncodedWriter,
+            ) -> ::core::result::Result<(), ::ttlv::__private::TTLVError> {
+                let v = ::ttlv::__private::ToPrimitive::to_u32(self)
+                    .ok_or(::ttlv::__private::TTLVError::EnumConvertFailed {
+                        tag: #enum_tag,
+                    })?;
+                ::ttlv::__private::ser_write_enumeration(writer, #enum_tag, v)
+            }
+        }
+    };
+
+    Ok(expanded.into())
 }
 
 /// Generates the expression that writes a single value of the given type.

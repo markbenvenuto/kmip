@@ -9,6 +9,7 @@ pub use de::{Reader, TtlvDeserialize};
 pub use error::TTLVError;
 pub use ser::{NestedWriter, TtlvSerialize};
 pub use ttlv_derive::TtlvDeserialize;
+pub use ttlv_derive::TtlvEnumSerialize;
 pub use ttlv_derive::TtlvSerialize;
 
 #[doc(hidden)]
