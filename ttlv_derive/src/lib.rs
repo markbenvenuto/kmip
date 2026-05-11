@@ -57,6 +57,95 @@ fn derive_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     Ok(expanded.into())
 }
 
+#[proc_macro_derive(TtlvTaggedEnumDeserialize, attributes(ttlv))]
+pub fn derive_ttlv_tagged_enum_deserialize(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    derive_tagged_enum_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
+}
+
+fn derive_tagged_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
+    let name = &input.ident;
+
+    let variants = match &input.data {
+        Data::Enum(e) => &e.variants,
+        _ => return Err(syn::Error::new_spanned(
+            name,
+            "TtlvTaggedEnumDeserialize can only be derived for enums",
+        )),
+    };
+
+    let struct_tag = struct_tag_tokens(&input)?;
+
+    let disc_tag_str = find_ttlv_str_attr(&input.attrs, "discriminator_tag")?
+        .ok_or_else(|| syn::Error::new_spanned(
+            name,
+            "TtlvTaggedEnumDeserialize requires #[ttlv(discriminator_tag = \"...\")]",
+        ))?;
+    let disc_tag_ident = syn::Ident::new(&disc_tag_str, name.span());
+    let disc_tag = quote! { ::ttlv::__private::Tag::#disc_tag_ident };
+
+    let match_arms: Vec<proc_macro2::TokenStream> = variants
+        .iter()
+        .map(variant_match_arm)
+        .collect::<syn::Result<_>>()?;
+
+    let expanded = quote! {
+        impl ::ttlv::__private::TtlvDeserialize for #name {
+            fn parse(
+                reader: &mut ::ttlv::__private::Reader<'_>,
+            ) -> ::core::result::Result<Self, ::ttlv::__private::TTLVError> {
+                ::ttlv::__private::expect_structure_begin(reader, #struct_tag)?;
+                let disc = ::ttlv::__private::expect_enumeration(reader, #disc_tag)?;
+                let result = match disc {
+                    #(#match_arms,)*
+                    v => return ::core::result::Result::Err(
+                        ::ttlv::__private::TTLVError::InvalidEnumValue {
+                            tag: #disc_tag,
+                            value: v,
+                        }
+                    ),
+                };
+                ::ttlv::__private::expect_structure_end(reader, #struct_tag)?;
+                ::core::result::Result::Ok(result)
+            }
+        }
+    };
+
+    Ok(expanded.into())
+}
+
+fn variant_match_arm(variant: &syn::Variant) -> syn::Result<proc_macro2::TokenStream> {
+    let variant_name = &variant.ident;
+
+    let inner_ty = match &variant.fields {
+        syn::Fields::Unnamed(f) if f.unnamed.len() == 1 => &f.unnamed[0].ty,
+        _ => return Err(syn::Error::new_spanned(
+            variant_name,
+            "TtlvTaggedEnumDeserialize variants must have exactly one unnamed field",
+        )),
+    };
+
+    let disc_expr = find_ttlv_expr_attr(&variant.attrs, "discriminator")?
+        .ok_or_else(|| syn::Error::new_spanned(
+            variant_name,
+            "TtlvTaggedEnumDeserialize variants must have #[ttlv(discriminator = ...)]",
+        ))?;
+
+    let value_tag = if let Some(tag_str) = find_ttlv_str_attr(&variant.attrs, "value_tag")? {
+        let ident = syn::Ident::new(&tag_str, variant_name.span());
+        quote! { ::ttlv::__private::Tag::#ident }
+    } else {
+        let ident = syn::Ident::new(&variant_name.to_string(), variant_name.span());
+        quote! { ::ttlv::__private::Tag::#ident }
+    };
+
+    let val_expr = value_expr(inner_ty, &value_tag)?;
+
+    Ok(quote! {
+        d if d == (#disc_expr) as u32 => Self::#variant_name(#val_expr)
+    })
+}
+
 fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
 
