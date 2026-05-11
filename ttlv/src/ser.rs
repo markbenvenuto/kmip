@@ -608,19 +608,15 @@ mod tests {
 
     // #[test]
     // fn test_struct() {
-    //     #[derive(Serialize, Debug)]
+    //     #[derive(Debug)]
     //     struct RequestHeader {
-    //         #[serde(rename = "ProtocolVersionMajor")]
     //         pub protocol_version_major: i32,
 
-    //         #[serde(rename = "ProtocolVersionMinor")]
     //         pub protocol_version_minor: i32,
 
-    //         #[serde(skip_serializing_if = "Option::is_none", rename = "BatchOrderOption")]
     //         batch_order_option: Option<i32>,
     //         // Option::None - serializes as serialize_none()
     //         // TODO: Other fields are optional
-    //         #[serde(rename = "BatchCount")]
     //         batch_count: i32,
     //     }
 
@@ -631,12 +627,11 @@ mod tests {
     //         batch_count: 3,
     //     };
 
-    //     let r = Rc::new(TestEnumResolver {});
-    //     let v = to_bytes(&a, r).unwrap();
+    //     // let v = to_bytes(&a, r).unwrap();
 
-    //     print!("Dump of bytes {:?}", v.hex_dump());
+    //     // print!("Dump of bytes {:?}", v.hex_dump());
 
-    //     to_print(v.as_slice());
+    //     // to_print(v.as_slice());
 
     //     let good = vec![
     //         0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,

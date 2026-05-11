@@ -1,5 +1,5 @@
-pub mod de_xml;
 mod de;
+pub mod de_xml;
 mod error;
 mod kmip_enums;
 mod ser;
