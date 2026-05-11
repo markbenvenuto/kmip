@@ -1,4 +1,4 @@
-use ttlv::{Reader, TtlvDeserialize};
+use ttlv::{Reader, TtlvDeserialize, TtlvEnumDeserialize, TTLVError};
 
 // ── Basic required-fields struct ─────────────────────────────────────────────
 // Mirrors the hand-written parse_request_header / parse_request_message from de.rs
@@ -135,6 +135,74 @@ fn test_derive_vec_two() {
     assert_eq!(msg.batch_items.len(), 2);
     assert_eq!(msg.batch_items[0].batch_count, 3);
     assert_eq!(msg.batch_items[1].batch_count, 4);
+}
+
+// ── TtlvEnumDeserialize ───────────────────────────────────────────────────────
+
+#[derive(TtlvEnumDeserialize, num_derive::FromPrimitive, PartialEq, Debug)]
+#[repr(i32)]
+enum CryptographicAlgorithm {
+    Aes = 3,
+    TripleDes = 6,
+}
+
+#[test]
+fn test_enum_valid_value() {
+    // CryptographicAlgorithm Enumeration(3) = Aes
+    let bytes = [
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let mut reader = Reader::new(&bytes);
+    let val = CryptographicAlgorithm::parse(&mut reader).unwrap();
+    assert_eq!(val, CryptographicAlgorithm::Aes);
+}
+
+#[test]
+fn test_enum_unknown_discriminant() {
+    // CryptographicAlgorithm Enumeration(0xFFFF) — no such variant
+    let bytes = [
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let mut reader = Reader::new(&bytes);
+    let err = CryptographicAlgorithm::parse(&mut reader).unwrap_err();
+    assert!(matches!(err, TTLVError::InvalidEnumValue { .. }));
+}
+
+#[test]
+fn test_enum_wrong_tag() {
+    // BatchCount (0x42000D) with Enumeration type — wrong tag for CryptographicAlgorithm
+    let bytes = [
+        0x42, 0x00, 0x0D, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let mut reader = Reader::new(&bytes);
+    let err = CryptographicAlgorithm::parse(&mut reader).unwrap_err();
+    assert!(matches!(err, TTLVError::UnexpectedTag { .. }));
+}
+
+// Composition: #[derive(TtlvDeserialize)] struct with an enum field
+
+#[derive(TtlvDeserialize)]
+#[ttlv(tag = "Attribute")]
+struct AlgoAttr {
+    cryptographic_algorithm: CryptographicAlgorithm,
+}
+
+#[test]
+fn test_enum_in_struct() {
+    // Attribute Structure containing CryptographicAlgorithm=Aes(3)
+    // Attribute (0x420008) Structure len=16
+    // CryptographicAlgorithm (0x420028) Enumeration(3) — 16 bytes
+    let bytes = [
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x10, // Attribute struct, len=16
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, // CryptographicAlgorithm Enumeration(3)
+    ];
+    let mut reader = Reader::new(&bytes);
+    let attr = AlgoAttr::parse(&mut reader).unwrap();
+    assert_eq!(attr.cryptographic_algorithm, CryptographicAlgorithm::Aes);
 }
 
 // ── Tag override on struct ────────────────────────────────────────────────────

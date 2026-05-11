@@ -92,12 +92,12 @@ where
             AttributesEnum::CryptographicLength(len),
         ];
 
-        self.create(ObjectTypeEnum::SymmetricKey, attributes)
+        self.create(ObjectType::SymmetricKey, attributes)
     }
 
     pub fn create(
         &mut self,
-        object_type: ObjectTypeEnum,
+        object_type: ObjectType,
         attributes: Vec<AttributesEnum>,
     ) -> std::result::Result<CreateResponse, ClientError> {
         let req = RequestBatchItem::Create(CreateRequest {

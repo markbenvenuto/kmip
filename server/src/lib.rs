@@ -346,7 +346,7 @@ fn process_create_request(
     let mut ma = ManagedAttributes::new(rc.get_server_context().get_clock_source());
 
     match req.object_type {
-        ObjectTypeEnum::SymmetricKey => {
+        ObjectType::SymmetricKey => {
             // let crypt_len = ma.cryptographic_length.unwrap();
             // let algo = num::FromPrimitive::from_i32(ma.cryptographic_algorithm.unwrap()).unwrap();
             // //                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
@@ -358,7 +358,7 @@ fn process_create_request(
             let mut sks = SymmetricKeyStore {
                 symmetric_key: SymmetricKey {
                     key_block: KeyBlock {
-                        key_format_type: KeyFormatTypeEnum::Raw,
+                        key_format_type: KeyFormatType::Raw,
                         key_value: KeyValue {
                             key_material: Vec::new(),
                         },
@@ -412,7 +412,7 @@ fn process_create_request(
                 rc.get_server_context().get_store().add(id.as_ref(), d1);
 
                 Ok(CreateResponse {
-                    object_type: ObjectTypeEnum::SymmetricKey,
+                    object_type: ObjectType::SymmetricKey,
                     unique_identifier: id,
                 })
             } else {
@@ -430,7 +430,7 @@ fn process_register_request(
     let mut ma = ManagedAttributes::new(rc.get_server_context().get_clock_source());
 
     match req.object_type {
-        ObjectTypeEnum::SecretData => {
+        ObjectType::SecretData => {
             let mut secret_data = req
                 .secret_data
                 .as_ref()
@@ -469,7 +469,7 @@ fn process_register_request(
                 Err(KmipResponseError::new("Barff"))
             }
         }
-        ObjectTypeEnum::SymmetricKey => {
+        ObjectType::SymmetricKey => {
             // TODO - validate message
             eprintln!("Storing Symmetric Key");
 
@@ -542,7 +542,7 @@ fn process_get_request(
         .get(&req.unique_identifier)?;
 
     let mut resp = GetResponse {
-        object_type: ObjectTypeEnum::SymmetricKey,
+        object_type: ObjectType::SymmetricKey,
         unique_identifier: req.unique_identifier,
         symmetric_key: None,
         secret_data: None,
@@ -555,11 +555,11 @@ fn process_get_request(
             key.key_block.cryptographic_algorithm = Some(x.cryptographic_algorithm);
             key.key_block.cryptographic_length = Some(x.cryptographic_length);
 
-            resp.object_type = ObjectTypeEnum::SymmetricKey;
+            resp.object_type = ObjectType::SymmetricKey;
             resp.symmetric_key = Some(key);
         }
         ManagedObjectEnum::SecretData(x) => {
-            resp.object_type = ObjectTypeEnum::SecretData;
+            resp.object_type = ObjectType::SecretData;
             resp.secret_data = Some(x);
         }
     }
@@ -628,8 +628,8 @@ fn process_activate_request<'a>(
         .get(&req.unique_identifier)?;
 
     // TODO - throw an error on illegal state transition??
-    if mo.attributes.state == ObjectStateEnum::PreActive {
-        mo.attributes.state = ObjectStateEnum::Active;
+    if mo.attributes.state == State::PreActive {
+        mo.attributes.state = State::Active;
 
         mo.attributes.activation_date = Some(rc.get_server_context().get_clock_source().now());
 
@@ -656,12 +656,12 @@ fn process_revoke_request<'a>(
 
     // TODO - record revocation code and reason text
     if req.revocation_reason.revocation_reason_code == RevocationReasonCode::KeyCompromise {
-        mo.attributes.state = ObjectStateEnum::Compromised;
+        mo.attributes.state = State::Compromised;
         mo.attributes.compromise_date = req
             .compromise_occurrence_date
             .or(Some(rc.get_server_context().get_clock_source().now()));
     } else {
-        mo.attributes.state = ObjectStateEnum::Deactivated;
+        mo.attributes.state = State::Deactivated;
         mo.attributes.deactivation_date = Some(rc.get_server_context().get_clock_source().now());
     }
 
@@ -685,14 +685,14 @@ fn process_destroy_request<'a>(
         .get_store()
         .get(&req.unique_identifier)?;
 
-    if mo.attributes.state == ObjectStateEnum::PreActive
-        || mo.attributes.state == ObjectStateEnum::Deactivated
-        || mo.attributes.state == ObjectStateEnum::Compromised
+    if mo.attributes.state == State::PreActive
+        || mo.attributes.state == State::Deactivated
+        || mo.attributes.state == State::Compromised
     {
-        if mo.attributes.state == ObjectStateEnum::Compromised {
-            mo.attributes.state = ObjectStateEnum::DestroyedCompromised;
+        if mo.attributes.state == State::Compromised {
+            mo.attributes.state = State::DestroyedCompromised;
         } else {
-            mo.attributes.state = ObjectStateEnum::Destroyed;
+            mo.attributes.state = State::Destroyed;
         }
 
         mo.attributes.destroy_date = Some(rc.get_server_context().clock_source.now());

@@ -1,5 +1,6 @@
 use serde::{Serialize, ser};
 use std::{io::Write, rc::Rc};
+use ttlv::kmip_enums::{ItemType, Tag};
 
 use std::str::FromStr;
 
@@ -15,9 +16,6 @@ extern crate num_traits;
 
 extern crate byteorder;
 use byteorder::{BigEndian, WriteBytesExt};
-
-//use self::enums;
-use crate::kmip_enums::*;
 
 use crate::TTLVError;
 
@@ -1729,8 +1727,9 @@ impl<'a, W: EncodedWriter> ser::SerializeStructVariant for &'a mut MyEnumSeriali
 mod tests {
     use std::rc::Rc;
 
-    use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
+    use crate::{EnumResolver, TTLVError, chrono::TimeZone};
     use chrono::Utc;
+    use ttlv::kmip_enums::Tag;
 
     //use pretty_hex::hex_dump;
     use crate::de::to_print;
@@ -1745,11 +1744,7 @@ mod tests {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(
-            &self,
-            _tag: crate::kmip_enums::Tag,
-            _value: &str,
-        ) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(&self, _tag: Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
 

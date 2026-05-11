@@ -3,6 +3,7 @@ use std::io::Cursor;
 use std::string::ToString;
 
 use serde::Deserialize;
+use ttlv::kmip_enums::{ItemType, Tag};
 
 use crate::error::{Error, Result};
 
@@ -12,8 +13,6 @@ extern crate num_derive;
 extern crate num_traits;
 
 extern crate byteorder;
-
-use crate::kmip_enums::*;
 
 extern crate hex;
 use crate::TTLVError;
@@ -415,12 +414,13 @@ where
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
+    use ttlv::kmip_enums::Tag;
 
     //use pretty_hex::hex_dump;
     use crate::EnumResolver;
     use crate::TTLVError;
+    use crate::de_xml::from_xml_bytes;
     use crate::my_date_format;
-    use crate::{Tag, de_xml::from_xml_bytes};
 
     struct TestEnumResolver;
 
@@ -428,11 +428,7 @@ mod tests {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(
-            &self,
-            _tag: crate::kmip_enums::Tag,
-            _value: &str,
-        ) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(&self, _tag: Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
 

@@ -11,10 +11,8 @@ pub use crate::store::mongodb::KmipMongoDBStore;
 use crate::{ClockSource, KmipResponseError};
 pub use mem::KmipMemoryStore;
 
-use protocol::{AttributesEnum, ObjectTypeEnum, SymmetricKey};
-use protocol::{
-    CryptographicAlgorithm, CryptographicParameters, NameStruct, ObjectStateEnum, SecretData,
-};
+use protocol::{AttributesEnum, ObjectType, SymmetricKey};
+use protocol::{CryptographicAlgorithm, CryptographicParameters, Name, SecretData, State};
 
 // TODO - the storage format for SymmetricKey should be different from the wire format
 #[derive(Serialize, Deserialize, Debug)]
@@ -41,7 +39,7 @@ pub struct ManagedAttributes {
     // the bson serializer.
     pub cryptographic_usage_mask: Option<i32>,
 
-    pub state: ObjectStateEnum,
+    pub state: State,
 
     pub names: Vec<NameStruct>,
 
@@ -90,7 +88,7 @@ pub struct ManagedAttributes {
 impl ManagedAttributes {
     pub fn new(clock: &dyn ClockSource) -> ManagedAttributes {
         ManagedAttributes {
-            state: ObjectStateEnum::PreActive,
+            state: State::PreActive,
             initial_date: clock.now(),
             last_change_date: clock.now(),
 
@@ -238,10 +236,10 @@ impl ManagedObject {
 
                 attributes.push(AttributesEnum::CryptographicLength(s.cryptographic_length));
 
-                attributes.push(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
+                attributes.push(AttributesEnum::ObjectType(ObjectType::SymmetricKey));
             }
             ManagedObjectEnum::SecretData(_s) => {
-                attributes.push(AttributesEnum::ObjectType(ObjectTypeEnum::SecretData));
+                attributes.push(AttributesEnum::ObjectType(ObjectType::SecretData));
             }
         }
 
@@ -267,12 +265,12 @@ impl ManagedObject {
                         s.cryptographic_algorithm,
                     ));
                 } else if name == "Object Type" {
-                    return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
+                    return Some(AttributesEnum::ObjectType(ObjectType::SymmetricKey));
                 }
             }
             ManagedObjectEnum::SecretData(_s) => {
                 if name == "Object Type" {
-                    return Some(AttributesEnum::ObjectType(ObjectTypeEnum::SymmetricKey));
+                    return Some(AttributesEnum::ObjectType(ObjectType::SymmetricKey));
                 }
             }
         }

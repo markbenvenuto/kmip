@@ -1,12 +1,12 @@
 mod de;
 mod error;
-mod kmip_enums;
+pub mod kmip_enums;
 mod ser;
 mod ser_xml;
 
 pub use de::{Reader, TtlvDeserialize};
 pub use error::TTLVError;
-pub use ttlv_derive::TtlvDeserialize;
+pub use ttlv_derive::{TtlvDeserialize, TtlvEnumDeserialize};
 
 #[doc(hidden)]
 pub mod __private {
@@ -16,5 +16,5 @@ pub mod __private {
         expect_structure_end, expect_text_string,
     };
     pub use crate::error::TTLVError;
-    pub use crate::kmip_enums::Tag;
+    pub use crate::kmip_enums::{Tag, ValueType};
 }

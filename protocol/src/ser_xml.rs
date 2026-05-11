@@ -1,5 +1,6 @@
 use serde::Serialize;
 use strum::AsStaticRef;
+use ttlv::kmip_enums::Tag;
 
 use crate::{CryptographicUsageMask, chrono::TimeZone};
 use crate::{
@@ -20,7 +21,6 @@ extern crate num_traits;
 extern crate byteorder;
 
 use crate::TTLVError;
-use crate::kmip_enums::*;
 
 use xml::writer::{EmitterConfig, XmlEvent};
 
@@ -204,8 +204,9 @@ where
 mod tests {
     use std::rc::Rc;
 
-    use crate::{EnumResolver, TTLVError, Tag, chrono::TimeZone};
+    use crate::{EnumResolver, TTLVError, chrono::TimeZone};
     use chrono::Utc;
+    use ttlv::kmip_enums::Tag;
 
     use crate::my_date_format;
     use crate::ser_xml::to_xml_bytes;
@@ -216,11 +217,7 @@ mod tests {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(
-            &self,
-            _tag: crate::kmip_enums::Tag,
-            _value: &str,
-        ) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(&self, _tag: Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
         fn to_string(&self, _tag: Tag, _value: i32) -> std::result::Result<String, TTLVError> {

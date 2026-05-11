@@ -95,4 +95,7 @@ pub enum TTLVError {
 
     #[error("unexpected end of token stream")]
     EndOfTokenStream,
+
+    #[error("invalid enum value for tag {:?}: {}", tag, value)]
+    InvalidEnumValue { tag: Tag, value: u32 },
 }

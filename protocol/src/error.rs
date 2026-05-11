@@ -4,8 +4,7 @@ use std::fmt::{self, Display};
 use thiserror::Error;
 
 use serde::{de, ser};
-
-use crate::kmip_enums::ItemType;
+use ttlv::kmip_enums::ItemType;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

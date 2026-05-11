@@ -12,6 +12,51 @@ pub fn derive_ttlv_deserialize(input: TokenStream) -> TokenStream {
     derive_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
 }
 
+#[proc_macro_derive(TtlvEnumDeserialize, attributes(ttlv))]
+pub fn derive_ttlv_enum_deserialize(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    derive_enum_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
+}
+
+fn derive_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
+    let name = &input.ident;
+
+    match &input.data {
+        Data::Enum(_) => {}
+        _ => return Err(syn::Error::new_spanned(name, "TtlvEnumDeserialize can only be derived for enums")),
+    }
+
+    let enum_tag = struct_tag_tokens(&input)?;
+
+    let expanded = quote! {
+        impl ::ttlv::__private::TtlvDeserialize for #name {
+            fn parse(reader: &mut ::ttlv::__private::Reader<'_>) -> ::core::result::Result<Self, ::ttlv::__private::TTLVError> {
+                let token = reader.read().ok_or(::ttlv::__private::TTLVError::EndOfTokenStream)??;
+                let expected = #enum_tag;
+                if token.tag != expected {
+                    return ::core::result::Result::Err(::ttlv::__private::TTLVError::UnexpectedTag {
+                        expected,
+                        actual: token.tag,
+                    });
+                }
+                match token.value {
+                    ::ttlv::__private::ValueType::Enumeration(v) => {
+                        ::num::FromPrimitive::from_u32(v).ok_or(
+                            ::ttlv::__private::TTLVError::InvalidEnumValue {
+                                tag: expected,
+                                value: v,
+                            },
+                        )
+                    }
+                    _ => ::core::result::Result::Err(::ttlv::__private::TTLVError::WrongValueType { tag: token.tag }),
+                }
+            }
+        }
+    };
+
+    Ok(expanded.into())
+}
+
 fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
 

@@ -19,7 +19,7 @@ mod tests {
 
             let get = client.get(&resp.unique_identifier).unwrap();
 
-            assert_eq! {get.object_type, ObjectTypeEnum::SymmetricKey};
+            assert_eq! {get.object_type, ObjectType::SymmetricKey};
 
             let _revoke = client
                 .revoke(
@@ -44,7 +44,7 @@ mod tests {
 
             let get = client.get(&resp.unique_identifier).unwrap();
 
-            assert_eq! {get.object_type, ObjectTypeEnum::SymmetricKey};
+            assert_eq! {get.object_type, ObjectType::SymmetricKey};
 
             let _destroy = client.destroy(&resp.unique_identifier).unwrap();
         });
@@ -59,7 +59,7 @@ mod tests {
 
             let get = client.get(&resp.unique_identifier).unwrap();
 
-            assert_eq! {get.object_type, ObjectTypeEnum::SymmetricKey};
+            assert_eq! {get.object_type, ObjectType::SymmetricKey};
 
             let _activate = client.activate(&resp.unique_identifier).unwrap();
 

@@ -5,6 +5,8 @@ use std::string::ToString;
 
 use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
+use ttlv::kmip_enums::ItemType;
+use ttlv::kmip_enums::Tag;
 
 use crate::error::{Error, Result};
 
@@ -18,7 +20,6 @@ use byteorder::{BigEndian, ReadBytesExt};
 use pretty_hex::*;
 
 use crate::TTLVError;
-use crate::kmip_enums::*;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
@@ -1178,13 +1179,14 @@ impl<'de, 'a, R: EncodingReader<'de>> VariantAccess<'de> for EnumParser<'a, 'de,
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
+    use ttlv::kmip_enums::Tag;
 
     //use pretty_hex::hex_dump;
-    use crate::{Tag, de::to_print};
+    use crate::de::to_print;
 
+    use crate::EnumResolver;
     use crate::de::from_bytes;
     use crate::my_date_format;
-    use crate::{EnumResolver, KmipEnumResolver};
     use crate::{ResponseMessage, TTLVError};
 
     struct TestEnumResolver;
@@ -1193,11 +1195,7 @@ mod tests {
         fn resolve_enum(&self, _name: &str, _value: i32) -> Result<String, TTLVError> {
             unimplemented! {}
         }
-        fn resolve_enum_str(
-            &self,
-            _tag: crate::kmip_enums::Tag,
-            _value: &str,
-        ) -> std::result::Result<i32, TTLVError> {
+        fn resolve_enum_str(&self, _tag: Tag, _value: &str) -> std::result::Result<i32, TTLVError> {
             unimplemented! {}
         }
         fn to_string(&self, _tag: Tag, _value: i32) -> std::result::Result<String, TTLVError> {
