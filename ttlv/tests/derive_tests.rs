@@ -1,4 +1,4 @@
-use ttlv::{Reader, TtlvDeserialize, TtlvEnumDeserialize, TTLVError};
+use ttlv::{Reader, Tag, TtlvDeserialize, TtlvEnumDeserialize, TtlvTaggedEnumDeserialize, TTLVError};
 
 // ── Basic required-fields struct ─────────────────────────────────────────────
 // Mirrors the hand-written parse_request_header / parse_request_message from de.rs
@@ -145,6 +145,128 @@ enum CryptographicAlgorithm {
     Aes = 3,
     TripleDes = 6,
 }
+
+// ── TtlvTaggedEnumDeserialize ─────────────────────────────────────────────────
+
+#[derive(TtlvDeserialize, PartialEq, Debug)]
+#[ttlv(tag = "Name")]
+struct TestName {
+    name_type: i32,     // Tag::NameType = 0x420054 — lower tag, comes first in TTLV
+    name_value: String, // Tag::NameValue = 0x420055 — higher tag, comes second
+}
+
+#[derive(TtlvTaggedEnumDeserialize, PartialEq, Debug)]
+#[ttlv(tag = "Attribute")]
+#[ttlv(discriminator_tag = "AttributeName")]
+enum TestAttr {
+    #[ttlv(discriminator = Tag::CryptographicLength)]
+    CryptographicLength(i32),
+
+    #[ttlv(discriminator = Tag::CryptographicAlgorithm)]
+    CryptographicAlgorithm(CryptographicAlgorithm),
+
+    #[ttlv(discriminator = Tag::Name)]
+    Name(TestName),
+}
+
+#[derive(TtlvDeserialize, PartialEq, Debug)]
+#[ttlv(tag = "TemplateAttribute")]
+struct TestTemplate {
+    #[ttlv(tag = "Attribute")]
+    attrs: Vec<TestAttr>,
+}
+
+#[test]
+fn test_tagged_enum_primitive_variant() {
+    // Attribute { AttributeName=CryptographicLength(0x42002A), CryptographicLength=256 }
+    let bytes = [
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x20, // Attribute Structure len=32
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x42, 0x00, 0x2A, 0x00, 0x00,
+        0x00, 0x00, // AttributeName Enum = Tag::CryptographicLength (0x42002A)
+        0x42, 0x00, 0x2A, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00, // CryptographicLength Integer = 256
+    ];
+    let mut reader = Reader::new(&bytes);
+    let attr = TestAttr::parse(&mut reader).unwrap();
+    assert_eq!(attr, TestAttr::CryptographicLength(256));
+}
+
+#[test]
+fn test_tagged_enum_enum_variant() {
+    // Attribute { AttributeName=CryptographicAlgorithm(0x420028), CryptographicAlgorithm=Aes(3) }
+    let bytes = [
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x20, // Attribute Structure len=32
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x42, 0x00, 0x28, 0x00, 0x00,
+        0x00, 0x00, // AttributeName Enum = Tag::CryptographicAlgorithm (0x420028)
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x00, 0x00, // CryptographicAlgorithm Enum = 3 (Aes)
+    ];
+    let mut reader = Reader::new(&bytes);
+    let attr = TestAttr::parse(&mut reader).unwrap();
+    assert_eq!(attr, TestAttr::CryptographicAlgorithm(CryptographicAlgorithm::Aes));
+}
+
+#[test]
+fn test_tagged_enum_struct_variant() {
+    // Attribute { AttributeName=Name(0x420053), Name { NameType=1, NameValue="hi" } }
+    // NameType (0x420054) sorts before NameValue (0x420055) in TTLV tag order
+    let bytes = [
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x38, // Attribute Structure len=56
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x42, 0x00, 0x53, 0x00, 0x00,
+        0x00, 0x00, // AttributeName Enum = Tag::Name (0x420053)
+        0x42, 0x00, 0x53, 0x01, 0x00, 0x00, 0x00, 0x20, // Name Structure len=32
+        0x42, 0x00, 0x54, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x00, 0x00, // NameType Integer = 1
+        0x42, 0x00, 0x55, 0x07, 0x00, 0x00, 0x00, 0x02, 0x68, 0x69, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, // NameValue TextString = "hi"
+    ];
+    let mut reader = Reader::new(&bytes);
+    let attr = TestAttr::parse(&mut reader).unwrap();
+    assert_eq!(
+        attr,
+        TestAttr::Name(TestName { name_type: 1, name_value: "hi".to_string() })
+    );
+}
+
+#[test]
+fn test_tagged_enum_unknown_discriminator() {
+    // Attribute { AttributeName=0x99999999 (unknown discriminator) }
+    let bytes = [
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x10, // Attribute Structure len=16
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x99, 0x99, 0x99, 0x99, 0x00, 0x00,
+        0x00, 0x00, // AttributeName Enum = 0x99999999 (no matching variant)
+    ];
+    let mut reader = Reader::new(&bytes);
+    let err = TestAttr::parse(&mut reader).unwrap_err();
+    assert!(matches!(err, TTLVError::InvalidEnumValue { .. }));
+}
+
+#[test]
+fn test_tagged_enum_vec_field() {
+    // TemplateAttribute containing [CryptographicLength=256, CryptographicAlgorithm=Aes]
+    let bytes = [
+        0x42, 0x00, 0x91, 0x01, 0x00, 0x00, 0x00, 0x50, // TemplateAttribute Structure len=80
+        // first Attribute: CryptographicLength=256
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x20,
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x42, 0x00, 0x2A, 0x00, 0x00,
+        0x00, 0x00,
+        0x42, 0x00, 0x2A, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00,
+        // second Attribute: CryptographicAlgorithm=Aes
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x20,
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x42, 0x00, 0x28, 0x00, 0x00,
+        0x00, 0x00,
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x00, 0x00,
+    ];
+    let mut reader = Reader::new(&bytes);
+    let tmpl = TestTemplate::parse(&mut reader).unwrap();
+    assert_eq!(tmpl.attrs.len(), 2);
+    assert_eq!(tmpl.attrs[0], TestAttr::CryptographicLength(256));
+    assert_eq!(tmpl.attrs[1], TestAttr::CryptographicAlgorithm(CryptographicAlgorithm::Aes));
+}
+
+// ── TtlvEnumDeserialize ───────────────────────────────────────────────────────
 
 #[test]
 fn test_enum_valid_value() {
