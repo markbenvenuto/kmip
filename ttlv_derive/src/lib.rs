@@ -124,12 +124,16 @@ fn field_tag_tokens(field: &syn::Field) -> syn::Result<proc_macro2::TokenStream>
 }
 
 fn find_ttlv_tag_attr(attrs: &[syn::Attribute]) -> syn::Result<Option<String>> {
+    find_ttlv_str_attr(attrs, "tag")
+}
+
+fn find_ttlv_str_attr(attrs: &[syn::Attribute], key: &str) -> syn::Result<Option<String>> {
     for attr in attrs {
         if !attr.path().is_ident("ttlv") {
             continue;
         }
         let nv: syn::MetaNameValue = attr.parse_args()?;
-        if nv.path.is_ident("tag") {
+        if nv.path.is_ident(key) {
             if let syn::Expr::Lit(syn::ExprLit {
                 lit: syn::Lit::Str(s),
                 ..
@@ -137,6 +141,19 @@ fn find_ttlv_tag_attr(attrs: &[syn::Attribute]) -> syn::Result<Option<String>> {
             {
                 return Ok(Some(s.value()));
             }
+        }
+    }
+    Ok(None)
+}
+
+fn find_ttlv_expr_attr(attrs: &[syn::Attribute], key: &str) -> syn::Result<Option<syn::Expr>> {
+    for attr in attrs {
+        if !attr.path().is_ident("ttlv") {
+            continue;
+        }
+        let nv: syn::MetaNameValue = attr.parse_args()?;
+        if nv.path.is_ident(key) {
+            return Ok(Some(nv.value));
         }
     }
     Ok(None)
