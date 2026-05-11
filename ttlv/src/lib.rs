@@ -6,7 +6,8 @@ mod ser_xml;
 
 pub use de::{Reader, TtlvDeserialize};
 pub use error::TTLVError;
-pub use ttlv_derive::{TtlvDeserialize, TtlvEnumDeserialize};
+pub use kmip_enums::Tag;
+pub use ttlv_derive::{TtlvDeserialize, TtlvEnumDeserialize, TtlvTaggedEnumDeserialize};
 
 #[doc(hidden)]
 pub mod __private {
