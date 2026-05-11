@@ -95,4 +95,10 @@ pub enum TTLVError {
 
     #[error("unexpected end of token stream")]
     EndOfTokenStream,
+
+    #[error("unresolved enumeration: tag {:?}, value {}", tag, value)]
+    UnresolvedEnumeration { tag: Tag, value: String },
+
+    #[error("invalid xml read")]
+    XmlReadError,
 }

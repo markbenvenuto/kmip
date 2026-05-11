@@ -1,3 +1,4 @@
+pub mod de_xml;
 mod de;
 mod error;
 mod kmip_enums;
