@@ -2,7 +2,7 @@ mod de;
 pub mod de_xml;
 mod error;
 pub mod kmip_enums;
-mod parser;
+pub mod parser;
 pub mod ser;
 mod ser_xml;
 

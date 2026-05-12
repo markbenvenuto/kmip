@@ -750,47 +750,177 @@ pub struct RevocationReason {
 //     Attribute : AttributeStruct,
 // }
 
-#[derive(Debug, Clone, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
-#[ttlv(tag = "Attribute")]
-#[ttlv(discriminator_tag = "AttributeName")]
+#[derive(Debug, Clone)]
 pub enum AttributesEnum {
-    // TODO - use CryptographicAlgorithm as the type but serde calls deserialize_identifier
-    // and we do not have enough context to realize it is CryptographicAlgorithm, we think it is AttributeValue
-    #[ttlv(discriminator = Tag::CryptographicAlgorithm)]
     CryptographicAlgorithm(CryptographicAlgorithm),
-
-    #[ttlv(discriminator = Tag::CryptographicLength)]
     CryptographicLength(i32),
-
-    #[ttlv(discriminator = Tag::CryptographicUsageMask)]
     CryptographicUsageMask(i32),
-
-    #[ttlv(discriminator = Tag::ActivationDate)]
     ActivationDate(DateTime<Utc>),
-
-    #[ttlv(discriminator = Tag::DeactivationDate)]
     DeactivationDate(DateTime<Utc>),
-
-    #[ttlv(discriminator = Tag::Name)]
     Name(Name),
-
-    #[ttlv(discriminator = Tag::CryptographicParameters)]
     CryptographicParameters(CryptographicParameters),
-
-    #[ttlv(discriminator = Tag::State)]
     State(State),
-
-    #[ttlv(discriminator = Tag::InitialDate)]
     InitialDate(DateTime<Utc>),
-
-    #[ttlv(discriminator = Tag::LastChangeDate)]
     LastChangeDate(DateTime<Utc>),
-
-    #[ttlv(discriminator = Tag::ObjectType)]
     ObjectType(ObjectType),
-
-    #[ttlv(discriminator = Tag::UniqueIdentifier)]
     UniqueIdentifier(String),
+}
+
+impl TtlvDeserialize for AttributesEnum {
+    fn parse(reader: &mut dyn ttlv::Reader) -> Result<Self, TTLVError> {
+        use ttlv::parser::*;
+        expect_structure_begin(reader, Tag::Attribute)?;
+        let attr_name = expect_text_string(reader, Tag::AttributeName)?;
+        let result = match attr_name.as_str() {
+            "Cryptographic Algorithm" => {
+                let v = expect_enumeration(reader, Tag::AttributeValue)?;
+                Self::CryptographicAlgorithm(
+                    num::FromPrimitive::from_u32(v).ok_or(TTLVError::InvalidEnumValue {
+                        tag: Tag::AttributeValue,
+                        value: v,
+                    })?,
+                )
+            }
+            "Cryptographic Length" => {
+                Self::CryptographicLength(expect_integer(reader, Tag::AttributeValue)?)
+            }
+            "Cryptographic Usage Mask" => {
+                Self::CryptographicUsageMask(expect_integer(reader, Tag::AttributeValue)?)
+            }
+            "Activation Date" => {
+                Self::ActivationDate(expect_datetime(reader, Tag::AttributeValue)?)
+            }
+            "Deactivation Date" => {
+                Self::DeactivationDate(expect_datetime(reader, Tag::AttributeValue)?)
+            }
+            "Name" => {
+                expect_structure_begin(reader, Tag::AttributeValue)?;
+                let name_value = expect_text_string(reader, Tag::NameValue)?;
+                let v = expect_enumeration(reader, Tag::NameType)?;
+                let name_type = num::FromPrimitive::from_u32(v).ok_or(
+                    TTLVError::InvalidEnumValue { tag: Tag::NameType, value: v },
+                )?;
+                expect_structure_end(reader, Tag::AttributeValue)?;
+                Self::Name(Name { name_value, name_type })
+            }
+            "Cryptographic Parameters" => {
+                return Err(TTLVError::InvalidTagName {
+                    name: "Cryptographic Parameters (deserialize not yet implemented)".to_string(),
+                });
+            }
+            "State" => {
+                let v = expect_enumeration(reader, Tag::AttributeValue)?;
+                Self::State(num::FromPrimitive::from_u32(v).ok_or(
+                    TTLVError::InvalidEnumValue { tag: Tag::AttributeValue, value: v },
+                )?)
+            }
+            "Initial Date" => {
+                Self::InitialDate(expect_datetime(reader, Tag::AttributeValue)?)
+            }
+            "Last Change Date" => {
+                Self::LastChangeDate(expect_datetime(reader, Tag::AttributeValue)?)
+            }
+            "Object Type" => {
+                let v = expect_enumeration(reader, Tag::AttributeValue)?;
+                Self::ObjectType(num::FromPrimitive::from_u32(v).ok_or(
+                    TTLVError::InvalidEnumValue { tag: Tag::AttributeValue, value: v },
+                )?)
+            }
+            "Unique Identifier" => {
+                Self::UniqueIdentifier(expect_text_string(reader, Tag::AttributeValue)?)
+            }
+            n => return Err(TTLVError::InvalidTagName { name: n.to_string() }),
+        };
+        expect_structure_end(reader, Tag::Attribute)?;
+        Ok(result)
+    }
+}
+
+impl TtlvSerialize for AttributesEnum {
+    fn serialize(&self, writer: &mut dyn ttlv::ser::EncodedWriter) -> Result<(), TTLVError> {
+        use ttlv::ser::*;
+        ser_write_structure_begin(writer, Tag::Attribute)?;
+        match self {
+            Self::CryptographicAlgorithm(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Cryptographic Algorithm")?;
+                ser_write_enumeration(
+                    writer,
+                    Tag::AttributeValue,
+                    num::ToPrimitive::to_u32(v).ok_or(TTLVError::EnumConvertFailed {
+                        tag: Tag::AttributeValue,
+                    })?,
+                )?;
+            }
+            Self::CryptographicLength(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Cryptographic Length")?;
+                ser_write_integer(writer, Tag::AttributeValue, *v)?;
+            }
+            Self::CryptographicUsageMask(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Cryptographic Usage Mask")?;
+                ser_write_integer(writer, Tag::AttributeValue, *v)?;
+            }
+            Self::ActivationDate(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Activation Date")?;
+                ser_write_datetime(writer, Tag::AttributeValue, v)?;
+            }
+            Self::DeactivationDate(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Deactivation Date")?;
+                ser_write_datetime(writer, Tag::AttributeValue, v)?;
+            }
+            Self::Name(n) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Name")?;
+                ser_write_structure_begin(writer, Tag::AttributeValue)?;
+                ser_write_text_string(writer, Tag::NameValue, &n.name_value)?;
+                ser_write_enumeration(
+                    writer,
+                    Tag::NameType,
+                    num::ToPrimitive::to_u32(&n.name_type).ok_or(
+                        TTLVError::EnumConvertFailed { tag: Tag::NameType },
+                    )?,
+                )?;
+                ser_write_structure_end(writer)?;
+            }
+            Self::CryptographicParameters(_) => {
+                return Err(TTLVError::InvalidTagName {
+                    name: "Cryptographic Parameters (serialize not yet implemented)".to_string(),
+                });
+            }
+            Self::State(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "State")?;
+                ser_write_enumeration(
+                    writer,
+                    Tag::AttributeValue,
+                    num::ToPrimitive::to_u32(v).ok_or(TTLVError::EnumConvertFailed {
+                        tag: Tag::AttributeValue,
+                    })?,
+                )?;
+            }
+            Self::InitialDate(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Initial Date")?;
+                ser_write_datetime(writer, Tag::AttributeValue, v)?;
+            }
+            Self::LastChangeDate(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Last Change Date")?;
+                ser_write_datetime(writer, Tag::AttributeValue, v)?;
+            }
+            Self::ObjectType(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Object Type")?;
+                ser_write_enumeration(
+                    writer,
+                    Tag::AttributeValue,
+                    num::ToPrimitive::to_u32(v).ok_or(TTLVError::EnumConvertFailed {
+                        tag: Tag::AttributeValue,
+                    })?,
+                )?;
+            }
+            Self::UniqueIdentifier(s) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Unique Identifier")?;
+                ser_write_text_string(writer, Tag::AttributeValue, s)?;
+            }
+        }
+        ser_write_structure_end(writer)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
