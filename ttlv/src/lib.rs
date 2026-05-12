@@ -9,7 +9,7 @@ pub use de::{Reader, TtlvDeserialize};
 pub use error::TTLVError;
 pub use kmip_enums::Tag;
 pub use ser::{NestedWriter, TtlvSerialize};
-pub use ttlv_derive::{TtlvDeserialize, TtlvEnumDeserialize, TtlvEnumSerialize, TtlvSerialize, TtlvTaggedEnumDeserialize};
+pub use ttlv_derive::{TtlvDeserialize, TtlvEnumDeserialize, TtlvEnumSerialize, TtlvSerialize, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize};
 
 #[doc(hidden)]
 pub mod __private {

@@ -80,6 +80,36 @@ pub fn derive_ttlv_tagged_enum_deserialize(input: TokenStream) -> TokenStream {
     derive_tagged_enum_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
 }
 
+#[proc_macro_derive(TtlvTaggedEnumSerialize, attributes(ttlv))]
+pub fn derive_ttlv_tagged_enum_serialize(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    tagged_enum_serialize_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
+}
+
+fn tagged_enum_serialize_impl(input: DeriveInput) -> syn::Result<TokenStream> {
+    let name = &input.ident;
+    match &input.data {
+        Data::Enum(_) => {}
+        _ => {
+            return Err(syn::Error::new_spanned(
+                name,
+                "TtlvTaggedEnumSerialize can only be derived for enums",
+            ));
+        }
+    }
+    let expanded = quote! {
+        impl ::ttlv::__private::TtlvSerialize for #name {
+            fn serialize(
+                &self,
+                writer: &mut dyn ::ttlv::__private::EncodedWriter,
+            ) -> ::core::result::Result<(), ::ttlv::__private::TTLVError> {
+                unimplemented!("TtlvTaggedEnumSerialize: not yet implemented")
+            }
+        }
+    };
+    Ok(expanded.into())
+}
+
 fn derive_tagged_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
 
