@@ -137,6 +137,43 @@ fn test_derive_vec_two() {
     assert_eq!(msg.batch_items[1].batch_count, 4);
 }
 
+// ── Repeated text strings (Vec<String>) ──────────────────────────────────────
+// KeyBlock (0x420040) containing zero or more UniqueIdentifier (0x420094) strings.
+
+#[derive(TtlvDeserialize)]
+#[ttlv(tag = "KeyBlock")]
+struct StringList {
+    #[ttlv(tag = "UniqueIdentifier")]
+    ids: Vec<String>,
+}
+
+#[test]
+fn test_derive_vec_string_empty() {
+    // KeyBlock { ids: [] }
+    let bytes = [0x42, 0x00, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00];
+    let mut reader = Reader::new(&bytes);
+    let list = StringList::parse(&mut reader).unwrap();
+    assert!(list.ids.is_empty());
+}
+
+#[test]
+fn test_derive_vec_string_two() {
+    // KeyBlock { ids: ["hello", "world"] }
+    // Each UniqueIdentifier TextString: 8-byte header + 8-byte padded value (5 bytes + 3 pad)
+    let bytes = [
+        0x42, 0x00, 0x40, 0x01, 0x00, 0x00, 0x00, 0x20, // KeyBlock struct, len=32
+        0x42, 0x00, 0x94, 0x07, 0x00, 0x00, 0x00, 0x05, 0x68, 0x65, 0x6C, 0x6C, 0x6F, 0x00,
+        0x00, 0x00, // UniqueIdentifier="hello"
+        0x42, 0x00, 0x94, 0x07, 0x00, 0x00, 0x00, 0x05, 0x77, 0x6F, 0x72, 0x6C, 0x64, 0x00,
+        0x00, 0x00, // UniqueIdentifier="world"
+    ];
+    let mut reader = Reader::new(&bytes);
+    let list = StringList::parse(&mut reader).unwrap();
+    assert_eq!(list.ids.len(), 2);
+    assert_eq!(list.ids[0], "hello");
+    assert_eq!(list.ids[1], "world");
+}
+
 // ── TtlvEnumDeserialize ───────────────────────────────────────────────────────
 
 #[derive(TtlvEnumDeserialize, num_derive::FromPrimitive, PartialEq, Debug)]

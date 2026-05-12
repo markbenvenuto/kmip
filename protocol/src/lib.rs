@@ -674,7 +674,7 @@ pub struct MACSignatureKeyInformation {
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
 pub struct KeyWrappingData {
     #[serde(rename = "Wrapping Method")]
     pub wrapping_method: WrappingMethod,
@@ -689,6 +689,7 @@ pub struct KeyWrappingData {
         skip_serializing_if = "Option::is_none",
         rename = "MACSignatureKeyInformation"
     )]
+    #[ttlv(tag = "MACSignatureKeyInformation")]
     pub mac_signature_key_information: Option<MACSignatureKeyInformation>,
 
     #[serde(
@@ -696,6 +697,7 @@ pub struct KeyWrappingData {
         skip_serializing_if = "Option::is_none",
         rename = "MACSignature"
     )]
+    #[ttlv(tag = "MACSignature")]
     pub mac_signature: Option<Vec<u8>>,
 
     #[serde(
@@ -703,13 +705,14 @@ pub struct KeyWrappingData {
         skip_serializing_if = "Option::is_none",
         rename = "IVCounterNonce"
     )]
+    #[ttlv(tag = "IVCounterNonce")]
     pub iv_counter_nonce: Option<Vec<u8>>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "EncodingOption")]
     pub encoding_option: Option<EncodingOption>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
 pub struct KeyBlock {
     #[serde(rename = "KeyFormatType")]
     pub key_format_type: KeyFormatType,
@@ -800,13 +803,13 @@ pub struct CryptographicParameters {
     pub initial_counter_value: Option<i32>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
 pub struct SymmetricKey {
     #[serde(rename = "KeyBlock")]
     pub key_block: KeyBlock,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
 pub struct SecretData {
     #[serde(rename = "SecretDataType")]
     pub secret_data_type: SecretDataType,
@@ -815,7 +818,7 @@ pub struct SecretData {
     pub key_block: KeyBlock,
 }
 
-// #[derive(Serialize, Deserialize, Debug)]
+// #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 // pub struct AttributeStruct {
 //     #[serde(rename = "AttributeName")]
 //     pub attribute_name: String,
@@ -844,7 +847,7 @@ pub struct RevocationReason {
     pub revocation_message: Option<String>,
 }
 
-// #[derive(Serialize, Deserialize, Debug)]
+// #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 // struct TemplateAttribute {
 //     Name : Name,
 //     Attribute : AttributeStruct,
@@ -910,7 +913,7 @@ pub enum AttributesEnum {
     UniqueIdentifier(String),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TemplateAttribute {
     #[serde(rename = "Name", skip_serializing_if = "Option::is_none")]
@@ -922,8 +925,9 @@ pub struct TemplateAttribute {
 
 ///////////////////////////////////////////////////
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct CreateRequest {
     #[serde(rename = "ObjectType")]
     pub object_type: ObjectType,
@@ -932,8 +936,9 @@ pub struct CreateRequest {
     pub template_attribute: Vec<TemplateAttribute>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct CreateResponse {
     #[serde(rename = "ObjectType")]
     pub object_type: ObjectType,
@@ -941,8 +946,9 @@ pub struct CreateResponse {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct RegisterRequest {
     #[serde(rename = "ObjectType")]
     pub object_type: ObjectType,
@@ -957,8 +963,9 @@ pub struct RegisterRequest {
     pub symmetric_key: Option<SymmetricKey>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct RegisterResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -967,8 +974,9 @@ pub struct RegisterResponse {
     pub template_attribute: Option<Vec<TemplateAttribute>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct GetRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -985,8 +993,9 @@ pub struct GetRequest {
     // TODO KeyWrappingSpecification: KeyWrappingSpecification
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct GetResponse {
     #[serde(rename = "ObjectType")]
     pub object_type: ObjectType,
@@ -1001,8 +1010,9 @@ pub struct GetResponse {
     pub secret_data: Option<SecretData>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct GetAttributesRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -1012,8 +1022,9 @@ pub struct GetAttributesRequest {
     pub attribute: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct GetAttributesResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -1022,16 +1033,18 @@ pub struct GetAttributesResponse {
     pub attribute: Vec<AttributesEnum>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct GetAttributeListRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct GetAttributeListResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -1040,23 +1053,26 @@ pub struct GetAttributeListResponse {
     pub attribute: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct ActivateRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct ActivateResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct RevokeRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -1078,30 +1094,34 @@ pub struct RevokeRequest {
     // pub compromise_occurrence_date: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct RevokeResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct DestroyRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct DestroyResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct EncryptRequest {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
@@ -1116,11 +1136,13 @@ pub struct EncryptRequest {
     pub data: Vec<u8>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
-    pub iv_counter_nonce: Option<ByteBuf>,
+    #[ttlv(tag = "IVCounterNonce")]
+    pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct EncryptResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -1129,11 +1151,13 @@ pub struct EncryptResponse {
     pub data: Vec<u8>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
-    pub iv_counter_nonce: Option<ByteBuf>,
+    #[ttlv(tag = "IVCounterNonce")]
+    pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct DecryptRequest {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
@@ -1148,11 +1172,13 @@ pub struct DecryptRequest {
     pub data: Vec<u8>,
 
     #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
-    pub iv_counter_nonce: Option<ByteBuf>,
+    #[ttlv(tag = "IVCounterNonce")]
+    pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct DecryptResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -1161,8 +1187,9 @@ pub struct DecryptResponse {
     pub data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct MACRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -1178,18 +1205,21 @@ pub struct MACRequest {
     pub data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct MACResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
     #[serde(with = "serde_bytes", rename = "MACData")]
+    #[ttlv(tag = "MACData")]
     pub mac_data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[ttlv(tag = "RequestPayload")]
 pub struct MACVerifyRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     #[serde(rename = "UniqueIdentifier")]
@@ -1205,11 +1235,13 @@ pub struct MACVerifyRequest {
     pub data: Vec<u8>,
 
     #[serde(with = "serde_bytes", rename = "MACData")]
+    #[ttlv(tag = "MACData")]
     pub mac_data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[serde(rename = "ResponsePayload")]
+#[ttlv(tag = "ResponsePayload")]
 pub struct MACVerifyResponse {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -1261,6 +1293,7 @@ pub struct RequestHeader {
     pub batch_count: i32,
 }
 
+// TODO #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestMessage {
     #[serde(rename = "RequestHeader")]
@@ -1314,7 +1347,7 @@ pub struct ResponseBatchItem {
     pub result_response_enum: Option<Operation>,
 }
 
-// #[derive(Serialize, Deserialize, Debug)]
+// #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
 #[derive(Debug)]
 pub struct ResponseMessage {
     pub response_header: ResponseHeader,

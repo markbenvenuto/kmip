@@ -23,7 +23,12 @@ fn derive_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
 
     match &input.data {
         Data::Enum(_) => {}
-        _ => return Err(syn::Error::new_spanned(name, "TtlvEnumDeserialize can only be derived for enums")),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                name,
+                "TtlvEnumDeserialize can only be derived for enums",
+            ));
+        }
     }
 
     let enum_tag = struct_tag_tokens(&input)?;
@@ -68,19 +73,22 @@ fn derive_tagged_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let variants = match &input.data {
         Data::Enum(e) => &e.variants,
-        _ => return Err(syn::Error::new_spanned(
-            name,
-            "TtlvTaggedEnumDeserialize can only be derived for enums",
-        )),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                name,
+                "TtlvTaggedEnumDeserialize can only be derived for enums",
+            ));
+        }
     };
 
     let struct_tag = struct_tag_tokens(&input)?;
 
-    let disc_tag_str = find_ttlv_str_attr(&input.attrs, "discriminator_tag")?
-        .ok_or_else(|| syn::Error::new_spanned(
+    let disc_tag_str = find_ttlv_str_attr(&input.attrs, "discriminator_tag")?.ok_or_else(|| {
+        syn::Error::new_spanned(
             name,
             "TtlvTaggedEnumDeserialize requires #[ttlv(discriminator_tag = \"...\")]",
-        ))?;
+        )
+    })?;
     let disc_tag_ident = syn::Ident::new(&disc_tag_str, name.span());
     let disc_tag = quote! { ::ttlv::__private::Tag::#disc_tag_ident };
 
@@ -119,17 +127,20 @@ fn variant_match_arm(variant: &syn::Variant) -> syn::Result<proc_macro2::TokenSt
 
     let inner_ty = match &variant.fields {
         syn::Fields::Unnamed(f) if f.unnamed.len() == 1 => &f.unnamed[0].ty,
-        _ => return Err(syn::Error::new_spanned(
-            variant_name,
-            "TtlvTaggedEnumDeserialize variants must have exactly one unnamed field",
-        )),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                variant_name,
+                "TtlvTaggedEnumDeserialize variants must have exactly one unnamed field",
+            ));
+        }
     };
 
-    let disc_expr = find_ttlv_expr_attr(&variant.attrs, "discriminator")?
-        .ok_or_else(|| syn::Error::new_spanned(
+    let disc_expr = find_ttlv_expr_attr(&variant.attrs, "discriminator")?.ok_or_else(|| {
+        syn::Error::new_spanned(
             variant_name,
             "TtlvTaggedEnumDeserialize variants must have #[ttlv(discriminator = ...)]",
-        ))?;
+        )
+    })?;
 
     let value_tag = if let Some(tag_str) = find_ttlv_str_attr(&variant.attrs, "value_tag")? {
         let ident = syn::Ident::new(&tag_str, variant_name.span());
@@ -263,6 +274,20 @@ fn field_statement(field: &syn::Field) -> syn::Result<proc_macro2::TokenStream> 
                 return Ok(quote! {
                     let #name = if reader.peek_tag() == ::core::option::Option::Some(#tag) {
                         ::core::option::Option::Some(::ttlv::__private::expect_byte_string(reader, #tag)?)
+                    } else {
+                        ::core::option::Option::None
+                    };
+                });
+            } else {
+                // Vec<T> where T != u8 → repeated field
+                let elem_expr = value_expr(elem, &tag)?;
+                return Ok(quote! {
+                    let #name = if reader.peek_tag() == ::core::option::Option::Some(#tag) {
+                        let mut #name = ::std::vec::Vec::new();
+                        while reader.peek_tag() == ::core::option::Option::Some(#tag) {
+                            #name.push(#elem_expr);
+                        }
+                        ::core::option::Option::Some(#name)
                     } else {
                         ::core::option::Option::None
                     };
