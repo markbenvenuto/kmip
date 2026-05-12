@@ -88,25 +88,54 @@ pub fn derive_ttlv_tagged_enum_serialize(input: TokenStream) -> TokenStream {
 
 fn tagged_enum_serialize_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let name = &input.ident;
-    match &input.data {
-        Data::Enum(_) => {}
+
+    let variants = match &input.data {
+        Data::Enum(e) => &e.variants,
         _ => {
             return Err(syn::Error::new_spanned(
                 name,
                 "TtlvTaggedEnumSerialize can only be derived for enums",
             ));
         }
-    }
+    };
+
+    let struct_tag = struct_tag_tokens(&input)?;
+
+    let disc_tag_str =
+        find_ttlv_str_attr(&input.attrs, "discriminator_tag")?.ok_or_else(|| {
+            syn::Error::new_spanned(
+                name,
+                "TtlvTaggedEnumSerialize requires #[ttlv(discriminator_tag = \"...\")]",
+            )
+        })?;
+    let disc_tag_ident = syn::Ident::new(&disc_tag_str, name.span());
+    let disc_tag = quote! { ::ttlv::__private::Tag::#disc_tag_ident };
+
+    let disc_enum_ident: Option<syn::Ident> =
+        find_ttlv_str_attr(&input.attrs, "discriminator_enum")?
+            .map(|s| syn::Ident::new(&s, name.span()));
+
+    let match_arms: Vec<proc_macro2::TokenStream> = variants
+        .iter()
+        .map(|v| variant_serialize_arm(v, disc_enum_ident.as_ref(), &disc_tag))
+        .collect::<syn::Result<_>>()?;
+
     let expanded = quote! {
         impl ::ttlv::__private::TtlvSerialize for #name {
             fn serialize(
                 &self,
                 writer: &mut dyn ::ttlv::__private::EncodedWriter,
             ) -> ::core::result::Result<(), ::ttlv::__private::TTLVError> {
-                unimplemented!("TtlvTaggedEnumSerialize: not yet implemented")
+                ::ttlv::__private::ser_write_structure_begin(writer, #struct_tag)?;
+                match self {
+                    #(#match_arms)*
+                }
+                ::ttlv::__private::ser_write_structure_end(writer)?;
+                ::core::result::Result::Ok(())
             }
         }
     };
+
     Ok(expanded.into())
 }
 
@@ -211,6 +240,57 @@ fn variant_match_arm(
 
     Ok(quote! {
         d if d == (#disc_expr) as u32 => Self::#variant_name(#val_expr)
+    })
+}
+
+fn variant_serialize_arm(
+    variant: &syn::Variant,
+    disc_enum_ident: Option<&syn::Ident>,
+    disc_tag: &proc_macro2::TokenStream,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let variant_name = &variant.ident;
+
+    let inner_ty = match &variant.fields {
+        syn::Fields::Unnamed(f) if f.unnamed.len() == 1 => &f.unnamed[0].ty,
+        _ => {
+            return Err(syn::Error::new_spanned(
+                variant_name,
+                "TtlvTaggedEnumSerialize variants must have exactly one unnamed field",
+            ));
+        }
+    };
+
+    let disc_value_expr: proc_macro2::TokenStream =
+        match find_ttlv_expr_attr(&variant.attrs, "discriminator")? {
+            Some(expr) => quote! { #expr },
+            None => match disc_enum_ident {
+                Some(enum_ident) => quote! { #enum_ident::#variant_name },
+                None => {
+                    return Err(syn::Error::new_spanned(
+                        variant_name,
+                        "TtlvTaggedEnumSerialize variants must have #[ttlv(discriminator = ...)] \
+                         or the enum must have #[ttlv(discriminator_enum = \"...\")]",
+                    ));
+                }
+            },
+        };
+
+    let value_tag = if let Some(tag_str) = find_ttlv_str_attr(&variant.attrs, "value_tag")? {
+        let ident = syn::Ident::new(&tag_str, variant_name.span());
+        quote! { ::ttlv::__private::Tag::#ident }
+    } else {
+        let ident = syn::Ident::new(&variant_name.to_string(), variant_name.span());
+        quote! { ::ttlv::__private::Tag::#ident }
+    };
+
+    let v_expr = option_elem_value(inner_ty);
+    let write_stmt = write_expr(inner_ty, &value_tag, v_expr)?;
+
+    Ok(quote! {
+        Self::#variant_name(v) => {
+            ::ttlv::__private::ser_write_enumeration(writer, #disc_tag, (#disc_value_expr) as u32)?;
+            #write_stmt
+        }
     })
 }
 

@@ -1,5 +1,5 @@
 use ttlv::ser::EncodedWriter;
-use ttlv::{NestedWriter, Reader, Tag, TtlvDeserialize, TtlvEnumDeserialize, TtlvSerialize, TtlvTaggedEnumDeserialize, TTLVError};
+use ttlv::{NestedWriter, Reader, Tag, TtlvDeserialize, TtlvEnumDeserialize, TtlvEnumSerialize, TtlvSerialize, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize, TTLVError};
 
 // ── Basic required-fields struct ─────────────────────────────────────────────
 // Mirrors the hand-written parse_request_header / parse_request_message from de.rs
@@ -177,7 +177,7 @@ fn test_derive_vec_string_two() {
 
 // ── TtlvEnumDeserialize ───────────────────────────────────────────────────────
 
-#[derive(TtlvEnumDeserialize, num_derive::FromPrimitive, PartialEq, Debug)]
+#[derive(TtlvEnumDeserialize, TtlvEnumSerialize, num_derive::FromPrimitive, num_derive::ToPrimitive, PartialEq, Debug, Clone, Copy)]
 #[repr(i32)]
 enum CryptographicAlgorithm {
     Aes = 3,
@@ -186,14 +186,14 @@ enum CryptographicAlgorithm {
 
 // ── TtlvTaggedEnumDeserialize ─────────────────────────────────────────────────
 
-#[derive(TtlvDeserialize, PartialEq, Debug)]
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
 #[ttlv(tag = "Name")]
 struct TestName {
     name_type: i32,     // Tag::NameType = 0x420054 — lower tag, comes first in TTLV
     name_value: String, // Tag::NameValue = 0x420055 — higher tag, comes second
 }
 
-#[derive(TtlvTaggedEnumDeserialize, PartialEq, Debug)]
+#[derive(TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize, PartialEq, Debug)]
 #[ttlv(tag = "Attribute")]
 #[ttlv(discriminator_tag = "AttributeName")]
 enum TestAttr {
@@ -523,13 +523,13 @@ enum TestOp {
     Gamma = 3,
 }
 
-#[derive(TtlvDeserialize, PartialEq, Debug)]
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
 #[ttlv(tag = "RequestPayload")]
 struct TestPayload {
     batch_count: i32,
 }
 
-#[derive(TtlvTaggedEnumDeserialize, PartialEq, Debug)]
+#[derive(TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize, PartialEq, Debug)]
 #[ttlv(tag = "BatchItem")]
 #[ttlv(discriminator_tag = "Operation")]
 #[ttlv(discriminator_enum = "TestOp")]
@@ -664,4 +664,86 @@ fn test_enum_serialize_round_trip() {
     // Will serialize SerCryptographicAlgorithm::Aes, then deserialize via TtlvEnumDeserialize,
     // and assert the round-trip produces the original variant.
     todo!("implement after TtlvEnumDeserialize lands")
+}
+
+// ── TtlvTaggedEnumSerialize round-trip tests ─────────────────────────────────
+
+#[test]
+fn test_tagged_enum_serialize_primitive_variant() {
+    // TestAttr::CryptographicLength(256) → known bytes from test_tagged_enum_primitive_variant
+    let attr = TestAttr::CryptographicLength(256);
+    let mut writer = NestedWriter::new();
+    attr.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x20, // Attribute Structure len=32
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x42, 0x00, 0x2A, 0x00, 0x00,
+        0x00, 0x00, // AttributeName Enum = Tag::CryptographicLength (0x42002A)
+        0x42, 0x00, 0x2A, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00, // CryptographicLength Integer = 256
+    ];
+    assert_eq!(bytes, expected);
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(TestAttr::parse(&mut reader).unwrap(), attr);
+}
+
+#[test]
+fn test_tagged_enum_serialize_enum_variant() {
+    // TestAttr::CryptographicAlgorithm(Aes) → known bytes from test_tagged_enum_enum_variant
+    let attr = TestAttr::CryptographicAlgorithm(CryptographicAlgorithm::Aes);
+    let mut writer = NestedWriter::new();
+    attr.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x20, // Attribute Structure len=32
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x42, 0x00, 0x28, 0x00, 0x00,
+        0x00, 0x00, // AttributeName Enum = Tag::CryptographicAlgorithm (0x420028)
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x00, 0x00, // CryptographicAlgorithm Enum = 3 (Aes)
+    ];
+    assert_eq!(bytes, expected);
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(TestAttr::parse(&mut reader).unwrap(), attr);
+}
+
+#[test]
+fn test_tagged_enum_serialize_struct_variant() {
+    // TestAttr::Name(TestName{...}) → known bytes from test_tagged_enum_struct_variant
+    let attr = TestAttr::Name(TestName { name_type: 1, name_value: "hi".to_string() });
+    let mut writer = NestedWriter::new();
+    attr.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0x38, // Attribute Structure len=56
+        0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x42, 0x00, 0x53, 0x00, 0x00,
+        0x00, 0x00, // AttributeName Enum = Tag::Name (0x420053)
+        0x42, 0x00, 0x53, 0x01, 0x00, 0x00, 0x00, 0x20, // Name Structure len=32
+        0x42, 0x00, 0x54, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x00, 0x00, // NameType Integer = 1
+        0x42, 0x00, 0x55, 0x07, 0x00, 0x00, 0x00, 0x02, 0x68, 0x69, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, // NameValue TextString = "hi"
+    ];
+    assert_eq!(bytes, expected);
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(TestAttr::parse(&mut reader).unwrap(), attr);
+}
+
+#[test]
+fn test_tagged_enum_serialize_discriminator_enum() {
+    // TestItem::Alpha(TestPayload{42}) → known bytes from test_discriminator_enum_auto_derive_alpha
+    let item = TestItem::Alpha(TestPayload { batch_count: 42 });
+    let mut writer = NestedWriter::new();
+    item.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x0F, 0x01, 0x00, 0x00, 0x00, 0x28, // BatchItem struct len=40
+        0x42, 0x00, 0x5C, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x00, 0x00, // Operation Enumeration = 1 (Alpha)
+        0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0x10, // RequestPayload struct len=16
+        0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x2A, 0x00, 0x00,
+        0x00, 0x00, // BatchCount Integer = 42
+    ];
+    assert_eq!(bytes, expected);
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(TestItem::parse(&mut reader).unwrap(), item);
 }
