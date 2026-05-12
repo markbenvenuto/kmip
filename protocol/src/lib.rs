@@ -1349,7 +1349,7 @@ pub struct ResponseHeader {
     pub batch_count: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumSerialize)]
 #[ttlv(tag = "BatchItem")]
 #[ttlv(discriminator_tag = "Operation")]
 #[ttlv(discriminator_enum = "Operation")]
@@ -1369,8 +1369,7 @@ pub enum ResponseOperationEnum {
     // TODO - add support for: Unique Batch Item ID
 }
 
-#[derive(Debug, TtlvDeserialize)]
-#[ttlv(tag = "BatchItem")]
+#[derive(Debug)]
 pub struct ResponseBatchItem {
     pub result_status: ResultStatus,
 
@@ -1379,16 +1378,16 @@ pub struct ResponseBatchItem {
     pub result_message: Option<String>,
 
     pub response_payload: Option<ResponseOperationEnum>,
+
     // Hack for error messages - we must specify an operation type but it is not a full enum
-    // pub result_response_enum: Option<Operation>,
+    pub result_response_enum: Option<Operation>,
 }
 
 // #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
-#[derive(Debug, TtlvDeserialize)]
+#[derive(Debug)]
 pub struct ResponseMessage {
     pub response_header: ResponseHeader,
 
-    #[ttlv(tag = "BatchItem")]
     pub batch_item: ResponseBatchItem,
 }
 
