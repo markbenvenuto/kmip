@@ -1,4 +1,7 @@
-#[cfg(test)]
+use std::fs::File;
+use std::io::Cursor;
+use std::io::{self, BufRead, BufReader};
+use std::path::Path;
 use std::{
     net,
     net::TcpListener,
@@ -10,36 +13,28 @@ use std::{
     thread,
 };
 
-#[cfg(test)]
+use quick_xml::reader::Reader;
+use quick_xml::writer::Writer;
+
 use difference::assert_diff;
 
-#[cfg(test)]
 use kmip_client::Client;
 
-#[cfg(test)]
 use kmip_server::{
     handle_client, store::KmipStore, test_util::TestClockSource, test_util::TestRngSource,
     ServerContext,
 };
 
-#[cfg(test)]
 use minidom::Element;
 
-#[cfg(test)]
 use rustls::{ClientConnection, Stream};
 
-#[cfg(test)]
 use std::env;
 
-extern crate kmip_client;
-extern crate kmip_server;
-
-#[cfg(test)]
 struct PortAllocator {
     start: u16,
 }
 
-#[cfg(test)]
 impl PortAllocator {
     fn new() -> Self {
         PortAllocator { start: 7000 }
@@ -52,12 +47,10 @@ impl PortAllocator {
     }
 }
 
-#[cfg(test)]
 lazy_static! {
     static ref GLOBAL_PORT_ALLOCATOR: Mutex<PortAllocator> = Mutex::new(PortAllocator::new());
 }
 
-#[cfg(test)]
 fn get_test_data_dir() -> PathBuf {
     let path = env::current_dir().unwrap();
     eprintln!("The current directory is {}", path.display());
@@ -67,7 +60,6 @@ fn get_test_data_dir() -> PathBuf {
 }
 
 // TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write it
-#[cfg(test)]
 fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port: u16, count: i32) {
     use rustls::{
         pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer},
@@ -124,7 +116,6 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
     end_barrier.wait();
 }
 
-#[cfg(test)]
 fn run_with_client<F>(port: u16, mut func: F)
 where
     F: FnMut(Client<Stream<ClientConnection, TcpStream>>),
@@ -163,7 +154,6 @@ where
     func(a);
 }
 
-#[cfg(test)]
 pub fn run_e2e_client_test<F>(count: i32, func: F)
 where
     F: FnMut(Client<Stream<ClientConnection, TcpStream>>),
@@ -189,47 +179,57 @@ where
     t1.join().unwrap();
 }
 
-#[cfg(test)]
-fn pretty_print_xml(s: &str) -> String {
-    let mut file = minidom::quick_xml::Reader::from_str(s);
-    file.trim_text(true);
-    let root: Element = Element::from_reader(&mut file).unwrap();
-    let buf: Vec<u8> = Vec::new();
-
-    let mut writer = minidom::quick_xml::Writer::new_with_indent(buf, ' ' as u8, 4);
-    root.to_writer(&mut writer).unwrap();
-
-    std::str::from_utf8(&writer.into_inner())
-        .unwrap()
-        .to_string()
+fn get_buf_reader<P: AsRef<Path>>(filename: P) -> io::Result<impl BufRead> {
+    let file = File::open(filename)?;
+    Ok(BufReader::new(file))
 }
 
-#[cfg(test)]
+fn pretty_print_xml(xml: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut reader = Reader::from_str(xml);
+    reader.config_mut().trim_text(true); // Prevents doubling up on existing whitespace
+
+    let mut buf = Vec::new();
+    // Initialize the writer with a 4-space indent (' ', 4)
+    let mut writer = Writer::new_with_indent(Cursor::new(&mut buf), b' ', 4);
+
+    loop {
+        match reader.read_event() {
+            Ok(event) => {
+                // End of file
+                if let quick_xml::events::Event::Eof = event {
+                    break;
+                }
+                // Write the event to the pretty-printer
+                writer.write_event(event)?;
+            }
+            Err(e) => return Err(Box::new(e)),
+        }
+    }
+
+    Ok(String::from_utf8(buf)?)
+}
+
 fn assert_xml_eq(left: &str, right: &str) {
     if left != right {
-        let left_xml = pretty_print_xml(left);
-        let right_xml = pretty_print_xml(right);
+        let left_xml = pretty_print_xml(left).unwrap();
+        let right_xml = pretty_print_xml(right).unwrap();
 
         assert_diff! {&left_xml, &right_xml, "\n", 0};
     }
 }
 
-#[cfg(test)]
 pub fn run_e2e_xml_conversation(conv: &str) {
-    let mut file = minidom::quick_xml::Reader::from_str(conv);
-    file.trim_text(true);
-    let root: Element = Element::from_reader(&mut file).unwrap();
+    let root: Element = Element::from_reader(BufReader::new(Cursor::new(conv.as_bytes()))).unwrap();
 
     let mut reqs: Vec<String> = Vec::new();
     let mut resps: Vec<String> = Vec::new();
     for child in root.children() {
-        let buf: Vec<u8> = Vec::new();
-        let mut writer = minidom::quick_xml::Writer::new(buf);
-        child.to_writer(&mut writer).unwrap();
+        let mut buf: Vec<u8> = Vec::new();
 
-        let xml_str = std::str::from_utf8(&writer.into_inner())
-            .unwrap()
-            .to_string();
+        child.write_to(&mut buf).unwrap();
+
+        let xml_str = std::str::from_utf8(&buf).unwrap().to_string();
+
         // println!("{:?}", child);
         println!("xml_str{:?}", xml_str);
         if child.name() == "RequestMessage" {

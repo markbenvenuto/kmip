@@ -24,6 +24,8 @@ hex  =  { workspace = true }
 
 rustls  =  { workspace = true }
 
+quick-xml  =  { workspace = true }
+
 webpki  =  { workspace = true }
 webpki-roots  =  { workspace = true }
 
