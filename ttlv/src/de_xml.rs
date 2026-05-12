@@ -49,14 +49,10 @@ impl<'a> XmlReader<'a> {
 
                     let tag = match Tag::from_str(&local_name) {
                         Ok(t) => t,
-                        Err(_) => {
-                            return Some(Err(TTLVError::InvalidTagName { name: local_name }))
-                        }
+                        Err(_) => return Some(Err(TTLVError::InvalidTagName { name: local_name })),
                     };
 
-                    let type_attr = attributes
-                        .iter()
-                        .find(|a| a.name.local_name == "type");
+                    let type_attr = attributes.iter().find(|a| a.name.local_name == "type");
 
                     match type_attr {
                         None => {
@@ -137,9 +133,7 @@ fn parse_value(
             num.map(ValueType::Enumeration)
         }
 
-        ItemType::Boolean => Ok(ValueType::Boolean(
-            value.eq_ignore_ascii_case("true"),
-        )),
+        ItemType::Boolean => Ok(ValueType::Boolean(value.eq_ignore_ascii_case("true"))),
 
         ItemType::TextString => Ok(ValueType::TextString(value.to_string())),
 
@@ -193,13 +187,16 @@ mod tests {
         }
     }
 
-    static XML_BYTES: &[u8] = include_bytes!("../../MSGENC-HTTPS-M-1-14.xml");
+    static XML_BYTES: &[u8] = include_bytes!("../../test_cases/1.4/MSGENC-HTTPS-M-1-14.xml");
 
     #[test]
     fn test_first_token_is_request_message() {
         let resolver = StubResolver;
         let mut reader = XmlReader::new(XML_BYTES, &resolver);
-        let first = reader.read().expect("expected a token").expect("expected Ok");
+        let first = reader
+            .read()
+            .expect("expected a token")
+            .expect("expected Ok");
         assert_eq!(first.tag, Tag::RequestMessage);
         assert!(matches!(first.value, ValueType::StructureBegin(_)));
     }
