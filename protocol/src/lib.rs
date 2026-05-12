@@ -25,6 +25,7 @@ use ttlv::Tag;
 use ttlv::TtlvEnumDeserialize;
 use ttlv::TtlvEnumSerialize;
 use ttlv::TtlvTaggedEnumDeserialize;
+use ttlv::TtlvTaggedEnumSerialize;
 use ttlv::kmip_enums::ItemType;
 use ttlv_derive::TtlvDeserialize;
 use ttlv_derive::TtlvSerialize;
@@ -882,7 +883,7 @@ pub struct RevocationReason {
 //     Attribute : AttributeStruct,
 // }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvTaggedEnumDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
 #[serde(
     rename = "Attribute",
     tag = "AttributeName",
@@ -942,7 +943,7 @@ pub enum AttributesEnum {
     UniqueIdentifier(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields)]
 pub struct TemplateAttribute {
     #[serde(rename = "Name", skip_serializing_if = "Option::is_none")]
@@ -954,7 +955,7 @@ pub struct TemplateAttribute {
 
 ///////////////////////////////////////////////////
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct CreateRequest {
@@ -975,7 +976,7 @@ pub struct CreateResponse {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct RegisterRequest {
@@ -992,7 +993,7 @@ pub struct RegisterRequest {
     pub symmetric_key: Option<SymmetricKey>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct RegisterResponse {
@@ -1051,7 +1052,7 @@ pub struct GetAttributesRequest {
     pub attribute: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct GetAttributesResponse {
@@ -1279,7 +1280,7 @@ pub struct MACVerifyResponse {
     pub validity_indicator: ValidityIndicator,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
 #[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
 #[ttlv(tag = "BatchItem")]
 #[ttlv(discriminator_tag = "Operation")]
@@ -1348,7 +1349,10 @@ pub struct ResponseHeader {
     pub batch_count: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
+#[ttlv(tag = "BatchItem")]
+#[ttlv(discriminator_tag = "Operation")]
+#[ttlv(discriminator_enum = "Operation")]
 pub enum ResponseOperationEnum {
     Create(CreateResponse),
     Get(GetResponse),
@@ -1365,7 +1369,8 @@ pub enum ResponseOperationEnum {
     // TODO - add support for: Unique Batch Item ID
 }
 
-#[derive(Debug)]
+#[derive(Debug, TtlvDeserialize)]
+#[ttlv(tag = "BatchItem")]
 pub struct ResponseBatchItem {
     pub result_status: ResultStatus,
 
@@ -1374,16 +1379,16 @@ pub struct ResponseBatchItem {
     pub result_message: Option<String>,
 
     pub response_payload: Option<ResponseOperationEnum>,
-
     // Hack for error messages - we must specify an operation type but it is not a full enum
-    pub result_response_enum: Option<Operation>,
+    // pub result_response_enum: Option<Operation>,
 }
 
 // #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
-#[derive(Debug)]
+#[derive(Debug, TtlvDeserialize)]
 pub struct ResponseMessage {
     pub response_header: ResponseHeader,
 
+    #[ttlv(tag = "BatchItem")]
     pub batch_item: ResponseBatchItem,
 }
 
