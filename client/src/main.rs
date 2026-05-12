@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use std::io::{Read, Write};
 use std::net::TcpStream;
+use std::path::Path;
 use std::path::PathBuf;
 
-extern crate clap_log_flag;
-extern crate clap_verbosity_flag;
-
-extern crate minidom;
 use minidom::Element;
 
 use clap::{Parser, Subcommand};
@@ -178,12 +177,17 @@ impl ServerCertVerifier for NoVerifier {
     }
 }
 
+fn get_buf_reader<P: AsRef<Path>>(filename: P) -> io::Result<impl BufRead> {
+    let file = File::open(filename)?;
+    Ok(BufReader::new(file))
+}
+
 fn run_xml<'a, T>(filename: &PathBuf, client: &mut Client<'a, T>)
 where
     T: 'a + Read + Write,
 {
-    let mut file = minidom::quick_xml::Reader::from_file(filename).unwrap();
-    let root: Element = Element::from_reader(&mut file).unwrap();
+    let reader = get_buf_reader(filename).unwrap();
+    let root: Element = Element::from_reader(reader).unwrap();
 
     let mut reqs: Vec<String> = Vec::new();
     let mut resps: Vec<String> = Vec::new();
