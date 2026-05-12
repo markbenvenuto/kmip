@@ -98,4 +98,13 @@ pub enum TTLVError {
 
     #[error("invalid enum value for tag {:?}: {}", tag, value)]
     InvalidEnumValue { tag: Tag, value: u32 },
+
+    #[error("unresolved enumeration: tag {:?}, value {}", tag, value)]
+    UnresolvedEnumeration { tag: Tag, value: String },
+
+    #[error("invalid xml read")]
+    XmlReadError,
+
+    #[error("enum variant for tag {:?} cannot be converted to u32", tag)]
+    EnumConvertFailed { tag: Tag },
 }

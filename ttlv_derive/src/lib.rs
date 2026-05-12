@@ -6,6 +6,18 @@ use syn::{
     spanned::Spanned,
 };
 
+#[proc_macro_derive(TtlvSerialize, attributes(ttlv))]
+pub fn derive_ttlv_serialize(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    serialize_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
+}
+
+#[proc_macro_derive(TtlvEnumSerialize, attributes(ttlv))]
+pub fn derive_ttlv_enum_serialize(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    enum_serialize_impl(input).unwrap_or_else(|e| e.to_compile_error().into())
+}
+
 #[proc_macro_derive(TtlvDeserialize, attributes(ttlv))]
 pub fn derive_ttlv_deserialize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -403,4 +415,199 @@ fn angle_generic_of<'a>(ty: &'a Type, wrapper: &str) -> Option<&'a Type> {
         }
     }
     None
+}
+
+// ── TtlvSerialize implementation ──────────────────────────────────────────────
+
+fn serialize_impl(input: DeriveInput) -> syn::Result<TokenStream> {
+    let name = &input.ident;
+
+    let fields = match &input.data {
+        Data::Struct(s) => match &s.fields {
+            Fields::Named(f) => &f.named,
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    "TtlvSerialize requires named fields",
+                ));
+            }
+        },
+        _ => {
+            return Err(syn::Error::new_spanned(
+                name,
+                "TtlvSerialize can only be derived for structs",
+            ));
+        }
+    };
+
+    let struct_tag = struct_tag_tokens(&input)?;
+
+    let field_stmts: Vec<proc_macro2::TokenStream> = fields
+        .iter()
+        .map(serialize_field_statement)
+        .collect::<syn::Result<_>>()?;
+
+    let expanded = quote! {
+        impl ::ttlv::__private::TtlvSerialize for #name {
+            fn serialize(
+                &self,
+                writer: &mut dyn ::ttlv::__private::EncodedWriter,
+            ) -> ::core::result::Result<(), ::ttlv::__private::TTLVError> {
+                ::ttlv::__private::ser_write_structure_begin(writer, #struct_tag)?;
+                #(#field_stmts)*
+                ::ttlv::__private::ser_write_structure_end(writer)?;
+                ::core::result::Result::Ok(())
+            }
+        }
+    };
+
+    Ok(expanded.into())
+}
+
+fn is_copy_type(ty: &Type) -> bool {
+    is_named(ty, "i32") || is_named(ty, "i64") || is_named(ty, "u32") || is_named(ty, "bool")
+}
+
+/// Value token to use when iterating `for v in &self.field` (v is `&T`).
+fn vec_elem_value(ty: &Type) -> proc_macro2::TokenStream {
+    if is_copy_type(ty) { quote! { *v } } else { quote! { v } }
+}
+
+/// Value token to use in `if let Some(ref v)` arm (v is `&T`).
+fn option_elem_value(ty: &Type) -> proc_macro2::TokenStream {
+    if is_copy_type(ty) { quote! { *v } } else { quote! { v } }
+}
+
+/// Value token for a direct owned field `self.name`.
+/// DateTime and nested structs need `&self.name`; everything else is passed by value.
+fn direct_field_value(ty: &Type, name: &syn::Ident) -> proc_macro2::TokenStream {
+    if is_named(ty, "DateTime") || (!is_copy_type(ty) && !is_named(ty, "String")) {
+        quote! { &self.#name }
+    } else {
+        quote! { self.#name }
+    }
+}
+
+fn serialize_field_statement(field: &syn::Field) -> syn::Result<proc_macro2::TokenStream> {
+    let name = field.ident.as_ref().unwrap();
+    let ty = &field.ty;
+    let tag = field_tag_tokens(field)?;
+
+    // Option<T>
+    if let Some(inner) = option_inner(ty) {
+        // Option<Vec<u8>> → optional byte string
+        if let Some(elem) = vec_inner(inner) {
+            if is_named(elem, "u8") {
+                return Ok(quote! {
+                    if let ::core::option::Option::Some(ref v) = self.#name {
+                        ::ttlv::__private::ser_write_byte_string(writer, #tag, v.as_slice())?;
+                    }
+                });
+            }
+            // Option<Vec<T>> where T != u8 → optional repeated field
+            let val = vec_elem_value(elem);
+            let expr = write_expr(elem, &tag, val)?;
+            return Ok(quote! {
+                if let ::core::option::Option::Some(ref items) = self.#name {
+                    for v in items {
+                        #expr
+                    }
+                }
+            });
+        }
+        let val = option_elem_value(inner);
+        let expr = write_expr(inner, &tag, val)?;
+        return Ok(quote! {
+            if let ::core::option::Option::Some(ref v) = self.#name {
+                #expr
+            }
+        });
+    }
+
+    // Vec<u8> → single byte string
+    if let Some(elem) = vec_inner(ty) {
+        if is_named(elem, "u8") {
+            return Ok(quote! {
+                ::ttlv::__private::ser_write_byte_string(writer, #tag, &self.#name)?;
+            });
+        }
+        // Vec<T> where T != u8 → repeated field
+        let val = vec_elem_value(elem);
+        let expr = write_expr(elem, &tag, val)?;
+        return Ok(quote! {
+            for v in &self.#name {
+                #expr
+            }
+        });
+    }
+
+    // Primitive / nested struct — direct owned access
+    let val = direct_field_value(ty, name);
+    let expr = write_expr(ty, &tag, val)?;
+    Ok(quote! { #expr })
+}
+
+// ── TtlvEnumSerialize implementation ─────────────────────────────────────────
+
+fn enum_serialize_impl(input: DeriveInput) -> syn::Result<TokenStream> {
+    let name = &input.ident;
+
+    match &input.data {
+        Data::Enum(_) => {}
+        _ => {
+            return Err(syn::Error::new_spanned(
+                name,
+                "TtlvEnumSerialize can only be derived for enums",
+            ));
+        }
+    }
+
+    let enum_tag = struct_tag_tokens(&input)?;
+
+    let expanded = quote! {
+        impl ::ttlv::__private::TtlvSerialize for #name {
+            fn serialize(
+                &self,
+                writer: &mut dyn ::ttlv::__private::EncodedWriter,
+            ) -> ::core::result::Result<(), ::ttlv::__private::TTLVError> {
+                let v = ::ttlv::__private::ToPrimitive::to_u32(self)
+                    .ok_or(::ttlv::__private::TTLVError::EnumConvertFailed {
+                        tag: #enum_tag,
+                    })?;
+                ::ttlv::__private::ser_write_enumeration(writer, #enum_tag, v)
+            }
+        }
+    };
+
+    Ok(expanded.into())
+}
+
+/// Generates the expression that writes a single value of the given type.
+/// Callers must pass the right form for `value`:
+/// - copy types (`i32`, `i64`, `u32`, `bool`): the value itself
+/// - `String`: owned `String` or `&String` (`.as_str()` is appended here)
+/// - `DateTime`: `&DateTime<Utc>`
+/// - nested `T: TtlvSerialize`: `&T`
+fn write_expr(
+    ty: &Type,
+    tag: &proc_macro2::TokenStream,
+    value: proc_macro2::TokenStream,
+) -> syn::Result<proc_macro2::TokenStream> {
+    if is_named(ty, "i32") {
+        Ok(quote! { ::ttlv::__private::ser_write_integer(writer, #tag, #value)?; })
+    } else if is_named(ty, "i64") {
+        Ok(quote! { ::ttlv::__private::ser_write_long_integer(writer, #tag, #value)?; })
+    } else if is_named(ty, "u32") {
+        Ok(quote! { ::ttlv::__private::ser_write_enumeration(writer, #tag, #value)?; })
+    } else if is_named(ty, "bool") {
+        Ok(quote! { ::ttlv::__private::ser_write_boolean(writer, #tag, #value)?; })
+    } else if is_named(ty, "String") {
+        Ok(quote! { ::ttlv::__private::ser_write_text_string(writer, #tag, #value.as_str())?; })
+    } else if is_named(ty, "DateTime") {
+        // value is already &DateTime<Utc>
+        Ok(quote! { ::ttlv::__private::ser_write_datetime(writer, #tag, #value)?; })
+    } else {
+        // Assume T: TtlvSerialize — value is already &T
+        Ok(quote! { ::ttlv::__private::TtlvSerialize::serialize(#value, writer)?; })
+    }
 }

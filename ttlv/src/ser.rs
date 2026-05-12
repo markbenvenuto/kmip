@@ -239,9 +239,9 @@ pub fn write_struct_start(writer: &mut dyn Write) -> TTLVResult<()> {
 }
 
 pub trait EncodedWriter {
-    fn new() -> Self;
+    fn new() -> Self where Self: Sized;
 
-    fn get_vector(self) -> Vec<u8>;
+    fn get_vector(self) -> Vec<u8> where Self: Sized;
 
     fn write_tag(&mut self, tag: Tag) -> TTLVResult<()>;
 
@@ -271,13 +271,69 @@ pub trait EncodedWriter {
     fn close_inner(&mut self) -> TTLVResult<()>;
 }
 
+pub trait TtlvSerialize {
+    fn serialize(&self, writer: &mut dyn EncodedWriter) -> TTLVResult<()>;
+}
+
+pub fn ser_write_integer(writer: &mut dyn EncodedWriter, tag: Tag, v: i32) -> TTLVResult<()> {
+    writer.write_tag(tag)?;
+    writer.write_i32(v)
+}
+
+pub fn ser_write_long_integer(writer: &mut dyn EncodedWriter, tag: Tag, v: i64) -> TTLVResult<()> {
+    writer.write_tag(tag)?;
+    writer.write_i64(v)
+}
+
+pub fn ser_write_enumeration(writer: &mut dyn EncodedWriter, tag: Tag, v: u32) -> TTLVResult<()> {
+    writer.write_tag(tag)?;
+    // FIXME: KMIP enumerations are unsigned 4-byte integers but write_i32_enumeration takes i32;
+    // values >= 0x8000_0000 will be written sign-extended. All current KMIP enum values fit in
+    // the lower 31 bits so this is benign today, but will need fixing when high-value enums land.
+    writer.write_i32_enumeration(v as i32)
+}
+
+pub fn ser_write_boolean(writer: &mut dyn EncodedWriter, tag: Tag, v: bool) -> TTLVResult<()> {
+    writer.write_tag(tag)?;
+    writer.write_boolean(v)
+}
+
+pub fn ser_write_text_string(writer: &mut dyn EncodedWriter, tag: Tag, v: &str) -> TTLVResult<()> {
+    writer.write_tag(tag)?;
+    writer.write_string(v)
+}
+
+pub fn ser_write_byte_string(writer: &mut dyn EncodedWriter, tag: Tag, v: &[u8]) -> TTLVResult<()> {
+    writer.write_tag(tag)?;
+    writer.write_bytes(v)
+}
+
+pub fn ser_write_datetime(
+    writer: &mut dyn EncodedWriter,
+    tag: Tag,
+    v: &chrono::DateTime<chrono::Utc>,
+) -> TTLVResult<()> {
+    writer.write_tag(tag)?;
+    writer.write_i64_datetime(v.timestamp())
+}
+
+pub fn ser_write_structure_begin(writer: &mut dyn EncodedWriter, tag: Tag) -> TTLVResult<()> {
+    writer.write_tag(tag)?;
+    writer.write_struct_start()?;
+    writer.begin_inner()
+}
+
+pub fn ser_write_structure_end(writer: &mut dyn EncodedWriter) -> TTLVResult<()> {
+    writer.close_inner()
+}
+
 #[derive(Debug, PartialEq)]
 enum TagWriteState {
     Needed,
     Written,
 }
 
-struct NestedWriter {
+pub struct NestedWriter {
     start_positions: Vec<usize>,
     vec: Vec<u8>,
     state: TagWriteState,
@@ -608,19 +664,15 @@ mod tests {
 
     // #[test]
     // fn test_struct() {
-    //     #[derive(Serialize, Debug)]
+    //     #[derive(Debug)]
     //     struct RequestHeader {
-    //         #[serde(rename = "ProtocolVersionMajor")]
     //         pub protocol_version_major: i32,
 
-    //         #[serde(rename = "ProtocolVersionMinor")]
     //         pub protocol_version_minor: i32,
 
-    //         #[serde(skip_serializing_if = "Option::is_none", rename = "BatchOrderOption")]
     //         batch_order_option: Option<i32>,
     //         // Option::None - serializes as serialize_none()
     //         // TODO: Other fields are optional
-    //         #[serde(rename = "BatchCount")]
     //         batch_count: i32,
     //     }
 
@@ -631,12 +683,11 @@ mod tests {
     //         batch_count: 3,
     //     };
 
-    //     let r = Rc::new(TestEnumResolver {});
-    //     let v = to_bytes(&a, r).unwrap();
+    //     // let v = to_bytes(&a, r).unwrap();
 
-    //     print!("Dump of bytes {:?}", v.hex_dump());
+    //     // print!("Dump of bytes {:?}", v.hex_dump());
 
-    //     to_print(v.as_slice());
+    //     // to_print(v.as_slice());
 
     //     let good = vec![
     //         0x42, 0x00, 0x77, 0x01, 0x00, 0x00, 0x00, 0x30, 0x42, 0x00, 0x6a, 0x02, 0x00, 0x00,

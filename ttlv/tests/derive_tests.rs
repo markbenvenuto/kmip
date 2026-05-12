@@ -1,4 +1,5 @@
-use ttlv::{Reader, Tag, TtlvDeserialize, TtlvEnumDeserialize, TtlvTaggedEnumDeserialize, TTLVError};
+use ttlv::ser::EncodedWriter;
+use ttlv::{NestedWriter, Reader, Tag, TtlvDeserialize, TtlvEnumDeserialize, TtlvSerialize, TtlvTaggedEnumDeserialize, TTLVError};
 
 // ── Basic required-fields struct ─────────────────────────────────────────────
 // Mirrors the hand-written parse_request_header / parse_request_message from de.rs
@@ -364,6 +365,127 @@ fn test_enum_in_struct() {
     assert_eq!(attr.cryptographic_algorithm, CryptographicAlgorithm::Aes);
 }
 
+// ── TtlvSerialize round-trip tests ───────────────────────────────────────────
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "RequestHeader")]
+struct SerHeader {
+    protocol_version_major: i32,
+    batch_count: i32,
+}
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "RequestMessage")]
+struct SerMessage {
+    #[ttlv(tag = "RequestHeader")]
+    request_header: SerHeader,
+    unique_identifier: String,
+}
+
+#[test]
+fn test_serialize_round_trip() {
+    let original = SerMessage {
+        request_header: SerHeader {
+            protocol_version_major: 3,
+            batch_count: 4,
+        },
+        unique_identifier: String::new(),
+    };
+
+    let mut writer = NestedWriter::new();
+    original.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+
+    let mut reader = Reader::new(&bytes);
+    let decoded = SerMessage::parse(&mut reader).unwrap();
+    assert_eq!(original, decoded);
+}
+
+#[test]
+fn test_serialize_matches_known_bytes() {
+    // Known encoding of RequestMessage { RequestHeader { pvm=3, bc=4 }, uid="" }
+    // from test_de_struct2 in de.rs
+    let expected = [
+        66u8, 0, 120, 1, 0, 0, 0, 48, 66, 0, 119, 1, 0, 0, 0, 32, 66, 0, 106, 2, 0, 0, 0, 4, 0,
+        0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7,
+        0, 0, 0, 0,
+    ];
+    let msg = SerMessage {
+        request_header: SerHeader {
+            protocol_version_major: 3,
+            batch_count: 4,
+        },
+        unique_identifier: String::new(),
+    };
+    let mut writer = NestedWriter::new();
+    msg.serialize(&mut writer).unwrap();
+    assert_eq!(writer.get_vector(), expected);
+}
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "ResponseHeader")]
+struct SerOptHeader {
+    protocol_version_major: i32,
+    batch_count: Option<i32>,
+}
+
+#[test]
+fn test_serialize_option_absent() {
+    let hdr = SerOptHeader {
+        protocol_version_major: 1,
+        batch_count: None,
+    };
+    let mut writer = NestedWriter::new();
+    hdr.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let mut reader = Reader::new(&bytes);
+    let decoded = SerOptHeader::parse(&mut reader).unwrap();
+    assert_eq!(hdr, decoded);
+}
+
+#[test]
+fn test_serialize_option_present() {
+    let hdr = SerOptHeader {
+        protocol_version_major: 1,
+        batch_count: Some(99),
+    };
+    let mut writer = NestedWriter::new();
+    hdr.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let mut reader = Reader::new(&bytes);
+    let decoded = SerOptHeader::parse(&mut reader).unwrap();
+    assert_eq!(hdr, decoded);
+}
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "BatchItem")]
+struct SerBatchItem {
+    batch_count: i32,
+}
+
+#[derive(TtlvDeserialize, TtlvSerialize, PartialEq, Debug)]
+#[ttlv(tag = "ResponseMessage")]
+struct SerResponseMessage {
+    #[ttlv(tag = "BatchItem")]
+    batch_items: Vec<SerBatchItem>,
+}
+
+#[test]
+fn test_serialize_vec_round_trip() {
+    let msg = SerResponseMessage {
+        batch_items: vec![
+            SerBatchItem { batch_count: 10 },
+            SerBatchItem { batch_count: 20 },
+        ],
+    };
+    let mut writer = NestedWriter::new();
+    msg.serialize(&mut writer).unwrap();
+    let bytes = writer.get_vector();
+    let mut reader = Reader::new(&bytes);
+    let decoded = SerResponseMessage::parse(&mut reader).unwrap();
+    assert_eq!(msg, decoded);
+}
+
 // ── Tag override on struct ────────────────────────────────────────────────────
 // Verify #[ttlv(tag = "...")] on the struct itself uses a different outer tag.
 
@@ -465,4 +587,81 @@ fn test_discriminator_enum_explicit_override() {
     let mut reader = Reader::new(&bytes);
     let item = TestItem::parse(&mut reader).unwrap();
     assert_eq!(item, TestItem::Renamed(TestPayload { batch_count: 99 }));
+}
+
+// ── TtlvEnumSerialize tests ──────────────────────────────────────────────────
+
+#[derive(ttlv::TtlvEnumSerialize, num_derive::ToPrimitive, Debug, PartialEq, Clone, Copy)]
+#[ttlv(tag = "CryptographicAlgorithm")]
+enum SerCryptographicAlgorithm {
+    Aes = 3,
+    TripleDes = 6,
+}
+
+#[test]
+fn test_enum_serialize_known_bytes() {
+    // SerCryptographicAlgorithm::Aes = 3, Tag::CryptographicAlgorithm = 0x420028
+    // Expected wire format:
+    //   tag:    0x42 0x00 0x28
+    //   type:   0x05  (Enumeration)
+    //   length: 0x00 0x00 0x00 0x04
+    //   value:  0x00 0x00 0x00 0x03
+    //   pad:    0x00 0x00 0x00 0x00
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let mut writer = NestedWriter::new();
+    SerCryptographicAlgorithm::Aes.serialize(&mut writer).unwrap();
+    assert_eq!(writer.get_vector(), expected);
+}
+
+#[derive(TtlvSerialize)]
+#[ttlv(tag = "BatchItem")]
+struct CryptoParamsSer {
+    cryptographic_algorithm: SerCryptographicAlgorithm,
+}
+
+#[test]
+fn test_enum_serialize_in_struct() {
+    // BatchItem (0x42000F) structure containing SerCryptographicAlgorithm::Aes
+    // Structure header:  tag 0x42000F, type Structure (0x01), length 0x10 (16)
+    // Enum field:        tag 0x420028, type Enum (0x05), length 4, value 3, pad 4
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x0F, 0x01, 0x00, 0x00, 0x00, 0x10,
+        0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let params = CryptoParamsSer {
+        cryptographic_algorithm: SerCryptographicAlgorithm::Aes,
+    };
+    let mut writer = NestedWriter::new();
+    params.serialize(&mut writer).unwrap();
+    assert_eq!(writer.get_vector(), expected);
+}
+
+#[derive(ttlv::TtlvEnumSerialize, num_derive::ToPrimitive, Debug, PartialEq, Clone, Copy)]
+#[ttlv(tag = "BatchCount")]
+enum CryptoAlgorithmAlt {
+    Aes = 3,
+}
+
+#[test]
+fn test_enum_serialize_tag_override() {
+    // Same variant value (3) but Tag::BatchCount (0x42000D) used via #[ttlv(tag)]
+    let expected: &[u8] = &[
+        0x42, 0x00, 0x0D, 0x05, 0x00, 0x00, 0x00, 0x04,
+        0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+    ];
+    let mut writer = NestedWriter::new();
+    CryptoAlgorithmAlt::Aes.serialize(&mut writer).unwrap();
+    assert_eq!(writer.get_vector(), expected);
+}
+
+#[test]
+#[ignore = "TtlvEnumDeserialize not yet implemented"]
+fn test_enum_serialize_round_trip() {
+    // Will serialize SerCryptographicAlgorithm::Aes, then deserialize via TtlvEnumDeserialize,
+    // and assert the round-trip produces the original variant.
+    todo!("implement after TtlvEnumDeserialize lands")
 }

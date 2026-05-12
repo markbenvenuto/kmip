@@ -23,9 +23,11 @@ use std::io::{Cursor, Read};
 use std::str::FromStr;
 use ttlv::Tag;
 use ttlv::TtlvEnumDeserialize;
+use ttlv::TtlvEnumSerialize;
 use ttlv::TtlvTaggedEnumDeserialize;
 use ttlv::kmip_enums::ItemType;
 use ttlv_derive::TtlvDeserialize;
+use ttlv_derive::TtlvSerialize;
 
 mod de;
 mod de_xml;
@@ -69,6 +71,7 @@ pub use de::read_type;
     EnumString,
     AsStaticStr,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum Operation {
@@ -129,7 +132,9 @@ pub enum Operation {
     Copy,
     PartialEq,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
+#[ttlv(tag = "ObjectType")]
 #[repr(i32)]
 pub enum ObjectType {
     Certificate = 0x00000001,
@@ -155,7 +160,9 @@ pub enum ObjectType {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
+#[ttlv(tag = "State")]
 #[repr(i32)]
 pub enum State {
     PreActive = 0x00000001,
@@ -177,7 +184,9 @@ pub enum State {
     Copy,
     Clone,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
+#[ttlv(tag = "NameType")]
 #[repr(i32)]
 pub enum NameType {
     UninterpretedTextString = 0x00000001,
@@ -196,6 +205,7 @@ pub enum NameType {
     Copy,
     PartialEq,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
@@ -255,6 +265,7 @@ pub enum CryptographicAlgorithm {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum CryptographicUsageMask {
@@ -291,7 +302,9 @@ pub enum CryptographicUsageMask {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
+#[ttlv(tag = "KeyFormatType")]
 #[repr(i32)]
 pub enum KeyFormatType {
     Raw = 0x00000001,
@@ -329,6 +342,7 @@ pub enum KeyFormatType {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum KeyCompressionType {
@@ -349,6 +363,7 @@ pub enum KeyCompressionType {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum SecretDataType {
@@ -367,6 +382,7 @@ pub enum SecretDataType {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum EncodingOption {
@@ -385,6 +401,7 @@ pub enum EncodingOption {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum WrappingMethod {
@@ -406,6 +423,7 @@ pub enum WrappingMethod {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum BlockCipherMode {
@@ -439,6 +457,7 @@ pub enum BlockCipherMode {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum PaddingMethod {
@@ -465,6 +484,7 @@ pub enum PaddingMethod {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum HashingAlgorithm {
@@ -494,6 +514,7 @@ pub enum HashingAlgorithm {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum KeyRoleType {
@@ -531,6 +552,7 @@ pub enum KeyRoleType {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum DigitalSignatureAlgorithm {
@@ -563,6 +585,7 @@ pub enum DigitalSignatureAlgorithm {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum ValidityIndicator {
@@ -583,6 +606,7 @@ pub enum ValidityIndicator {
     Copy,
     TtlvEnumDeserialize,
     PartialEq,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum RevocationReasonCode {
@@ -600,9 +624,11 @@ pub enum RevocationReasonCode {
     Serialize_enum,
     Deserialize_enum,
     FromPrimitive,
+    ToPrimitive,
     AsStaticStr,
     PartialEq,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum ResultStatus {
@@ -617,11 +643,13 @@ pub enum ResultStatus {
     Serialize_enum,
     Deserialize_enum,
     FromPrimitive,
+    ToPrimitive,
     AsStaticStr,
     Copy,
     Clone,
     Display,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
 )]
 #[repr(i32)]
 pub enum ResultReason {
@@ -652,13 +680,13 @@ pub enum ResultReason {
     GeneralFailure = 0x00000100,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct KeyValue {
     #[serde(with = "serde_bytes", rename = "KeyMaterial")]
     pub key_material: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct EncryptionKeyInformation {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -666,7 +694,7 @@ pub struct EncryptionKeyInformation {
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct MACSignatureKeyInformation {
     #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
@@ -674,7 +702,7 @@ pub struct MACSignatureKeyInformation {
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct KeyWrappingData {
     #[serde(rename = "Wrapping Method")]
     pub wrapping_method: WrappingMethod,
@@ -712,7 +740,7 @@ pub struct KeyWrappingData {
     pub encoding_option: Option<EncodingOption>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct KeyBlock {
     #[serde(rename = "KeyFormatType")]
     pub key_format_type: KeyFormatType,
@@ -745,7 +773,7 @@ pub struct KeyBlock {
     pub key_wrapping_data: Option<KeyWrappingData>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 //#[serde(rename (serialize = "AttributeValue", deserialize = "CryptographicParameters"))]
 #[serde(rename = "CryptographicParameters")]
 pub struct CryptographicParameters {
@@ -803,13 +831,13 @@ pub struct CryptographicParameters {
     pub initial_counter_value: Option<i32>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct SymmetricKey {
     #[serde(rename = "KeyBlock")]
     pub key_block: KeyBlock,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct SecretData {
     #[serde(rename = "SecretDataType")]
     pub secret_data_type: SecretDataType,
@@ -828,8 +856,9 @@ pub struct SecretData {
 //     //AttributeValue: ???
 // }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "Name")]
+#[ttlv(tag = "Name")]
 pub struct Name {
     #[serde(rename = "NameValue")]
     pub name_value: String,
@@ -838,7 +867,7 @@ pub struct Name {
     pub name_type: NameType,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct RevocationReason {
     #[serde(rename = "RevocationReasonCode")]
     pub revocation_reason_code: RevocationReasonCode,
@@ -936,7 +965,7 @@ pub struct CreateRequest {
     pub template_attribute: Vec<TemplateAttribute>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct CreateResponse {
@@ -974,7 +1003,7 @@ pub struct RegisterResponse {
     pub template_attribute: Option<Vec<TemplateAttribute>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetRequest {
@@ -993,7 +1022,7 @@ pub struct GetRequest {
     // TODO KeyWrappingSpecification: KeyWrappingSpecification
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct GetResponse {
@@ -1010,7 +1039,7 @@ pub struct GetResponse {
     pub secret_data: Option<SecretData>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetAttributesRequest {
@@ -1033,7 +1062,7 @@ pub struct GetAttributesResponse {
     pub attribute: Vec<AttributesEnum>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetAttributeListRequest {
@@ -1042,7 +1071,7 @@ pub struct GetAttributeListRequest {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct GetAttributeListResponse {
@@ -1053,7 +1082,7 @@ pub struct GetAttributeListResponse {
     pub attribute: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct ActivateRequest {
@@ -1062,7 +1091,7 @@ pub struct ActivateRequest {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct ActivateResponse {
@@ -1070,7 +1099,7 @@ pub struct ActivateResponse {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct RevokeRequest {
@@ -1094,7 +1123,7 @@ pub struct RevokeRequest {
     // pub compromise_occurrence_date: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct RevokeResponse {
@@ -1102,7 +1131,7 @@ pub struct RevokeResponse {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct DestroyRequest {
@@ -1111,7 +1140,7 @@ pub struct DestroyRequest {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct DestroyResponse {
@@ -1119,7 +1148,7 @@ pub struct DestroyResponse {
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct EncryptRequest {
@@ -1140,7 +1169,7 @@ pub struct EncryptRequest {
     pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct EncryptResponse {
@@ -1155,7 +1184,7 @@ pub struct EncryptResponse {
     pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct DecryptRequest {
@@ -1176,7 +1205,7 @@ pub struct DecryptRequest {
     pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct DecryptResponse {
@@ -1187,7 +1216,7 @@ pub struct DecryptResponse {
     pub data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct MACRequest {
@@ -1205,7 +1234,7 @@ pub struct MACRequest {
     pub data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct MACResponse {
@@ -1217,7 +1246,7 @@ pub struct MACResponse {
     pub mac_data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(deny_unknown_fields, rename = "RequestPayload")]
 #[ttlv(tag = "RequestPayload")]
 pub struct MACVerifyRequest {
@@ -1239,7 +1268,7 @@ pub struct MACVerifyRequest {
     pub mac_data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
 #[serde(rename = "ResponsePayload")]
 #[ttlv(tag = "ResponsePayload")]
 pub struct MACVerifyResponse {
@@ -1271,7 +1300,7 @@ pub enum RequestBatchItem {
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
 
-#[derive(Deserialize, Serialize, Debug, TtlvDeserialize)]
+#[derive(Deserialize, Serialize, Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct ProtocolVersion {
     #[serde(rename = "ProtocolVersionMajor")]
     pub protocol_version_major: i32,
@@ -1280,7 +1309,7 @@ pub struct ProtocolVersion {
     pub protocol_version_minor: i32,
 }
 
-#[derive(Deserialize, Serialize, Debug, TtlvDeserialize)]
+#[derive(Deserialize, Serialize, Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct RequestHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
@@ -1307,7 +1336,7 @@ pub struct RequestMessage {
     pub batch_item: RequestBatchItem,
 }
 
-#[derive(Deserialize, Serialize, Debug, TtlvDeserialize)]
+#[derive(Deserialize, Serialize, Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct ResponseHeader {
     #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
