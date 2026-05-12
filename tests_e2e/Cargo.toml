@@ -12,7 +12,7 @@ kmip_client = { workspace = true }
 kmip_server = {path="../server"}
 protocol =  { workspace = true }
 
-log =  { workspace = true }
+tracing = { workspace = true }
 
 hex  =  { workspace = true }
 # pretty-hex  =  { workspace = true }

@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 protocol = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 serde_bytes = { workspace = true }
 
 pretty-hex  = { workspace = true }

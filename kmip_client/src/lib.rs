@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate log;
+use tracing::{debug, info};
 
 extern crate num_derive;
 

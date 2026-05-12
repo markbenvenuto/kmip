@@ -6,9 +6,7 @@ extern crate lazy_static;
 extern crate pretty_hex;
 //extern crate serde_transcode;
 
-extern crate env_logger;
-extern crate log;
-use log::info;
+use tracing::info;
 use serde_bytes::ByteBuf;
 use strum::AsStaticRef;
 

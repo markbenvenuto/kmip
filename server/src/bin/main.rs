@@ -1,7 +1,5 @@
-extern crate env_logger;
-extern crate log;
 use chrono::Utc;
-use log::{info, warn};
+use tracing::{info, warn};
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
@@ -113,7 +111,7 @@ impl ClockSource for PreciseClockSource {
 }
 
 fn main() {
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let args = CmdLine::parse();
     println!("{:?}", args);

@@ -24,7 +24,7 @@ strum_macros = { workspace = true }
 
 chrono = { workspace = true, features = ["serde"] }
 
-log = { workspace = true }
+tracing = { workspace = true }
 
 byteorder = { workspace = true }
 

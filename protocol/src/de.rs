@@ -1,5 +1,6 @@
 use std::io::Cursor;
 use std::io::Read;
+use tracing::error;
 
 use std::string::ToString;
 

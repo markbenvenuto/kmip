@@ -34,8 +34,7 @@ mod my_opt_date_format;
 mod ser;
 mod ser_xml;
 
-#[macro_use]
-extern crate log;
+use tracing::info;
 
 extern crate chrono;
 
