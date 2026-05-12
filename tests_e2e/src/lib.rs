@@ -33,7 +33,7 @@ mod tests {
 
         let resp = process_kmip_request(&mut rc, bytes.as_slice());
 
-        protocol::to_print(resp.as_slice());
+        ttlv::to_print(resp.as_slice());
 
         println!("Hello");
     }

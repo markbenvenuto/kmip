@@ -11,6 +11,7 @@ license = "Apache-2.0"
 kmip_client = { workspace = true }
 kmip_server = {path="../server"}
 protocol =  { workspace = true }
+ttlv =  { workspace = true }
 
 log =  { workspace = true }
 

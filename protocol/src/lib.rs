@@ -4,10 +4,13 @@ use chrono::DateTime;
 use chrono::Utc;
 use num_derive::FromPrimitive;
 use num_derive::ToPrimitive;
+use serde_derive::Deserialize;
+use serde_derive::Serialize;
 use strum_macros::AsStaticStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use ttlv::NestedWriter;
+use ttlv::Reader;
 use ttlv::TTLVError;
 use ttlv::Tag;
 use ttlv::TtlvDeserialize;
@@ -111,6 +114,8 @@ pub enum ObjectType {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[ttlv(tag = "State")]
 #[repr(i32)]
@@ -133,6 +138,8 @@ pub enum State {
     Clone,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[ttlv(tag = "NameType")]
 #[repr(i32)]
@@ -152,6 +159,8 @@ pub enum NameType {
     PartialEq,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
@@ -245,6 +254,8 @@ pub enum CryptographicUsageMask {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[ttlv(tag = "KeyFormatType")]
 #[repr(i32)]
@@ -283,6 +294,8 @@ pub enum KeyFormatType {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum KeyCompressionType {
@@ -302,6 +315,8 @@ pub enum KeyCompressionType {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum SecretDataType {
@@ -319,6 +334,8 @@ pub enum SecretDataType {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum EncodingOption {
@@ -336,6 +353,8 @@ pub enum EncodingOption {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum WrappingMethod {
@@ -356,6 +375,8 @@ pub enum WrappingMethod {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum BlockCipherMode {
@@ -388,6 +409,8 @@ pub enum BlockCipherMode {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum PaddingMethod {
@@ -413,6 +436,8 @@ pub enum PaddingMethod {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum HashingAlgorithm {
@@ -441,6 +466,8 @@ pub enum HashingAlgorithm {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum KeyRoleType {
@@ -477,6 +504,8 @@ pub enum KeyRoleType {
     Copy,
     TtlvEnumDeserialize,
     TtlvEnumSerialize,
+    Serialize,
+    Deserialize,
 )]
 #[repr(i32)]
 pub enum DigitalSignatureAlgorithm {
@@ -596,25 +625,25 @@ pub enum ResultReason {
     GeneralFailure = 0x00000100,
 }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 pub struct KeyValue {
     pub key_material: Vec<u8>,
 }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 pub struct EncryptionKeyInformation {
     pub unique_identifier: String,
     //#[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 pub struct MACSignatureKeyInformation {
     pub unique_identifier: String,
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 pub struct KeyWrappingData {
     pub wrapping_method: WrappingMethod,
 
@@ -632,7 +661,7 @@ pub struct KeyWrappingData {
     pub encoding_option: Option<EncodingOption>,
 }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 pub struct KeyBlock {
     pub key_format_type: KeyFormatType,
 
@@ -650,7 +679,7 @@ pub struct KeyBlock {
     pub key_wrapping_data: Option<KeyWrappingData>,
 }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 pub struct CryptographicParameters {
     pub block_cipher_mode: Option<BlockCipherMode>,
 
@@ -681,12 +710,12 @@ pub struct CryptographicParameters {
     pub initial_counter_value: Option<i32>,
 }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 pub struct SymmetricKey {
     pub key_block: KeyBlock,
 }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 pub struct SecretData {
     pub secret_data_type: SecretDataType,
 
@@ -701,7 +730,7 @@ pub struct SecretData {
 //     //AttributeValue: ???
 // }
 
-#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize, Serialize, Deserialize)]
 #[ttlv(tag = "Name")]
 pub struct Name {
     pub name_value: String,
@@ -1140,12 +1169,9 @@ pub fn to_bytes<T: TtlvSerialize>(obj: &T) -> Result<Vec<u8>, TTLVError> {
 }
 
 pub fn from_bytes<T: TtlvDeserialize>(buf: &[u8]) -> Result<T, TTLVError> {
-    todo!();
-    // let mut writer = NestedWriter::new();
+    let mut reader = Reader::new(&buf);
 
-    // obj.serialize(&mut writer)?;
-
-    // Ok(writer.get_vector())
+    T::parse(&mut reader)
 }
 
 pub fn to_xml_bytes<T: TtlvSerialize>(obj: &T) -> Result<String, TTLVError> {

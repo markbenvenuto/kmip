@@ -178,8 +178,8 @@ impl From<bson::error::Error> for KmipResponseError {
     }
 }
 
-impl From<ttlv::Error> for KmipResponseError {
-    fn from(e: ttlv::Error) -> Self {
+impl From<ttlv::TTLVError> for KmipResponseError {
+    fn from(e: ttlv::TTLVError) -> Self {
         KmipResponseError::new(&format!("Protocol error: {}", e))
     }
 }
@@ -1053,6 +1053,8 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+
+    use protocol::RequestMessage;
 
     use crate::{
         RequestContext, ServerContext, process_kmip_request, store::KmipStore,
