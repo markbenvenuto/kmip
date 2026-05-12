@@ -1,5 +1,4 @@
 use log::info;
-use serde_bytes::ByteBuf;
 use strum::AsStaticRef;
 use ttlv::read_msg;
 
@@ -937,7 +936,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
     info!("Request Message: {:?}", buf.hex_dump());
     ttlv::to_print(buf);
 
-    let request_ret = protocol::from_bytes::<RequestMessage>(&buf);
+    let request_ret = ttlv::from_bytes::<RequestMessage>(&buf);
 
     if let Err(e) = request_ret {
         // If we fail to decode, we just return a very generic error
@@ -947,7 +946,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
             rc.get_server_context().get_clock_source(),
         );
 
-        let vr = protocol::to_bytes(&rm).unwrap();
+        let vr = ttlv::to_bytes(&rm).unwrap();
         info!("Response Message: {:?}", vr.hex_dump());
 
         ttlv::to_print(vr.as_slice());
@@ -1043,7 +1042,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         .protocol_version
         .protocol_version_minor;
 
-    let vr = protocol::to_bytes(&rm).unwrap();
+    let vr = ttlv::to_bytes(&rm).unwrap();
     info!("Response Message: {:?}", vr.hex_dump());
 
     ttlv::to_print(vr.as_slice());
@@ -1090,7 +1089,7 @@ mod tests {
 
         ttlv::to_print(bytes.as_slice());
 
-        protocol::from_bytes::<RequestMessage>(&bytes).unwrap();
+        ttlv::from_bytes::<RequestMessage>(&bytes).unwrap();
     }
 
     #[test]

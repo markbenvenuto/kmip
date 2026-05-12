@@ -1159,30 +1159,3 @@ pub fn get_operation_for_response(item: &ResponseOperationEnum) -> Operation {
         ResponseOperationEnum::Revoke(_) => Operation::Revoke,
     }
 }
-
-pub fn to_bytes<T: TtlvSerialize>(obj: &T) -> Result<Vec<u8>, TTLVError> {
-    let mut writer = NestedWriter::new();
-
-    obj.serialize(&mut writer)?;
-
-    Ok(writer.get_vector())
-}
-
-pub fn from_bytes<T: TtlvDeserialize>(buf: &[u8]) -> Result<T, TTLVError> {
-    let mut reader = Reader::new(&buf);
-
-    T::parse(&mut reader)
-}
-
-pub fn to_xml_bytes<T: TtlvSerialize>(obj: &T) -> Result<String, TTLVError> {
-    todo!();
-}
-
-pub fn from_xml_str<T: TtlvDeserialize>(buf: &str) -> Result<T, TTLVError> {
-    todo!();
-    // let mut writer = NestedWriter::new();
-
-    // obj.serialize(&mut writer)?;
-
-    // Ok(writer.get_vector())
-}

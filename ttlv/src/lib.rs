@@ -2,6 +2,7 @@ mod de;
 pub mod de_xml;
 mod error;
 pub mod kmip_enums;
+mod parser;
 pub mod ser;
 mod ser_xml;
 
@@ -17,6 +18,9 @@ pub use ttlv_derive::{
     TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize,
 };
 
+use crate::de_xml::XmlReader;
+use crate::ser::EncodedWriter;
+use crate::ser_xml::XmlNestedWriter;
 use crate::{
     de::{read_len, read_tag, read_type},
     kmip_enums::ItemType,
@@ -24,19 +28,48 @@ use crate::{
 
 #[doc(hidden)]
 pub mod __private {
-    pub use crate::de::{
-        Reader, TtlvDeserialize, expect_boolean, expect_byte_string, expect_datetime,
-        expect_enumeration, expect_integer, expect_long_integer, expect_structure_begin,
-        expect_structure_end, expect_text_string,
-    };
+    pub use crate::de::{Reader, TtlvDeserialize};
     pub use crate::error::TTLVError;
     pub use crate::kmip_enums::{Tag, ValueType};
+    pub use crate::parser::{
+        expect_boolean, expect_byte_string, expect_datetime, expect_enumeration, expect_integer,
+        expect_long_integer, expect_structure_begin, expect_structure_end, expect_text_string,
+    };
     pub use crate::ser::{
         EncodedWriter, TtlvSerialize, ser_write_boolean, ser_write_byte_string, ser_write_datetime,
         ser_write_enumeration, ser_write_integer, ser_write_long_integer,
         ser_write_structure_begin, ser_write_structure_end, ser_write_text_string,
     };
     pub use ::num::ToPrimitive;
+}
+
+pub fn to_bytes<T: TtlvSerialize>(obj: &T) -> Result<Vec<u8>, TTLVError> {
+    let mut writer = NestedWriter::new();
+
+    obj.serialize(&mut writer)?;
+
+    Ok(writer.get_vector())
+}
+
+pub fn from_bytes<T: TtlvDeserialize>(buf: &[u8]) -> Result<T, TTLVError> {
+    let mut reader = Reader::new(&buf);
+
+    T::parse(&mut reader)
+}
+
+pub fn to_xml_bytes<T: TtlvSerialize>(obj: &T) -> Result<String, TTLVError> {
+    let mut writer = XmlNestedWriter::new();
+
+    obj.serialize(&mut writer)?;
+
+    Ok(str::from_utf8(&writer.get_vector()).unwrap().to_owned())
+}
+
+pub fn from_xml_str<T: TtlvDeserialize>(buf: &str) -> Result<T, TTLVError> {
+    todo!();
+    // let mut reader = XmlReader::new(&buf.as_bytes());
+
+    // T::parse(&mut reader)
 }
 
 pub fn read_msg(reader: &mut dyn Read) -> std::result::Result<Vec<u8>, TTLVError> {

@@ -62,7 +62,7 @@ fn create_ok_request(op: RequestBatchItem) -> std::result::Result<Vec<u8>, Clien
         batch_item: op,
     };
 
-    Ok(protocol::to_bytes(&r)?)
+    Ok(ttlv::to_bytes(&r)?)
 }
 
 //fn get_response<R> ()
@@ -243,7 +243,7 @@ where
 
         ttlv::to_print(&msg);
 
-        let response = protocol::from_bytes::<ResponseMessage>(&msg)?;
+        let response = ttlv::from_bytes::<ResponseMessage>(&msg)?;
 
         //println!("Response: {:?} ", response);
 
@@ -272,11 +272,11 @@ where
     }
 
     pub fn make_xml_request(&mut self, xml_str: &str) -> String {
-        let request = protocol::from_xml_str::<RequestMessage>(xml_str).unwrap();
+        let request = ttlv::from_xml_str::<RequestMessage>(xml_str).unwrap();
 
-        let bytes = protocol::to_bytes(&request).unwrap();
+        let bytes = ttlv::to_bytes(&request).unwrap();
 
-        let bytes2 = protocol::to_xml_bytes(&request).unwrap();
+        let bytes2 = ttlv::to_xml_bytes(&request).unwrap();
         eprint!("xml bytes {:?}", &bytes2);
 
         self.stream.write_all(bytes.as_slice()).unwrap();
@@ -290,13 +290,13 @@ where
         ttlv::to_print(&msg);
 
         // TODO validate request
-        let response = protocol::from_bytes::<ResponseMessage>(&msg).unwrap();
+        let response = ttlv::from_bytes::<ResponseMessage>(&msg).unwrap();
 
         //println!("Response: {:?} ", response);
 
         // TODO check response
 
-        protocol::to_xml_bytes(&response).unwrap()
+        ttlv::to_xml_bytes(&response).unwrap()
     }
 
     //     fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {

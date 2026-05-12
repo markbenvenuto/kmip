@@ -16,12 +16,12 @@ use xml::writer::{EmitterConfig, XmlEvent};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
-struct NestedWriter {
+pub struct XmlNestedWriter {
     writer: xml::writer::EventWriter<std::vec::Vec<u8>>,
     tag: Option<Tag>,
 }
 
-impl NestedWriter {
+impl XmlNestedWriter {
     fn write_element(&mut self, name: &str, type_name: &str, value: &str) -> TTLVResult<()> {
         // TODO - normalize names per 5.4.1.1 Normalizing Names
         self.writer
@@ -37,10 +37,10 @@ impl NestedWriter {
     }
 }
 
-impl EncodedWriter for NestedWriter {
-    fn new() -> NestedWriter {
+impl EncodedWriter for XmlNestedWriter {
+    fn new() -> XmlNestedWriter {
         let vec = Vec::new();
-        NestedWriter {
+        XmlNestedWriter {
             tag: None,
             writer: EmitterConfig::new().create_writer(vec),
         }
