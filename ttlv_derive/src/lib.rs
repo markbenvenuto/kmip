@@ -65,7 +65,11 @@ fn derive_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
                             },
                         )
                     }
-                    _ => ::core::result::Result::Err(::ttlv::__private::TTLVError::WrongValueType { tag: token.tag }),
+                    _ => ::core::result::Result::Err(::ttlv::__private::TTLVError::WrongValueType {
+                        tag: token.tag,
+                        expected: ::ttlv::kmip_enums::ItemType::Enumeration,
+                        actual: token.value,
+                    }),
                 }
             }
         }
@@ -101,13 +105,12 @@ fn tagged_enum_serialize_impl(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let struct_tag = struct_tag_tokens(&input)?;
 
-    let disc_tag_str =
-        find_ttlv_str_attr(&input.attrs, "discriminator_tag")?.ok_or_else(|| {
-            syn::Error::new_spanned(
-                name,
-                "TtlvTaggedEnumSerialize requires #[ttlv(discriminator_tag = \"...\")]",
-            )
-        })?;
+    let disc_tag_str = find_ttlv_str_attr(&input.attrs, "discriminator_tag")?.ok_or_else(|| {
+        syn::Error::new_spanned(
+            name,
+            "TtlvTaggedEnumSerialize requires #[ttlv(discriminator_tag = \"...\")]",
+        )
+    })?;
     let disc_tag_ident = syn::Ident::new(&disc_tag_str, name.span());
     let disc_tag = quote! { ::ttlv::__private::Tag::#disc_tag_ident };
 
@@ -580,12 +583,20 @@ fn is_copy_type(ty: &Type) -> bool {
 
 /// Value token to use when iterating `for v in &self.field` (v is `&T`).
 fn vec_elem_value(ty: &Type) -> proc_macro2::TokenStream {
-    if is_copy_type(ty) { quote! { *v } } else { quote! { v } }
+    if is_copy_type(ty) {
+        quote! { *v }
+    } else {
+        quote! { v }
+    }
 }
 
 /// Value token to use in `if let Some(ref v)` arm (v is `&T`).
 fn option_elem_value(ty: &Type) -> proc_macro2::TokenStream {
-    if is_copy_type(ty) { quote! { *v } } else { quote! { v } }
+    if is_copy_type(ty) {
+        quote! { *v }
+    } else {
+        quote! { v }
+    }
 }
 
 /// Value token for a direct owned field `self.name`.

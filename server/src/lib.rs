@@ -6,9 +6,9 @@ extern crate lazy_static;
 extern crate pretty_hex;
 //extern crate serde_transcode;
 
-use tracing::info;
 use serde_bytes::ByteBuf;
 use strum::AsStaticRef;
+use tracing::info;
 use ttlv::read_msg;
 
 use std::{io::Read, io::Write};
@@ -903,6 +903,7 @@ fn create_ok_response(
             batch_count: 1,
         },
         batch_item: protocol::ResponseBatchItem {
+            operation: None,
             result_status: protocol::ResultStatus::Success,
             result_reason: Some(protocol::ResultReason::GeneralFailure),
             result_message: None,
@@ -927,7 +928,7 @@ fn create_error_response(
             batch_count: 1,
         },
         batch_item: protocol::ResponseBatchItem {
-            //Operation: None,
+            operation: None,
             result_status: protocol::ResultStatus::OperationFailed,
             result_reason: Some(e.reason),
             result_message: Some(e.msg.to_owned()),

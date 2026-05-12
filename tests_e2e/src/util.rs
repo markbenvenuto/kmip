@@ -66,6 +66,10 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
         ServerConfig,
     };
 
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .unwrap();
+
     let root_dir = get_test_data_dir();
     let server_cert_file = root_dir.join("server.pem");
     let server_key_file = root_dir.join("server.key");

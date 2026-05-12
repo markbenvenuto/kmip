@@ -2,7 +2,10 @@ use std;
 
 use thiserror::Error;
 
-use crate::kmip_enums::{ItemType, Tag};
+use crate::{
+    __private::ValueType,
+    kmip_enums::{ItemType, Tag},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -89,8 +92,17 @@ pub enum TTLVError {
     #[error("unexpected tag: expected {:?}, got {:?}", expected, actual)]
     UnexpectedTag { expected: Tag, actual: Tag },
 
-    #[error("unexpected value type for tag {:?}", tag)]
-    WrongValueType { tag: Tag },
+    #[error(
+        "unexpected value type for tag {:?}, expected {:?}, actual {:?}",
+        tag,
+        expected,
+        actual
+    )]
+    WrongValueType {
+        tag: Tag,
+        expected: ItemType,
+        actual: ValueType,
+    },
 
     #[error("unexpected end of token stream")]
     EndOfTokenStream,
