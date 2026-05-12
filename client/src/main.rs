@@ -10,8 +10,6 @@ extern crate clap_verbosity_flag;
 extern crate minidom;
 use minidom::Element;
 
-extern crate log;
-
 use clap::{Parser, Subcommand};
 use kmip_client::Client;
 use protocol::*;
@@ -214,7 +212,7 @@ where
 fn main() {
     println!("Hello, world!");
 
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let args = CmdLine::parse();
     println!("{:?}", args);

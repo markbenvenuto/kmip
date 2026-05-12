@@ -1,4 +1,13 @@
-use log::info;
+extern crate num_derive;
+
+#[macro_use]
+extern crate lazy_static;
+
+extern crate pretty_hex;
+//extern crate serde_transcode;
+
+use tracing::info;
+use serde_bytes::ByteBuf;
 use strum::AsStaticRef;
 use ttlv::read_msg;
 
