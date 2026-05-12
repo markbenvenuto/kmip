@@ -11,6 +11,7 @@ type TTLVResult<T> = std::result::Result<T, TTLVError>;
 pub fn expect_structure_begin(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<()> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,
@@ -29,6 +30,7 @@ pub fn expect_structure_begin(reader: &mut dyn Reader, expected_tag: Tag) -> TTL
 pub fn expect_structure_end(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<()> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,
@@ -36,17 +38,21 @@ pub fn expect_structure_end(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVR
     }
     match token.value {
         ValueType::StructureEnd => Ok(()),
-        _ => Err(TTLVError::WrongValueType {
-            tag: token.tag,
-            expected: ItemType::Interval,
-            actual: token.value,
-        }),
+        _ => {
+            panic!();
+            Err(TTLVError::WrongValueType {
+                tag: token.tag,
+                expected: ItemType::Interval,
+                actual: token.value,
+            })
+        }
     }
 }
 
 pub fn expect_integer(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<i32> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,
@@ -65,6 +71,7 @@ pub fn expect_integer(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<
 pub fn expect_text_string(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<String> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,
@@ -83,6 +90,7 @@ pub fn expect_text_string(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVRes
 pub fn expect_long_integer(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<i64> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,
@@ -101,6 +109,7 @@ pub fn expect_long_integer(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVRe
 pub fn expect_boolean(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<bool> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,
@@ -119,6 +128,7 @@ pub fn expect_boolean(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<
 pub fn expect_byte_string(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<Vec<u8>> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,
@@ -137,6 +147,7 @@ pub fn expect_byte_string(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVRes
 pub fn expect_enumeration(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<u32> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,
@@ -155,6 +166,7 @@ pub fn expect_enumeration(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVRes
 pub fn expect_datetime(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<DateTime<Utc>> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
+        panic!();
         return Err(TTLVError::UnexpectedTag {
             expected: expected_tag,
             actual: token.tag,

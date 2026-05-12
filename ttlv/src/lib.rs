@@ -18,6 +18,7 @@ pub use ttlv_derive::{
     TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize,
 };
 
+use crate::de_xml::{EnumResolver, XmlReader};
 use crate::ser::EncodedWriter;
 use crate::ser_xml::XmlNestedWriter;
 use crate::{
@@ -56,19 +57,24 @@ pub fn from_bytes<T: TtlvDeserialize>(buf: &[u8]) -> Result<T, TTLVError> {
     T::parse(&mut reader)
 }
 
-pub fn to_xml_bytes<T: TtlvSerialize>(obj: &T) -> Result<String, TTLVError> {
-    let mut writer = XmlNestedWriter::new();
+pub fn to_xml_bytes<T: TtlvSerialize>(
+    obj: &T,
+    resolver: &dyn EnumResolver,
+) -> Result<String, TTLVError> {
+    let mut writer = XmlNestedWriter::new(resolver);
 
     obj.serialize(&mut writer)?;
 
     Ok(str::from_utf8(&writer.get_vector()).unwrap().to_owned())
 }
 
-pub fn from_xml_str<T: TtlvDeserialize>(buf: &str) -> Result<T, TTLVError> {
-    todo!();
-    // let mut reader = XmlReader::new(&buf.as_bytes());
+pub fn from_xml_str<T: TtlvDeserialize>(
+    buf: &str,
+    resolver: &dyn EnumResolver,
+) -> Result<T, TTLVError> {
+    let mut reader = XmlReader::new(&buf.as_bytes(), resolver);
 
-    // T::parse(&mut reader)
+    T::parse(&mut reader)
 }
 
 pub fn read_msg(reader: &mut dyn Read) -> std::result::Result<Vec<u8>, TTLVError> {

@@ -1,12 +1,3 @@
-extern crate num_derive;
-
-#[macro_use]
-extern crate lazy_static;
-
-extern crate pretty_hex;
-//extern crate serde_transcode;
-
-use serde_bytes::ByteBuf;
 use strum::AsStaticRef;
 use tracing::info;
 use ttlv::read_msg;
@@ -560,12 +551,12 @@ fn process_get_attributes_request(
         .get_store()
         .get(&req.unique_identifier)?;
 
-    let attributes = if req.attribute.is_none() {
+    let attributes = if req.attribute_name.is_none() {
         // Get all the attributes
         mo.attributes.get_all_attributes()
     } else {
         let mut attrs: Vec<AttributesEnum> = Vec::new();
-        for name in req.attribute.unwrap() {
+        for name in req.attribute_name.unwrap() {
             let ga = mo.get_attribute(&name);
             if let Some(attr1) = ga {
                 attrs.push(attr1);
@@ -928,7 +919,7 @@ fn create_error_response(
             batch_count: 1,
         },
         batch_item: protocol::ResponseBatchItem {
-            operation: None,
+            operation: Some(request_operation),
             result_status: protocol::ResultStatus::OperationFailed,
             result_reason: Some(e.reason),
             result_message: Some(e.msg.to_owned()),

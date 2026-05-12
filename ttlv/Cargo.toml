@@ -25,6 +25,6 @@ byteorder = { workspace = true }
 pretty-hex = { workspace = true }
 hex = { workspace = true }
 
-xml-rs = { workspace = true }
+xml = { workspace = true }
 
 thiserror = { workspace = true }

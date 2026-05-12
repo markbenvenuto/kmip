@@ -185,7 +185,7 @@ mod tests {
     <Operation type="Enumeration" value="Register"/>
     <ResultStatus type="Enumeration" value="Success"/>
     <ResponsePayload>
-      <UniqueIdentifier type="TextString"                           value="1"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </ResponsePayload>
   </BatchItem>
 </ResponseMessage>
@@ -200,7 +200,7 @@ mod tests {
   <BatchItem>
     <Operation type="Enumeration" value="Destroy"/>
     <RequestPayload>
-      <UniqueIdentifier type="TextString"                           value="1"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </RequestPayload>
   </BatchItem>
 </RequestMessage>
@@ -218,7 +218,7 @@ mod tests {
    <ResultStatus type="Enumeration" value="Success"/>
 
    <ResponsePayload>
-      <UniqueIdentifier type="TextString"                           value="1"/>
+      <UniqueIdentifier type="TextString" value="1"/>
     </ResponsePayload>
   </BatchItem>
 </ResponseMessage>"#;
@@ -801,8 +801,7 @@ mod tests {
     // Register + MAC
     #[test]
     fn e2e_test_xml_cs_ac_m_4_14() {
-        let conv = r#"
-    <KMIP>
+        let conv = r#"<KMIP>
 
     <!--
          Key Management Interoperability Protocol Profiles Version 1.4

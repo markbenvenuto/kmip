@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use byteorder::{BigEndian, WriteBytesExt};
+use num::ToPrimitive;
 
 //use self::enums;
 use crate::{error::TTLVError, kmip_enums::*};
@@ -123,7 +124,7 @@ pub fn write_i64(writer: &mut dyn Write, value: i64) -> TTLVResult<()> {
         .map_err(|error| TTLVError::BadWrite { count: 8, error })
 }
 
-pub fn write_enumeration(writer: &mut dyn Write, value: i32) -> TTLVResult<()> {
+pub fn write_enumeration(writer: &mut dyn Write, value: u32) -> TTLVResult<()> {
     writer
         .write_u8(ItemType::Enumeration as u8)
         .map_err(|error| TTLVError::BadWrite { count: 1, error })?;
@@ -133,7 +134,7 @@ pub fn write_enumeration(writer: &mut dyn Write, value: i32) -> TTLVResult<()> {
         .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
     writer
-        .write_i32::<BigEndian>(value)
+        .write_u32::<BigEndian>(value)
         .map_err(|error| TTLVError::BadWrite { count: 4, error })?;
 
     // Add 4 bytes of padding
@@ -182,15 +183,13 @@ pub fn write_struct_start(writer: &mut dyn Write) -> TTLVResult<()> {
 }
 
 pub trait EncodedWriter {
-    fn new() -> Self
-    where
-        Self: Sized;
-
     fn get_vector(self) -> Vec<u8>
     where
         Self: Sized;
 
     fn write_tag(&mut self, tag: Tag) -> TTLVResult<()>;
+
+    fn set_attribute_tag(&mut self, tag: Tag) -> TTLVResult<()>;
 
     // fn get_tag(&self) -> Option<Tag>;
     // fn set_tag(&mut self, tag: Tag);
@@ -200,7 +199,7 @@ pub trait EncodedWriter {
     fn write_boolean(&mut self, v: bool) -> TTLVResult<()>;
     fn write_i32(&mut self, v: i32) -> TTLVResult<()>;
 
-    fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()>;
+    fn write_u32_enumeration(&mut self, v: u32) -> TTLVResult<()>;
 
     fn write_i64(&mut self, v: i64) -> TTLVResult<()>;
     fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()>;
@@ -237,7 +236,37 @@ pub fn ser_write_enumeration(writer: &mut dyn EncodedWriter, tag: Tag, v: u32) -
     // FIXME: KMIP enumerations are unsigned 4-byte integers but write_i32_enumeration takes i32;
     // values >= 0x8000_0000 will be written sign-extended. All current KMIP enum values fit in
     // the lower 31 bits so this is benign today, but will need fixing when high-value enums land.
-    writer.write_i32_enumeration(v as i32)
+    writer.write_u32_enumeration(v)
+}
+
+pub fn ser_write_enumeration_typed<T>(
+    writer: &mut dyn EncodedWriter,
+    tag: Tag,
+    v: &T,
+) -> TTLVResult<()>
+where
+    T: ToPrimitive,
+{
+    ser_write_enumeration(
+        writer,
+        tag,
+        num::ToPrimitive::to_u32(v).ok_or(TTLVError::EnumConvertFailed { tag })?,
+    )
+}
+
+pub fn ser_write_enumeration_attribute_typed<T>(
+    writer: &mut dyn EncodedWriter,
+    tag: Tag,
+    v: &T,
+) -> TTLVResult<()>
+where
+    T: ToPrimitive,
+{
+    writer.write_tag(Tag::AttributeValue)?;
+    writer.set_attribute_tag(tag)?;
+    writer.write_u32_enumeration(
+        num::ToPrimitive::to_u32(v).ok_or(TTLVError::EnumConvertFailed { tag })?,
+    )
 }
 
 pub fn ser_write_boolean(writer: &mut dyn EncodedWriter, tag: Tag, v: bool) -> TTLVResult<()> {
@@ -288,13 +317,7 @@ pub struct NestedWriter {
 }
 
 impl NestedWriter {
-    fn assert_tag_written(&mut self) {
-        assert_eq!(self.state, TagWriteState::Written);
-        self.state = TagWriteState::Needed;
-    }
-}
-impl EncodedWriter for NestedWriter {
-    fn new() -> NestedWriter {
+    pub fn new() -> NestedWriter {
         NestedWriter {
             start_positions: Vec::new(),
             vec: Vec::new(),
@@ -303,6 +326,13 @@ impl EncodedWriter for NestedWriter {
         }
     }
 
+    fn assert_tag_written(&mut self) {
+        assert_eq!(self.state, TagWriteState::Written);
+        self.state = TagWriteState::Needed;
+    }
+}
+
+impl EncodedWriter for NestedWriter {
     fn get_vector(self) -> Vec<u8> {
         self.vec
     }
@@ -329,6 +359,11 @@ impl EncodedWriter for NestedWriter {
 
         self.state = TagWriteState::Written;
 
+        Ok(())
+    }
+
+    fn set_attribute_tag(&mut self, _tag: Tag) -> TTLVResult<()> {
+        // Ignore, only for xml writer
         Ok(())
     }
 
@@ -384,7 +419,7 @@ impl EncodedWriter for NestedWriter {
         write_i32(&mut self.vec, v)
     }
 
-    fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> {
+    fn write_u32_enumeration(&mut self, v: u32) -> TTLVResult<()> {
         self.assert_tag_written();
         write_enumeration(&mut self.vec, v)
     }
@@ -476,7 +511,7 @@ mod tests {
         // An Enumeration with value 255:
         let mut writer = NestedWriter::new();
         writer.write_tag(Tag::CompromiseDate).unwrap();
-        writer.write_i32_enumeration(255).unwrap();
+        writer.write_u32_enumeration(255).unwrap();
         assert_eq!(
             writer.get_vector(),
             [
@@ -560,7 +595,7 @@ mod tests {
         writer
             .write_tag(Tag::ApplicationSpecificInformation)
             .unwrap();
-        writer.write_i32_enumeration(254).unwrap();
+        writer.write_u32_enumeration(254).unwrap();
         writer.write_tag(Tag::ArchiveDate).unwrap();
         writer.write_i32(255).unwrap();
         writer.close_inner().unwrap();

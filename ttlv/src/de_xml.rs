@@ -11,6 +11,8 @@ type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
 pub trait EnumResolver {
     fn resolve(&self, tag: Tag, value: &str) -> TTLVResult<u32>;
+
+    fn to_string(&self, tag: Tag, value: u32) -> TTLVResult<String>;
 }
 
 pub struct XmlReader<'a> {
@@ -19,6 +21,7 @@ pub struct XmlReader<'a> {
     depth: u64,
     enum_resolver: &'a dyn EnumResolver,
     peeked: Option<TTLVResult<Value>>,
+    last_attribute_tag: Option<Tag>,
 }
 
 impl<'a> XmlReader<'a> {
@@ -29,6 +32,7 @@ impl<'a> XmlReader<'a> {
             depth: 0,
             enum_resolver: resolver,
             peeked: None,
+            last_attribute_tag: None,
         }
     }
 
@@ -36,7 +40,11 @@ impl<'a> XmlReader<'a> {
         loop {
             let event = match self.reader.next() {
                 Ok(e) => e,
-                Err(_) => return Some(Err(TTLVError::XmlReadError)),
+                Err(e) => {
+                    return Some(Err(TTLVError::XmlReadError {
+                        message: e.to_string(),
+                    }));
+                }
             };
 
             match event {
@@ -59,6 +67,8 @@ impl<'a> XmlReader<'a> {
 
                     match type_attr {
                         None => {
+                            println!("X Tag:{:?}", tag);
+
                             self.struct_stack.push((tag, self.depth));
                             return Some(Ok(Value {
                                 tag,
@@ -66,20 +76,32 @@ impl<'a> XmlReader<'a> {
                             }));
                         }
                         Some(type_attr) => {
+                            println!("XV Tag:{:?}", tag);
                             let item_type = match ItemType::from_str(&type_attr.value) {
                                 Ok(t) => t,
-                                Err(_) => return Some(Err(TTLVError::XmlReadError)),
+                                Err(e) => {
+                                    return Some(Err(TTLVError::XmlReadError {
+                                        message: e.to_string(),
+                                    }));
+                                }
                             };
+
                             let value_str = attributes
                                 .iter()
                                 .find(|a| a.name.local_name == "value")
                                 .map(|a| a.value.as_str())
                                 .unwrap_or("");
-                            let value_type =
-                                match parse_value(tag, item_type, value_str, self.enum_resolver) {
-                                    Ok(v) => v,
-                                    Err(e) => return Some(Err(e)),
-                                };
+
+                            let value_type = match self.parse_value(
+                                tag,
+                                item_type,
+                                value_str,
+                                self.enum_resolver,
+                            ) {
+                                Ok(v) => v,
+                                Err(e) => return Some(Err(e)),
+                            };
+
                             return Some(Ok(Value {
                                 tag,
                                 value: value_type,
@@ -108,6 +130,124 @@ impl<'a> XmlReader<'a> {
             }
         }
     }
+
+    fn parse_value(
+        &mut self,
+        tag: Tag,
+        item_type: ItemType,
+        value: &str,
+        resolver: &dyn EnumResolver,
+    ) -> TTLVResult<ValueType> {
+        match item_type {
+            ItemType::Integer => {
+                // Special work around for Bit mask
+                // println!("Parse integer tag: {tag:?}");
+                if tag == Tag::AttributeValue {
+                    if let Some(last_attribute_tag) = self.last_attribute_tag {
+                        if last_attribute_tag == Tag::CryptographicUsageMask {
+                            let mut iv: i32 = 0;
+
+                            for ev in value.split(' ') {
+                                iv |= resolver.resolve(Tag::CryptographicUsageMask, ev).unwrap()
+                                    as i32;
+                            }
+
+                            return Ok(ValueType::Integer(iv));
+                        } else if last_attribute_tag == Tag::StorageStatusMask {
+                            unimplemented!();
+                        }
+
+                        self.last_attribute_tag = None;
+                    }
+                }
+
+                value
+                    .parse::<i32>()
+                    .map(ValueType::Integer)
+                    .map_err(|e| TTLVError::XmlReadError {
+                        message: format!("Parse integer as: {}", e.to_string()),
+                    })
+            }
+
+            ItemType::LongInteger => {
+                value
+                    .parse::<i64>()
+                    .map(ValueType::LongInteger)
+                    .map_err(|e| TTLVError::XmlReadError {
+                        message: e.to_string(),
+                    })
+            }
+
+            ItemType::Enumeration => {
+                let num = if value.starts_with("0x") || value.starts_with("0X") {
+                    u32::from_str_radix(&value[2..], 16).map_err(|e| TTLVError::XmlReadError {
+                        message: e.to_string(),
+                    })
+                } else {
+                    if tag == Tag::AttributeValue
+                        && let Some(last_attribute_tag) = self.last_attribute_tag
+                    {
+                        let ret =
+                            ValueType::Enumeration(resolver.resolve(last_attribute_tag, value)?);
+                        self.last_attribute_tag = None;
+                        return Ok(ret);
+                    }
+                    resolver.resolve(tag, value)
+                };
+                num.map(ValueType::Enumeration)
+            }
+
+            ItemType::Boolean => Ok(ValueType::Boolean(value.eq_ignore_ascii_case("true"))),
+
+            ItemType::TextString => {
+                if tag == Tag::AttributeName {
+                    let trimmed = value.replace(" ", "");
+                    let name = trimmed.as_ref();
+                    self.last_attribute_tag =
+                        Some(Tag::from_str(name).map_err(|_| TTLVError::XmlError)?)
+                }
+
+                Ok(ValueType::TextString(value.to_string()))
+            }
+
+            ItemType::ByteString => {
+                hex::decode(value)
+                    .map(ValueType::ByteString)
+                    .map_err(|e| TTLVError::XmlReadError {
+                        message: e.to_string(),
+                    })
+            }
+
+            ItemType::DateTime => {
+                if value == "$NOW" {
+                    Ok(ValueType::DateTime(0))
+                } else {
+                    chrono::DateTime::parse_from_rfc3339(value)
+                        .map(|dt| ValueType::DateTime(dt.timestamp()))
+                        .map_err(|e| TTLVError::XmlReadError {
+                            message: e.to_string(),
+                        })
+                }
+            }
+
+            ItemType::Interval => {
+                value
+                    .parse::<u32>()
+                    .map(ValueType::Interval)
+                    .map_err(|e| TTLVError::XmlReadError {
+                        message: e.to_string(),
+                    })
+            }
+
+            ItemType::BigInteger => Err(TTLVError::XmlReadError {
+                message: "TODO!".into(),
+            }),
+
+            ItemType::Structure => Err(TTLVError::XmlReadError {
+                message: "TODO!".into(),
+            }),
+        }
+    }
 }
 
 impl<'a> Reader for XmlReader<'a> {
@@ -123,61 +263,6 @@ impl<'a> Reader for XmlReader<'a> {
             self.peeked = self.read_inner();
         }
         self.peeked.as_ref()?.as_ref().ok().map(|v| v.tag)
-    }
-}
-
-fn parse_value(
-    tag: Tag,
-    item_type: ItemType,
-    value: &str,
-    resolver: &dyn EnumResolver,
-) -> TTLVResult<ValueType> {
-    match item_type {
-        ItemType::Integer => value
-            .parse::<i32>()
-            .map(ValueType::Integer)
-            .map_err(|_| TTLVError::XmlReadError),
-
-        ItemType::LongInteger => value
-            .parse::<i64>()
-            .map(ValueType::LongInteger)
-            .map_err(|_| TTLVError::XmlReadError),
-
-        ItemType::Enumeration => {
-            let num = if value.starts_with("0x") || value.starts_with("0X") {
-                u32::from_str_radix(&value[2..], 16).map_err(|_| TTLVError::XmlReadError)
-            } else {
-                resolver.resolve(tag, value)
-            };
-            num.map(ValueType::Enumeration)
-        }
-
-        ItemType::Boolean => Ok(ValueType::Boolean(value.eq_ignore_ascii_case("true"))),
-
-        ItemType::TextString => Ok(ValueType::TextString(value.to_string())),
-
-        ItemType::ByteString => hex::decode(value)
-            .map(ValueType::ByteString)
-            .map_err(|_| TTLVError::XmlReadError),
-
-        ItemType::DateTime => {
-            if value == "$NOW" {
-                Ok(ValueType::DateTime(0))
-            } else {
-                chrono::DateTime::parse_from_rfc3339(value)
-                    .map(|dt| ValueType::DateTime(dt.timestamp()))
-                    .map_err(|_| TTLVError::XmlReadError)
-            }
-        }
-
-        ItemType::Interval => value
-            .parse::<u32>()
-            .map(ValueType::Interval)
-            .map_err(|_| TTLVError::XmlReadError),
-
-        ItemType::BigInteger => Err(TTLVError::XmlReadError),
-
-        ItemType::Structure => Err(TTLVError::XmlReadError),
     }
 }
 
@@ -204,6 +289,10 @@ mod tests {
     impl EnumResolver for StubResolver {
         fn resolve(&self, _tag: Tag, _value: &str) -> TTLVResult<u32> {
             Ok(0)
+        }
+
+        fn to_string(&self, _tag: Tag, _value: u32) -> std::result::Result<String, TTLVError> {
+            todo!()
         }
     }
 

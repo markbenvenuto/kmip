@@ -1,15 +1,20 @@
 #![allow(clippy::upper_case_acronyms)]
 
+use std::str::FromStr;
+
 use chrono::DateTime;
 use chrono::Utc;
+use num::FromPrimitive;
 use num_derive::FromPrimitive;
 use num_derive::ToPrimitive;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
+use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use ttlv::NestedWriter;
+use ttlv::Reader;
 use ttlv::TTLVError;
 use ttlv::Tag;
 use ttlv::TtlvDeserialize;
@@ -18,6 +23,10 @@ use ttlv::TtlvEnumSerialize;
 use ttlv::TtlvSerialize;
 use ttlv::TtlvTaggedEnumDeserialize;
 use ttlv::TtlvTaggedEnumSerialize;
+use ttlv::de_xml::EnumResolver;
+use ttlv::parser::expect_boolean;
+use ttlv::parser::expect_enumeration;
+use ttlv::parser::expect_integer;
 use ttlv::ser::EncodedWriter;
 
 #[derive(
@@ -809,9 +818,47 @@ impl TtlvDeserialize for AttributesEnum {
                 })
             }
             "Cryptographic Parameters" => {
-                return Err(TTLVError::InvalidTagName {
-                    name: "Cryptographic Parameters (deserialize not yet implemented)".to_string(),
-                });
+                expect_structure_begin(reader, Tag::AttributeValue)?;
+
+                let block_cipher_mode: Option<BlockCipherMode> =
+                    parse_optional_enumeration(reader, Tag::BlockCipherMode)?;
+                let padding_method: Option<PaddingMethod> =
+                    parse_optional_enumeration(reader, Tag::PaddingMethod)?;
+                let hashing_algorithm: Option<HashingAlgorithm> =
+                    parse_optional_enumeration(reader, Tag::HashingAlgorithm)?;
+                let key_role_type: Option<KeyRoleType> =
+                    parse_optional_enumeration(reader, Tag::KeyRoleType)?;
+                let digital_signature_algorithm: Option<DigitalSignatureAlgorithm> =
+                    parse_optional_enumeration(reader, Tag::DigitalSignatureAlgorithm)?;
+                let cryptographic_algorithm: Option<CryptographicAlgorithm> =
+                    parse_optional_enumeration(reader, Tag::CryptographicAlgorithm)?;
+                let random_iv = parse_optional_bool(reader, Tag::RandomIV)?;
+                let iv_length = parse_optional_integer(reader, Tag::IVLength)?;
+                let tag_length = parse_optional_integer(reader, Tag::TagLength)?;
+                let fixed_field_length = parse_optional_integer(reader, Tag::FixedFieldLength)?;
+                let invocation_field_length =
+                    parse_optional_integer(reader, Tag::InvocationFieldLength)?;
+                let counter_length = parse_optional_integer(reader, Tag::CounterLength)?;
+                let initial_counter_value =
+                    parse_optional_integer(reader, Tag::InitialCounterValue)?;
+
+                expect_structure_end(reader, Tag::AttributeValue)?;
+                Self::CryptographicParameters(CryptographicParameters {
+                    block_cipher_mode,
+                    padding_method,
+                    hashing_algorithm,
+                    key_role_type,
+                    digital_signature_algorithm,
+                    cryptographic_algorithm,
+                    random_iv,
+                    iv_length,
+                    tag_length,
+                    fixed_field_length,
+                    invocation_field_length,
+                    counter_length,
+                    initial_counter_value,
+                })
+                // Self::CryptographicParameters(CryptographicParameters::parse(reader)?)
             }
             "State" => {
                 let v = expect_enumeration(reader, Tag::AttributeValue)?;
@@ -849,6 +896,60 @@ impl TtlvDeserialize for AttributesEnum {
     }
 }
 
+fn parse_optional_enumeration<T>(
+    reader: &mut dyn Reader,
+    expected_tag: Tag,
+) -> Result<Option<T>, TTLVError>
+where
+    T: FromPrimitive,
+{
+    let value = if let Some(tag) = reader.peek_tag()
+        && tag == expected_tag
+    {
+        let v = expect_enumeration(reader, expected_tag)?;
+        let enum_value: T = num::FromPrimitive::from_u32(v).ok_or(TTLVError::InvalidEnumValue {
+            tag: expected_tag,
+            value: v,
+        })?;
+
+        Some(enum_value)
+    } else {
+        None
+    };
+
+    Ok(value)
+}
+
+fn parse_optional_bool(
+    reader: &mut dyn Reader,
+    expected_tag: Tag,
+) -> Result<Option<bool>, TTLVError> {
+    let value = if let Some(tag) = reader.peek_tag()
+        && tag == expected_tag
+    {
+        Some(expect_boolean(reader, expected_tag)?)
+    } else {
+        None
+    };
+
+    Ok(value)
+}
+
+fn parse_optional_integer(
+    reader: &mut dyn Reader,
+    expected_tag: Tag,
+) -> Result<Option<i32>, TTLVError> {
+    let value = if let Some(tag) = reader.peek_tag()
+        && tag == expected_tag
+    {
+        Some(expect_integer(reader, expected_tag)?)
+    } else {
+        None
+    };
+
+    Ok(value)
+}
+
 impl TtlvSerialize for AttributesEnum {
     fn serialize(&self, writer: &mut dyn ttlv::ser::EncodedWriter) -> Result<(), TTLVError> {
         use ttlv::ser::*;
@@ -856,13 +957,7 @@ impl TtlvSerialize for AttributesEnum {
         match self {
             Self::CryptographicAlgorithm(v) => {
                 ser_write_text_string(writer, Tag::AttributeName, "Cryptographic Algorithm")?;
-                ser_write_enumeration(
-                    writer,
-                    Tag::AttributeValue,
-                    num::ToPrimitive::to_u32(v).ok_or(TTLVError::EnumConvertFailed {
-                        tag: Tag::AttributeValue,
-                    })?,
-                )?;
+                ser_write_enumeration_attribute_typed(writer, Tag::CryptographicAlgorithm, v)?;
             }
             Self::CryptographicLength(v) => {
                 ser_write_text_string(writer, Tag::AttributeName, "Cryptographic Length")?;
@@ -884,28 +979,69 @@ impl TtlvSerialize for AttributesEnum {
                 ser_write_text_string(writer, Tag::AttributeName, "Name")?;
                 ser_write_structure_begin(writer, Tag::AttributeValue)?;
                 ser_write_text_string(writer, Tag::NameValue, &n.name_value)?;
-                ser_write_enumeration(
-                    writer,
-                    Tag::NameType,
-                    num::ToPrimitive::to_u32(&n.name_type)
-                        .ok_or(TTLVError::EnumConvertFailed { tag: Tag::NameType })?,
-                )?;
+                ser_write_enumeration_typed(writer, Tag::NameType, &n.name_type)?;
                 ser_write_structure_end(writer)?;
             }
-            Self::CryptographicParameters(_) => {
-                return Err(TTLVError::InvalidTagName {
-                    name: "Cryptographic Parameters (serialize not yet implemented)".to_string(),
-                });
+            Self::CryptographicParameters(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Cryptographic Parameters")?;
+                ser_write_structure_begin(writer, Tag::AttributeValue)?;
+
+                if let Some(value) = v.block_cipher_mode {
+                    ser_write_enumeration_typed(writer, Tag::BlockCipherMode, &value)?;
+                }
+
+                if let Some(value) = v.block_cipher_mode {
+                    ser_write_enumeration_typed(writer, Tag::BlockCipherMode, &value)?;
+                }
+
+                if let Some(value) = v.padding_method {
+                    ser_write_enumeration_typed(writer, Tag::PaddingMethod, &value)?;
+                }
+
+                if let Some(value) = v.hashing_algorithm {
+                    ser_write_enumeration_typed(writer, Tag::HashingAlgorithm, &value)?;
+                }
+
+                if let Some(value) = v.key_role_type {
+                    ser_write_enumeration_typed(writer, Tag::KeyRoleType, &value)?;
+                }
+
+                if let Some(value) = v.digital_signature_algorithm {
+                    ser_write_enumeration_typed(writer, Tag::DigitalSignatureAlgorithm, &value)?;
+                }
+
+                if let Some(value) = v.cryptographic_algorithm {
+                    ser_write_enumeration_typed(writer, Tag::CryptographicAlgorithm, &value)?;
+                }
+
+                if let Some(value) = v.random_iv {
+                    ser_write_boolean(writer, Tag::RandomIV, value)?;
+                }
+
+                if let Some(value) = v.iv_length {
+                    ser_write_integer(writer, Tag::IVLength, value)?;
+                }
+                if let Some(value) = v.tag_length {
+                    ser_write_integer(writer, Tag::TagLength, value)?;
+                }
+                if let Some(value) = v.fixed_field_length {
+                    ser_write_integer(writer, Tag::FixedFieldLength, value)?;
+                }
+                if let Some(value) = v.invocation_field_length {
+                    ser_write_integer(writer, Tag::InvocationFieldLength, value)?;
+                }
+                if let Some(value) = v.counter_length {
+                    ser_write_integer(writer, Tag::CounterLength, value)?;
+                }
+                if let Some(value) = v.initial_counter_value {
+                    ser_write_integer(writer, Tag::InitialCounterValue, value)?;
+                }
+
+                ser_write_structure_end(writer)?;
             }
             Self::State(v) => {
                 ser_write_text_string(writer, Tag::AttributeName, "State")?;
-                ser_write_enumeration(
-                    writer,
-                    Tag::AttributeValue,
-                    num::ToPrimitive::to_u32(v).ok_or(TTLVError::EnumConvertFailed {
-                        tag: Tag::AttributeValue,
-                    })?,
-                )?;
+                ser_write_enumeration_attribute_typed(writer, Tag::State, v)?;
             }
             Self::InitialDate(v) => {
                 ser_write_text_string(writer, Tag::AttributeName, "Initial Date")?;
@@ -917,13 +1053,7 @@ impl TtlvSerialize for AttributesEnum {
             }
             Self::ObjectType(v) => {
                 ser_write_text_string(writer, Tag::AttributeName, "Object Type")?;
-                ser_write_enumeration(
-                    writer,
-                    Tag::AttributeValue,
-                    num::ToPrimitive::to_u32(v).ok_or(TTLVError::EnumConvertFailed {
-                        tag: Tag::AttributeValue,
-                    })?,
-                )?;
+                ser_write_enumeration_attribute_typed(writer, Tag::ObjectType, v)?;
             }
             Self::UniqueIdentifier(s) => {
                 ser_write_text_string(writer, Tag::AttributeName, "Unique Identifier")?;
@@ -1012,7 +1142,7 @@ pub struct GetAttributesRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
     pub unique_identifier: String,
 
-    pub attribute: Option<Vec<String>>,
+    pub attribute_name: Option<Vec<String>>,
 }
 
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
@@ -1250,9 +1380,9 @@ impl ResponseOperationEnum {
             Operation::GetAttributes => {
                 Ok(Self::GetAttributes(GetAttributesResponse::parse(reader)?))
             }
-            Operation::GetAttributeList => {
-                Ok(Self::GetAttributeList(GetAttributeListResponse::parse(reader)?))
-            }
+            Operation::GetAttributeList => Ok(Self::GetAttributeList(
+                GetAttributeListResponse::parse(reader)?,
+            )),
             Operation::Activate => Ok(Self::Activate(ActivateResponse::parse(reader)?)),
             Operation::Destroy => Ok(Self::Destroy(DestroyResponse::parse(reader)?)),
             Operation::Register => Ok(Self::Register(RegisterResponse::parse(reader)?)),
@@ -1339,7 +1469,13 @@ impl TtlvDeserialize for ResponseBatchItem {
         };
 
         expect_structure_end(reader, Tag::BatchItem)?;
-        Ok(Self { operation, result_status, result_reason, result_message, response_payload })
+        Ok(Self {
+            operation,
+            result_status,
+            result_reason,
+            result_message,
+            response_payload,
+        })
     }
 }
 
@@ -1351,6 +1487,8 @@ impl TtlvSerialize for ResponseBatchItem {
         if let Some(rp) = self.response_payload.as_ref() {
             let operation = get_operation_for_response(rp);
             TtlvSerialize::serialize(&operation, writer)?;
+        } else if let Some(op) = self.operation.as_ref() {
+            TtlvSerialize::serialize(op, writer)?;
         }
 
         TtlvSerialize::serialize(&self.result_status, writer)?;
@@ -1414,5 +1552,160 @@ pub fn get_operation_for_response(item: &ResponseOperationEnum) -> Operation {
         ResponseOperationEnum::MAC(_) => Operation::MAC,
         ResponseOperationEnum::MACVerify(_) => Operation::MACVerify,
         ResponseOperationEnum::Revoke(_) => Operation::Revoke,
+    }
+}
+
+pub struct KmipEnumResolver;
+
+impl EnumResolver for KmipEnumResolver {
+    fn resolve(&self, tag: Tag, orig: &str) -> std::result::Result<u32, TTLVError> {
+        let trimmed = orig.replace(" ", "").replace("_", "");
+        let value = trimmed.as_ref();
+
+        match tag {
+            Tag::CryptographicAlgorithm => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(
+                    num::ToPrimitive::to_u32(&CryptographicAlgorithm::from_str(value).unwrap())
+                        .unwrap(),
+                )
+            }
+            Tag::CryptographicUsageMask => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(
+                    num::ToPrimitive::to_u32(&CryptographicUsageMask::from_str(value).unwrap())
+                        .unwrap(),
+                )
+            }
+            Tag::Operation => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&Operation::from_str(value).unwrap()).unwrap())
+            }
+            Tag::ObjectType => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&ObjectType::from_str(value).unwrap()).unwrap())
+            }
+            Tag::NameType => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&NameType::from_str(value).unwrap()).unwrap())
+            }
+            Tag::SecretDataType => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&SecretDataType::from_str(value).unwrap()).unwrap())
+            }
+            Tag::KeyFormatType => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&KeyFormatType::from_str(value).unwrap()).unwrap())
+            }
+            Tag::BlockCipherMode => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&BlockCipherMode::from_str(value).unwrap()).unwrap())
+            }
+            Tag::PaddingMethod => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&PaddingMethod::from_str(value).unwrap()).unwrap())
+            }
+            Tag::HashingAlgorithm => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&HashingAlgorithm::from_str(value).unwrap()).unwrap())
+            }
+            Tag::DigitalSignatureAlgorithm => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(
+                    num::ToPrimitive::to_u32(&DigitalSignatureAlgorithm::from_str(value).unwrap())
+                        .unwrap(),
+                )
+            }
+
+            Tag::RevocationReasonCode => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(
+                    num::ToPrimitive::to_u32(&RevocationReasonCode::from_str(value).unwrap())
+                        .unwrap(),
+                )
+            }
+            Tag::ValidityIndicator => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&ValidityIndicator::from_str(value).unwrap()).unwrap())
+            }
+            Tag::State => {
+                // TODO - go from string to i32 in one pass instead of two
+                Ok(num::ToPrimitive::to_u32(&State::from_str(value).unwrap()).unwrap())
+            }
+            _ => {
+                println!("Not implemented resolve_enum_str: {:?}", tag);
+                unimplemented! {}
+            }
+        }
+    }
+
+    fn to_string(&self, tag: Tag, value: u32) -> std::result::Result<String, TTLVError> {
+        match tag {
+            Tag::CryptographicAlgorithm => {
+                let o: CryptographicAlgorithm = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::Operation => {
+                let o: Operation = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::ObjectType => {
+                let o: ObjectType = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::ResultStatus => {
+                let o: ResultStatus = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::ResultReason => {
+                let o: ResultReason = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::NameType => {
+                let o: NameType = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::KeyFormatType => {
+                let o: KeyFormatType = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::BlockCipherMode => {
+                let o: BlockCipherMode = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::PaddingMethod => {
+                let o: PaddingMethod = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::HashingAlgorithm => {
+                let o: HashingAlgorithm = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::DigitalSignatureAlgorithm => {
+                let o: DigitalSignatureAlgorithm = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::SecretDataType => {
+                let o: SecretDataType = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::RevocationReasonCode => {
+                let o: RevocationReasonCode = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::ValidityIndicator => {
+                let o: ValidityIndicator = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+            Tag::State => {
+                let o: State = num::FromPrimitive::from_u32(value).unwrap();
+                return Ok(o.as_static().to_owned());
+            }
+
+            _ => {
+                println!("Not implemented to_string: {:?}", tag);
+                unimplemented! {}
+            }
+        }
     }
 }

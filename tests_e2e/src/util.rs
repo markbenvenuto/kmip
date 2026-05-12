@@ -13,6 +13,7 @@ use std::{
     thread,
 };
 
+use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use quick_xml::writer::Writer;
 
@@ -210,7 +211,7 @@ fn pretty_print_xml(xml: &str) -> Result<String, Box<dyn std::error::Error>> {
         }
     }
 
-    Ok(String::from_utf8(buf)?)
+    Ok(String::from_utf8(buf)?.replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", ""))
 }
 
 fn assert_xml_eq(left: &str, right: &str) {
@@ -222,33 +223,58 @@ fn assert_xml_eq(left: &str, right: &str) {
     }
 }
 
-pub fn run_e2e_xml_conversation(conv: &str) {
-    let root: Element = Element::from_reader(BufReader::new(Cursor::new(conv.as_bytes()))).unwrap();
+/// Returns a tuple containing: (Vector of Requests, Vector of Responses)
+fn parse_kmip_messages(xml: &str) -> (Vec<String>, Vec<String>) {
+    let mut reader = Reader::from_str(xml);
+    reader.config_mut().trim_text(true);
 
-    let mut reqs: Vec<String> = Vec::new();
-    let mut resps: Vec<String> = Vec::new();
-    for child in root.children() {
-        let mut buf: Vec<u8> = Vec::new();
+    let mut requests = Vec::new();
+    let mut responses = Vec::new();
+    let mut buf = Vec::new();
 
-        child.write_to(&mut buf).unwrap();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Err(_) | Ok(Event::Eof) => break,
+            Ok(Event::Start(ref e)) => {
+                let tag_name = e.name();
+                if tag_name.as_ref() == b"RequestMessage" || tag_name.as_ref() == b"ResponseMessage"
+                {
+                    // Capture the full content of this specific element
+                    let span_start =
+                        reader.buffer_position() as usize - (tag_name.as_ref().len() + 2);
 
-        let xml_str = std::str::from_utf8(&buf).unwrap().to_string();
+                    // We need to find the corresponding end tag
+                    if let Ok(_) = reader.read_to_end_into(tag_name, &mut Vec::new()) {
+                        let span_end = reader.buffer_position() as usize;
+                        let full_tag = &xml[span_start..span_end];
 
-        // println!("{:?}", child);
-        println!("xml_str{:?}", xml_str);
-        if child.name() == "RequestMessage" {
-            reqs.push(xml_str);
-        } else if child.name() == "ResponseMessage" {
-            resps.push(xml_str);
-        } else {
-            panic!("Unknown XML child {:?}", child.name());
+                        if tag_name.as_ref() == b"RequestMessage" {
+                            requests.push(full_tag.to_string());
+                        } else if tag_name.as_ref() == b"ResponseMessage" {
+                            responses.push(full_tag.to_string());
+                        } else {
+                            panic!("Unexpected XML input: {tag_name:?} ");
+                        }
+                    }
+                }
+            }
+            _ => (),
         }
+        buf.clear();
     }
+
+    (requests, responses)
+}
+
+pub fn run_e2e_xml_conversation(conv: &str) {
+    let (reqs, resps) = parse_kmip_messages(conv);
 
     assert_eq!(reqs.len(), resps.len());
 
     run_e2e_client_test(reqs.len() as i32, |mut client| {
         for (i, req) in reqs.iter().enumerate() {
+            println!("XML Request1111: {:?}", req);
+
             let mut resp = client.make_xml_request(&req);
             eprintln!("{:?}", resp);
 

@@ -1,14 +1,7 @@
 use chrono::TimeZone;
 
-use crate::{error::TTLVError, ser::EncodedWriter};
+use crate::{de_xml::EnumResolver, error::TTLVError, ser::EncodedWriter};
 use std::str::{self};
-
-extern crate num;
-//#[macro_use]
-extern crate num_derive;
-extern crate num_traits;
-
-extern crate byteorder;
 
 use crate::kmip_enums::*;
 
@@ -16,12 +9,16 @@ use xml::writer::{EmitterConfig, XmlEvent};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
-pub struct XmlNestedWriter {
+pub struct XmlNestedWriter<'a> {
     writer: xml::writer::EventWriter<std::vec::Vec<u8>>,
     tag: Option<Tag>,
+    // In XML, when serializing AttibuteValue, we need to serialize from the values of a different Tag Enumeration
+    attribute_tag: Option<Tag>,
+
+    enum_resolver: &'a dyn EnumResolver,
 }
 
-impl XmlNestedWriter {
+impl<'a> XmlNestedWriter<'a> {
     fn write_element(&mut self, name: &str, type_name: &str, value: &str) -> TTLVResult<()> {
         // TODO - normalize names per 5.4.1.1 Normalizing Names
         self.writer
@@ -35,25 +32,35 @@ impl XmlNestedWriter {
             .write(XmlEvent::end_element())
             .map_err(|_| TTLVError::XmlError)
     }
-}
 
-impl EncodedWriter for XmlNestedWriter {
-    fn new() -> XmlNestedWriter {
+    pub fn new(resolver: &'a dyn EnumResolver) -> XmlNestedWriter<'a> {
         let vec = Vec::new();
         XmlNestedWriter {
             tag: None,
+            attribute_tag: None,
             writer: EmitterConfig::new().create_writer(vec),
+            enum_resolver: resolver,
         }
     }
+}
 
+impl<'a> EncodedWriter for XmlNestedWriter<'a> {
     fn get_vector(self) -> Vec<u8> {
         self.writer.into_inner()
     }
 
     fn write_tag(&mut self, tag: Tag) -> TTLVResult<()> {
-        self.writer
-            .write(XmlEvent::start_element(tag.as_ref()))
-            .map_err(|_| TTLVError::XmlError)
+        self.tag = Some(tag);
+        self.attribute_tag = None;
+        // self.writer
+        //     .write(XmlEvent::start_element(tag.as_ref()))
+        //     .map_err(|_| TTLVError::XmlError)
+        Ok(())
+    }
+
+    fn set_attribute_tag(&mut self, tag: Tag) -> TTLVResult<()> {
+        self.attribute_tag = Some(tag);
+        Ok(())
     }
 
     fn write_boolean(&mut self, v: bool) -> TTLVResult<()> {
@@ -90,26 +97,13 @@ impl EncodedWriter for XmlNestedWriter {
         self.write_element(tag.as_ref(), "Integer", &v.to_string())
     }
 
-    fn write_i32_enumeration(&mut self, v: i32) -> TTLVResult<()> {
-        todo!();
-        // // TODO - write as hex string or camelCase per 5.4.1.6.7
-
-        // let tag_result = Tag::from_str(enum_name);
-
-        // if tag_result.is_err() {
-        //     eprintln!("XML Serializer - could not conver tag {}", enum_name);
-
-        //     return Err(TTLVError::XmlError);
-        // }
-
-        // let enum_tag = tag_result.expect("already checked");
-
-        // let element_tag = self.tag.unwrap();
-        // self.write_element(
-        //     element_tag.as_ref(),
-        //     "Enumeration",
-        //     &enum_resolver.to_string(enum_tag, v)?,
-        // )
+    fn write_u32_enumeration(&mut self, v: u32) -> TTLVResult<()> {
+        let element_tag = self.attribute_tag.or(self.tag).unwrap();
+        self.write_element(
+            self.tag.unwrap().as_ref(),
+            "Enumeration",
+            &self.enum_resolver.to_string(element_tag, v)?,
+        )
     }
 
     fn write_i64(&mut self, v: i64) -> TTLVResult<()> {
@@ -131,7 +125,9 @@ impl EncodedWriter for XmlNestedWriter {
     }
 
     fn write_struct_start(&mut self) -> TTLVResult<()> {
-        Ok(())
+        self.writer
+            .write(XmlEvent::start_element(self.tag.unwrap().as_ref()))
+            .map_err(|_| TTLVError::XmlError)
     }
 
     fn begin_inner(&mut self) -> TTLVResult<()> {
