@@ -32,7 +32,7 @@ pub trait Reader {
 - Add `impl<'a> Reader for XmlReader<'a>`
 
 ### `ttlv/src/parser.rs`
-- All 8 `expect_*` helper functions: change parameter from `reader: &mut Reader<'_>` to `reader: &mut dyn Reader`
+- All 9 `expect_*` helper functions (`expect_structure_begin`, `expect_structure_end`, `expect_integer`, `expect_text_string`, `expect_long_integer`, `expect_boolean`, `expect_byte_string`, `expect_enumeration`, `expect_datetime`): change parameter from `reader: &mut Reader<'_>` to `reader: &mut dyn Reader`
 
 ### `ttlv/src/lib.rs`
 - `pub use de::{Reader, TtlvDeserialize}` — `Reader` now re-exports the trait
@@ -43,6 +43,10 @@ pub trait Reader {
 ### `ttlv_derive/src/lib.rs`
 - All generated `fn parse` signatures: `reader: &mut ::ttlv::__private::Reader<'_>` → `reader: &mut dyn ::ttlv::__private::Reader`
 - Generated call sites (`reader.read()`, `reader.peek_tag()`) are unchanged
+
+### `ttlv/src/de.rs` (internal tests)
+- All `Reader::new(...)` in the `#[cfg(test)]` module → `TtlvReader::new(...)`
+- Update the `use` import to bring `TtlvReader` into scope
 
 ### `ttlv/tests/derive_tests.rs`
 - All `Reader::new(...)` → `TtlvReader::new(...)`
