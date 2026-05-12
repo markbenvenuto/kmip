@@ -1349,7 +1349,7 @@ pub struct ResponseHeader {
     pub batch_count: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumSerialize)]
+#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
 #[ttlv(tag = "BatchItem")]
 #[ttlv(discriminator_tag = "Operation")]
 #[ttlv(discriminator_enum = "Operation")]
