@@ -774,12 +774,12 @@ impl TtlvDeserialize for AttributesEnum {
         let result = match attr_name.as_str() {
             "Cryptographic Algorithm" => {
                 let v = expect_enumeration(reader, Tag::AttributeValue)?;
-                Self::CryptographicAlgorithm(
-                    num::FromPrimitive::from_u32(v).ok_or(TTLVError::InvalidEnumValue {
+                Self::CryptographicAlgorithm(num::FromPrimitive::from_u32(v).ok_or(
+                    TTLVError::InvalidEnumValue {
                         tag: Tag::AttributeValue,
                         value: v,
-                    })?,
-                )
+                    },
+                )?)
             }
             "Cryptographic Length" => {
                 Self::CryptographicLength(expect_integer(reader, Tag::AttributeValue)?)
@@ -797,11 +797,16 @@ impl TtlvDeserialize for AttributesEnum {
                 expect_structure_begin(reader, Tag::AttributeValue)?;
                 let name_value = expect_text_string(reader, Tag::NameValue)?;
                 let v = expect_enumeration(reader, Tag::NameType)?;
-                let name_type = num::FromPrimitive::from_u32(v).ok_or(
-                    TTLVError::InvalidEnumValue { tag: Tag::NameType, value: v },
-                )?;
+                let name_type =
+                    num::FromPrimitive::from_u32(v).ok_or(TTLVError::InvalidEnumValue {
+                        tag: Tag::NameType,
+                        value: v,
+                    })?;
                 expect_structure_end(reader, Tag::AttributeValue)?;
-                Self::Name(Name { name_value, name_type })
+                Self::Name(Name {
+                    name_value,
+                    name_type,
+                })
             }
             "Cryptographic Parameters" => {
                 return Err(TTLVError::InvalidTagName {
@@ -810,26 +815,34 @@ impl TtlvDeserialize for AttributesEnum {
             }
             "State" => {
                 let v = expect_enumeration(reader, Tag::AttributeValue)?;
-                Self::State(num::FromPrimitive::from_u32(v).ok_or(
-                    TTLVError::InvalidEnumValue { tag: Tag::AttributeValue, value: v },
-                )?)
+                Self::State(
+                    num::FromPrimitive::from_u32(v).ok_or(TTLVError::InvalidEnumValue {
+                        tag: Tag::AttributeValue,
+                        value: v,
+                    })?,
+                )
             }
-            "Initial Date" => {
-                Self::InitialDate(expect_datetime(reader, Tag::AttributeValue)?)
-            }
+            "Initial Date" => Self::InitialDate(expect_datetime(reader, Tag::AttributeValue)?),
             "Last Change Date" => {
                 Self::LastChangeDate(expect_datetime(reader, Tag::AttributeValue)?)
             }
             "Object Type" => {
                 let v = expect_enumeration(reader, Tag::AttributeValue)?;
                 Self::ObjectType(num::FromPrimitive::from_u32(v).ok_or(
-                    TTLVError::InvalidEnumValue { tag: Tag::AttributeValue, value: v },
+                    TTLVError::InvalidEnumValue {
+                        tag: Tag::AttributeValue,
+                        value: v,
+                    },
                 )?)
             }
             "Unique Identifier" => {
                 Self::UniqueIdentifier(expect_text_string(reader, Tag::AttributeValue)?)
             }
-            n => return Err(TTLVError::InvalidTagName { name: n.to_string() }),
+            n => {
+                return Err(TTLVError::InvalidTagName {
+                    name: n.to_string(),
+                });
+            }
         };
         expect_structure_end(reader, Tag::Attribute)?;
         Ok(result)
@@ -874,9 +887,8 @@ impl TtlvSerialize for AttributesEnum {
                 ser_write_enumeration(
                     writer,
                     Tag::NameType,
-                    num::ToPrimitive::to_u32(&n.name_type).ok_or(
-                        TTLVError::EnumConvertFailed { tag: Tag::NameType },
-                    )?,
+                    num::ToPrimitive::to_u32(&n.name_type)
+                        .ok_or(TTLVError::EnumConvertFailed { tag: Tag::NameType })?,
                 )?;
                 ser_write_structure_end(writer)?;
             }
@@ -1215,7 +1227,7 @@ pub struct ResponseHeader {
 }
 
 #[derive(Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
-#[ttlv(tag = "BatchItem")]
+#[ttlv(tag = "RequestPayload")]
 #[ttlv(discriminator_tag = "Operation")]
 #[ttlv(discriminator_enum = "Operation")]
 pub enum ResponseOperationEnum {
@@ -1234,7 +1246,7 @@ pub enum ResponseOperationEnum {
     // TODO - add support for: Unique Batch Item ID
 }
 
-#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, TtlvDeserialize)]
 #[ttlv(tag = "BatchItem")]
 pub struct ResponseBatchItem {
     pub result_status: ResultStatus,
@@ -1244,8 +1256,29 @@ pub struct ResponseBatchItem {
     pub result_message: Option<String>,
 
     pub response_payload: Option<ResponseOperationEnum>,
-    // Hack for error messages - we must specify an operation type but it is not a full enum
-    // pub result_response_enum: Option<Operation>,
+}
+
+impl TtlvSerialize for ResponseBatchItem {
+    fn serialize(&self, writer: &mut dyn ttlv::ser::EncodedWriter) -> Result<(), TTLVError> {
+        use ttlv::ser::*;
+        ser_write_structure_begin(writer, Tag::BatchItem)?;
+        TtlvSerialize::serialize(&self.result_status, writer)?;
+        if self.result_status == ResultStatus::OperationFailed {
+            if let Some(ref reason) = self.result_reason {
+                TtlvSerialize::serialize(reason, writer)?;
+            }
+        }
+        if let Some(ref msg) = self.result_message {
+            ser_write_text_string(writer, Tag::ResultMessage, msg)?;
+        }
+        if self.result_status == ResultStatus::Success {
+            if let Some(ref payload) = self.response_payload {
+                TtlvSerialize::serialize(payload, writer)?;
+            }
+        }
+        ser_write_structure_end(writer)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
