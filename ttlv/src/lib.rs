@@ -18,7 +18,6 @@ pub use ttlv_derive::{
     TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize,
 };
 
-use crate::de_xml::XmlReader;
 use crate::ser::EncodedWriter;
 use crate::ser_xml::XmlNestedWriter;
 use crate::{
