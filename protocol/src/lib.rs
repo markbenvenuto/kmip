@@ -1250,8 +1250,11 @@ pub struct MACVerifyResponse {
     pub validity_indicator: ValidityIndicator,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumDeserialize)]
 #[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
+#[ttlv(tag = "BatchItem")]
+#[ttlv(discriminator_tag = "Operation")]
+#[ttlv(discriminator_enum = "Operation")]
 pub enum RequestBatchItem {
     Create(CreateRequest),
     Get(GetRequest),
