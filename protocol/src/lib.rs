@@ -1226,10 +1226,7 @@ pub struct ResponseHeader {
     pub batch_count: i32,
 }
 
-#[derive(Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
-#[ttlv(tag = "RequestPayload")]
-#[ttlv(discriminator_tag = "Operation")]
-#[ttlv(discriminator_enum = "Operation")]
+#[derive(Debug)]
 pub enum ResponseOperationEnum {
     Create(CreateResponse),
     Get(GetResponse),
@@ -1243,12 +1240,58 @@ pub enum ResponseOperationEnum {
     MAC(MACResponse),
     MACVerify(MACVerifyResponse),
     Revoke(RevokeResponse),
-    // TODO - add support for: Unique Batch Item ID
 }
 
-#[derive(Debug, TtlvDeserialize)]
-#[ttlv(tag = "BatchItem")]
+impl ResponseOperationEnum {
+    pub fn parse(reader: &mut dyn ttlv::Reader, operation: Operation) -> Result<Self, TTLVError> {
+        match operation {
+            Operation::Create => Ok(Self::Create(CreateResponse::parse(reader)?)),
+            Operation::Get => Ok(Self::Get(GetResponse::parse(reader)?)),
+            Operation::GetAttributes => {
+                Ok(Self::GetAttributes(GetAttributesResponse::parse(reader)?))
+            }
+            Operation::GetAttributeList => {
+                Ok(Self::GetAttributeList(GetAttributeListResponse::parse(reader)?))
+            }
+            Operation::Activate => Ok(Self::Activate(ActivateResponse::parse(reader)?)),
+            Operation::Destroy => Ok(Self::Destroy(DestroyResponse::parse(reader)?)),
+            Operation::Register => Ok(Self::Register(RegisterResponse::parse(reader)?)),
+            Operation::Encrypt => Ok(Self::Encrypt(EncryptResponse::parse(reader)?)),
+            Operation::Decrypt => Ok(Self::Decrypt(DecryptResponse::parse(reader)?)),
+            Operation::MAC => Ok(Self::MAC(MACResponse::parse(reader)?)),
+            Operation::MACVerify => Ok(Self::MACVerify(MACVerifyResponse::parse(reader)?)),
+            Operation::Revoke => Ok(Self::Revoke(RevokeResponse::parse(reader)?)),
+            op => Err(TTLVError::InvalidEnumValue {
+                tag: Tag::Operation,
+                value: num::ToPrimitive::to_u32(&op).unwrap_or(0),
+            }),
+        }
+    }
+}
+
+impl TtlvSerialize for ResponseOperationEnum {
+    fn serialize(&self, writer: &mut dyn ttlv::ser::EncodedWriter) -> Result<(), TTLVError> {
+        match self {
+            Self::Create(v) => TtlvSerialize::serialize(v, writer),
+            Self::Get(v) => TtlvSerialize::serialize(v, writer),
+            Self::GetAttributes(v) => TtlvSerialize::serialize(v, writer),
+            Self::GetAttributeList(v) => TtlvSerialize::serialize(v, writer),
+            Self::Activate(v) => TtlvSerialize::serialize(v, writer),
+            Self::Destroy(v) => TtlvSerialize::serialize(v, writer),
+            Self::Register(v) => TtlvSerialize::serialize(v, writer),
+            Self::Encrypt(v) => TtlvSerialize::serialize(v, writer),
+            Self::Decrypt(v) => TtlvSerialize::serialize(v, writer),
+            Self::MAC(v) => TtlvSerialize::serialize(v, writer),
+            Self::MACVerify(v) => TtlvSerialize::serialize(v, writer),
+            Self::Revoke(v) => TtlvSerialize::serialize(v, writer),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ResponseBatchItem {
+    pub operation: Option<Operation>,
+
     pub result_status: ResultStatus,
 
     pub result_reason: Option<ResultReason>,
@@ -1258,24 +1301,76 @@ pub struct ResponseBatchItem {
     pub response_payload: Option<ResponseOperationEnum>,
 }
 
+impl TtlvDeserialize for ResponseBatchItem {
+    fn parse(reader: &mut dyn ttlv::Reader) -> Result<Self, TTLVError> {
+        use ttlv::parser::*;
+        expect_structure_begin(reader, Tag::BatchItem)?;
+
+        let operation = if reader.peek_tag() == Some(Tag::Operation) {
+            Some(Operation::parse(reader)?)
+        } else {
+            None
+        };
+
+        let result_status = ResultStatus::parse(reader)?;
+
+        let result_reason = if reader.peek_tag() == Some(Tag::ResultReason) {
+            Some(ResultReason::parse(reader)?)
+        } else {
+            None
+        };
+
+        let result_message = if reader.peek_tag() == Some(Tag::ResultMessage) {
+            Some(expect_text_string(reader, Tag::ResultMessage)?)
+        } else {
+            None
+        };
+
+        let (operation, response_payload) = match operation {
+            Some(op)
+                if result_status == ResultStatus::Success
+                    && reader.peek_tag() == Some(Tag::ResponsePayload) =>
+            {
+                let payload = ResponseOperationEnum::parse(reader, op)?;
+                let recovered_op = get_operation_for_response(&payload);
+                (Some(recovered_op), Some(payload))
+            }
+            op => (op, None),
+        };
+
+        expect_structure_end(reader, Tag::BatchItem)?;
+        Ok(Self { operation, result_status, result_reason, result_message, response_payload })
+    }
+}
+
 impl TtlvSerialize for ResponseBatchItem {
     fn serialize(&self, writer: &mut dyn ttlv::ser::EncodedWriter) -> Result<(), TTLVError> {
         use ttlv::ser::*;
         ser_write_structure_begin(writer, Tag::BatchItem)?;
+
+        if let Some(rp) = self.response_payload.as_ref() {
+            let operation = get_operation_for_response(rp);
+            TtlvSerialize::serialize(&operation, writer)?;
+        }
+
         TtlvSerialize::serialize(&self.result_status, writer)?;
+
         if self.result_status == ResultStatus::OperationFailed {
             if let Some(ref reason) = self.result_reason {
                 TtlvSerialize::serialize(reason, writer)?;
             }
         }
+
         if let Some(ref msg) = self.result_message {
             ser_write_text_string(writer, Tag::ResultMessage, msg)?;
         }
+
         if self.result_status == ResultStatus::Success {
             if let Some(ref payload) = self.response_payload {
                 TtlvSerialize::serialize(payload, writer)?;
             }
         }
+
         ser_write_structure_end(writer)?;
         Ok(())
     }
