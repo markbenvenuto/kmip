@@ -92,9 +92,13 @@ fn derive_tagged_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let disc_tag_ident = syn::Ident::new(&disc_tag_str, name.span());
     let disc_tag = quote! { ::ttlv::__private::Tag::#disc_tag_ident };
 
+    let disc_enum_ident: Option<syn::Ident> =
+        find_ttlv_str_attr(&input.attrs, "discriminator_enum")?
+            .map(|s| syn::Ident::new(&s, name.span()));
+
     let match_arms: Vec<proc_macro2::TokenStream> = variants
         .iter()
-        .map(variant_match_arm)
+        .map(|v| variant_match_arm(v, disc_enum_ident.as_ref()))
         .collect::<syn::Result<_>>()?;
 
     let expanded = quote! {
@@ -122,7 +126,10 @@ fn derive_tagged_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     Ok(expanded.into())
 }
 
-fn variant_match_arm(variant: &syn::Variant) -> syn::Result<proc_macro2::TokenStream> {
+fn variant_match_arm(
+    variant: &syn::Variant,
+    disc_enum_ident: Option<&syn::Ident>,
+) -> syn::Result<proc_macro2::TokenStream> {
     let variant_name = &variant.ident;
 
     let inner_ty = match &variant.fields {
@@ -135,12 +142,20 @@ fn variant_match_arm(variant: &syn::Variant) -> syn::Result<proc_macro2::TokenSt
         }
     };
 
-    let disc_expr = find_ttlv_expr_attr(&variant.attrs, "discriminator")?.ok_or_else(|| {
-        syn::Error::new_spanned(
-            variant_name,
-            "TtlvTaggedEnumDeserialize variants must have #[ttlv(discriminator = ...)]",
-        )
-    })?;
+    let disc_expr: proc_macro2::TokenStream =
+        match find_ttlv_expr_attr(&variant.attrs, "discriminator")? {
+            Some(expr) => quote! { #expr },
+            None => match disc_enum_ident {
+                Some(enum_ident) => quote! { #enum_ident::#variant_name },
+                None => {
+                    return Err(syn::Error::new_spanned(
+                        variant_name,
+                        "TtlvTaggedEnumDeserialize variants must have #[ttlv(discriminator = ...)] \
+                         or the enum must have #[ttlv(discriminator_enum = \"...\")]",
+                    ));
+                }
+            },
+        };
 
     let value_tag = if let Some(tag_str) = find_ttlv_str_attr(&variant.attrs, "value_tag")? {
         let ident = syn::Ident::new(&tag_str, variant_name.span());

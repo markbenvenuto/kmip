@@ -390,3 +390,79 @@ fn test_derive_struct_tag_override() {
     assert_eq!(hdr.protocol_version_major, 7);
     assert_eq!(hdr.batch_count, 8);
 }
+
+// ── TtlvTaggedEnumDeserialize: discriminator_enum auto-derive ─────────────────
+
+#[derive(Debug)]
+#[repr(i32)]
+enum TestOp {
+    Alpha = 1,
+    Beta = 2,
+    Gamma = 3,
+}
+
+#[derive(TtlvDeserialize, PartialEq, Debug)]
+#[ttlv(tag = "RequestPayload")]
+struct TestPayload {
+    batch_count: i32,
+}
+
+#[derive(TtlvTaggedEnumDeserialize, PartialEq, Debug)]
+#[ttlv(tag = "BatchItem")]
+#[ttlv(discriminator_tag = "Operation")]
+#[ttlv(discriminator_enum = "TestOp")]
+enum TestItem {
+    Alpha(TestPayload),               // auto-derive: TestOp::Alpha as u32 = 1
+    Beta(TestPayload),                // auto-derive: TestOp::Beta as u32 = 2
+    #[ttlv(discriminator = TestOp::Gamma)]
+    Renamed(TestPayload),             // explicit override: TestOp::Gamma as u32 = 3
+}
+
+#[test]
+fn test_discriminator_enum_auto_derive_alpha() {
+    // BatchItem { Operation=1 (Alpha), RequestPayload { BatchCount=42 } }
+    let bytes = [
+        0x42, 0x00, 0x0F, 0x01, 0x00, 0x00, 0x00, 0x28, // BatchItem struct, len=40
+        0x42, 0x00, 0x5C, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x00, 0x00, // Operation Enumeration = 1 (Alpha)
+        0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0x10, // RequestPayload struct, len=16
+        0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x2A, 0x00, 0x00,
+        0x00, 0x00, // BatchCount Integer = 42
+    ];
+    let mut reader = Reader::new(&bytes);
+    let item = TestItem::parse(&mut reader).unwrap();
+    assert_eq!(item, TestItem::Alpha(TestPayload { batch_count: 42 }));
+}
+
+#[test]
+fn test_discriminator_enum_auto_derive_beta() {
+    // BatchItem { Operation=2 (Beta), RequestPayload { BatchCount=7 } }
+    let bytes = [
+        0x42, 0x00, 0x0F, 0x01, 0x00, 0x00, 0x00, 0x28, // BatchItem struct, len=40
+        0x42, 0x00, 0x5C, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
+        0x00, 0x00, // Operation Enumeration = 2 (Beta)
+        0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0x10, // RequestPayload struct, len=16
+        0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00,
+        0x00, 0x00, // BatchCount Integer = 7
+    ];
+    let mut reader = Reader::new(&bytes);
+    let item = TestItem::parse(&mut reader).unwrap();
+    assert_eq!(item, TestItem::Beta(TestPayload { batch_count: 7 }));
+}
+
+#[test]
+fn test_discriminator_enum_explicit_override() {
+    // BatchItem { Operation=3 (Gamma), RequestPayload { BatchCount=99 } }
+    // Gamma maps to variant Renamed via explicit #[ttlv(discriminator = TestOp::Gamma)]
+    let bytes = [
+        0x42, 0x00, 0x0F, 0x01, 0x00, 0x00, 0x00, 0x28, // BatchItem struct, len=40
+        0x42, 0x00, 0x5C, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
+        0x00, 0x00, // Operation Enumeration = 3 (Gamma)
+        0x42, 0x00, 0x79, 0x01, 0x00, 0x00, 0x00, 0x10, // RequestPayload struct, len=16
+        0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x63, 0x00, 0x00,
+        0x00, 0x00, // BatchCount Integer = 99
+    ];
+    let mut reader = Reader::new(&bytes);
+    let item = TestItem::parse(&mut reader).unwrap();
+    assert_eq!(item, TestItem::Renamed(TestPayload { batch_count: 99 }));
+}
