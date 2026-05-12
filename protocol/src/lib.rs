@@ -10,7 +10,6 @@ use strum_macros::AsStaticStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use ttlv::NestedWriter;
-use ttlv::Reader;
 use ttlv::TTLVError;
 use ttlv::Tag;
 use ttlv::TtlvDeserialize;

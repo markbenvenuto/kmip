@@ -1,5 +1,5 @@
 use ttlv::ser::EncodedWriter;
-use ttlv::{NestedWriter, Reader, Tag, TtlvDeserialize, TtlvEnumDeserialize, TtlvEnumSerialize, TtlvSerialize, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize, TTLVError};
+use ttlv::{NestedWriter, TtlvReader, Tag, TtlvDeserialize, TtlvEnumDeserialize, TtlvEnumSerialize, TtlvSerialize, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize, TTLVError};
 
 // ── Basic required-fields struct ─────────────────────────────────────────────
 // Mirrors the hand-written parse_request_header / parse_request_message from de.rs
@@ -26,7 +26,7 @@ fn test_derive_basic_struct() {
         0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7,
         0, 0, 0, 0,
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let msg = RequestMessage::parse(&mut reader).unwrap();
     assert_eq!(msg.request_header.protocol_version_major, 3);
     assert_eq!(msg.request_header.batch_count, 4);
@@ -53,7 +53,7 @@ fn test_derive_option_present() {
         0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
         0x00, // BatchCount Integer(2)
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let hdr = ResponseHeader::parse(&mut reader).unwrap();
     assert_eq!(hdr.protocol_version_major, 1);
     assert_eq!(hdr.batch_count, Some(2));
@@ -68,7 +68,7 @@ fn test_derive_option_absent() {
         0x42, 0x00, 0x6A, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
         0x00, // ProtocolVersionMajor Integer(1)
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let hdr = ResponseHeader::parse(&mut reader).unwrap();
     assert_eq!(hdr.protocol_version_major, 1);
     assert_eq!(hdr.batch_count, None);
@@ -95,7 +95,7 @@ fn test_derive_vec_zero() {
     // ResponseMessage { batch_items: [] }
     // ResponseMessage 0x42007B len=0
     let bytes = [0x42, 0x00, 0x7B, 0x01, 0x00, 0x00, 0x00, 0x00];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let msg = ResponseMessage::parse(&mut reader).unwrap();
     assert!(msg.batch_items.is_empty());
 }
@@ -111,7 +111,7 @@ fn test_derive_vec_one() {
         0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
         0x00, // BatchCount Integer(5)
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let msg = ResponseMessage::parse(&mut reader).unwrap();
     assert_eq!(msg.batch_items.len(), 1);
     assert_eq!(msg.batch_items[0].batch_count, 5);
@@ -131,7 +131,7 @@ fn test_derive_vec_two() {
         0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
         0x00, // BatchCount Integer(4)
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let msg = ResponseMessage::parse(&mut reader).unwrap();
     assert_eq!(msg.batch_items.len(), 2);
     assert_eq!(msg.batch_items[0].batch_count, 3);
@@ -152,7 +152,7 @@ struct StringList {
 fn test_derive_vec_string_empty() {
     // KeyBlock { ids: [] }
     let bytes = [0x42, 0x00, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let list = StringList::parse(&mut reader).unwrap();
     assert!(list.ids.is_empty());
 }
@@ -168,7 +168,7 @@ fn test_derive_vec_string_two() {
         0x42, 0x00, 0x94, 0x07, 0x00, 0x00, 0x00, 0x05, 0x77, 0x6F, 0x72, 0x6C, 0x64, 0x00,
         0x00, 0x00, // UniqueIdentifier="world"
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let list = StringList::parse(&mut reader).unwrap();
     assert_eq!(list.ids.len(), 2);
     assert_eq!(list.ids[0], "hello");
@@ -224,7 +224,7 @@ fn test_tagged_enum_primitive_variant() {
         0x42, 0x00, 0x2A, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
         0x00, 0x00, // CryptographicLength Integer = 256
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let attr = TestAttr::parse(&mut reader).unwrap();
     assert_eq!(attr, TestAttr::CryptographicLength(256));
 }
@@ -239,7 +239,7 @@ fn test_tagged_enum_enum_variant() {
         0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
         0x00, 0x00, // CryptographicAlgorithm Enum = 3 (Aes)
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let attr = TestAttr::parse(&mut reader).unwrap();
     assert_eq!(attr, TestAttr::CryptographicAlgorithm(CryptographicAlgorithm::Aes));
 }
@@ -258,7 +258,7 @@ fn test_tagged_enum_struct_variant() {
         0x42, 0x00, 0x55, 0x07, 0x00, 0x00, 0x00, 0x02, 0x68, 0x69, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, // NameValue TextString = "hi"
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let attr = TestAttr::parse(&mut reader).unwrap();
     assert_eq!(
         attr,
@@ -274,7 +274,7 @@ fn test_tagged_enum_unknown_discriminator() {
         0x42, 0x00, 0x0A, 0x05, 0x00, 0x00, 0x00, 0x04, 0x99, 0x99, 0x99, 0x99, 0x00, 0x00,
         0x00, 0x00, // AttributeName Enum = 0x99999999 (no matching variant)
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let err = TestAttr::parse(&mut reader).unwrap_err();
     assert!(matches!(err, TTLVError::InvalidEnumValue { .. }));
 }
@@ -297,7 +297,7 @@ fn test_tagged_enum_vec_field() {
         0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
         0x00, 0x00,
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let tmpl = TestTemplate::parse(&mut reader).unwrap();
     assert_eq!(tmpl.attrs.len(), 2);
     assert_eq!(tmpl.attrs[0], TestAttr::CryptographicLength(256));
@@ -313,7 +313,7 @@ fn test_enum_valid_value() {
         0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
         0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let val = CryptographicAlgorithm::parse(&mut reader).unwrap();
     assert_eq!(val, CryptographicAlgorithm::Aes);
 }
@@ -325,7 +325,7 @@ fn test_enum_unknown_discriminant() {
         0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
         0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let err = CryptographicAlgorithm::parse(&mut reader).unwrap_err();
     assert!(matches!(err, TTLVError::InvalidEnumValue { .. }));
 }
@@ -337,7 +337,7 @@ fn test_enum_wrong_tag() {
         0x42, 0x00, 0x0D, 0x05, 0x00, 0x00, 0x00, 0x04,
         0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let err = CryptographicAlgorithm::parse(&mut reader).unwrap_err();
     assert!(matches!(err, TTLVError::UnexpectedTag { .. }));
 }
@@ -360,7 +360,7 @@ fn test_enum_in_struct() {
         0x42, 0x00, 0x28, 0x05, 0x00, 0x00, 0x00, 0x04,
         0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, // CryptographicAlgorithm Enumeration(3)
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let attr = AlgoAttr::parse(&mut reader).unwrap();
     assert_eq!(attr.cryptographic_algorithm, CryptographicAlgorithm::Aes);
 }
@@ -396,7 +396,7 @@ fn test_serialize_round_trip() {
     original.serialize(&mut writer).unwrap();
     let bytes = writer.get_vector();
 
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let decoded = SerMessage::parse(&mut reader).unwrap();
     assert_eq!(original, decoded);
 }
@@ -438,7 +438,7 @@ fn test_serialize_option_absent() {
     let mut writer = NestedWriter::new();
     hdr.serialize(&mut writer).unwrap();
     let bytes = writer.get_vector();
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let decoded = SerOptHeader::parse(&mut reader).unwrap();
     assert_eq!(hdr, decoded);
 }
@@ -452,7 +452,7 @@ fn test_serialize_option_present() {
     let mut writer = NestedWriter::new();
     hdr.serialize(&mut writer).unwrap();
     let bytes = writer.get_vector();
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let decoded = SerOptHeader::parse(&mut reader).unwrap();
     assert_eq!(hdr, decoded);
 }
@@ -481,7 +481,7 @@ fn test_serialize_vec_round_trip() {
     let mut writer = NestedWriter::new();
     msg.serialize(&mut writer).unwrap();
     let bytes = writer.get_vector();
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let decoded = SerResponseMessage::parse(&mut reader).unwrap();
     assert_eq!(msg, decoded);
 }
@@ -507,7 +507,7 @@ fn test_derive_struct_tag_override() {
         0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00,
         0x00, // BatchCount Integer(8)
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let hdr = AltHeader::parse(&mut reader).unwrap();
     assert_eq!(hdr.protocol_version_major, 7);
     assert_eq!(hdr.batch_count, 8);
@@ -551,7 +551,7 @@ fn test_discriminator_enum_auto_derive_alpha() {
         0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x2A, 0x00, 0x00,
         0x00, 0x00, // BatchCount Integer = 42
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let item = TestItem::parse(&mut reader).unwrap();
     assert_eq!(item, TestItem::Alpha(TestPayload { batch_count: 42 }));
 }
@@ -567,7 +567,7 @@ fn test_discriminator_enum_auto_derive_beta() {
         0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00,
         0x00, 0x00, // BatchCount Integer = 7
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let item = TestItem::parse(&mut reader).unwrap();
     assert_eq!(item, TestItem::Beta(TestPayload { batch_count: 7 }));
 }
@@ -584,7 +584,7 @@ fn test_discriminator_enum_explicit_override() {
         0x42, 0x00, 0x0D, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x63, 0x00, 0x00,
         0x00, 0x00, // BatchCount Integer = 99
     ];
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     let item = TestItem::parse(&mut reader).unwrap();
     assert_eq!(item, TestItem::Renamed(TestPayload { batch_count: 99 }));
 }
@@ -683,7 +683,7 @@ fn test_tagged_enum_serialize_primitive_variant() {
         0x00, 0x00, // CryptographicLength Integer = 256
     ];
     assert_eq!(bytes, expected);
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     assert_eq!(TestAttr::parse(&mut reader).unwrap(), attr);
 }
 
@@ -702,7 +702,7 @@ fn test_tagged_enum_serialize_enum_variant() {
         0x00, 0x00, // CryptographicAlgorithm Enum = 3 (Aes)
     ];
     assert_eq!(bytes, expected);
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     assert_eq!(TestAttr::parse(&mut reader).unwrap(), attr);
 }
 
@@ -724,7 +724,7 @@ fn test_tagged_enum_serialize_struct_variant() {
         0x00, 0x00, // NameValue TextString = "hi"
     ];
     assert_eq!(bytes, expected);
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     assert_eq!(TestAttr::parse(&mut reader).unwrap(), attr);
 }
 
@@ -744,6 +744,6 @@ fn test_tagged_enum_serialize_discriminator_enum() {
         0x00, 0x00, // BatchCount Integer = 42
     ];
     assert_eq!(bytes, expected);
-    let mut reader = Reader::new(&bytes);
+    let mut reader = TtlvReader::new(&bytes);
     assert_eq!(TestItem::parse(&mut reader).unwrap(), item);
 }

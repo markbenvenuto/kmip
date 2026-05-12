@@ -9,7 +9,7 @@ mod ser_xml;
 use std::io::{Cursor, Read};
 
 pub use de::to_print;
-pub use de::{Reader, TtlvDeserialize};
+pub use de::{Reader, TtlvDeserialize, TtlvReader};
 pub use error::TTLVError;
 pub use kmip_enums::Tag;
 pub use ser::{NestedWriter, TtlvSerialize};
@@ -52,7 +52,7 @@ pub fn to_bytes<T: TtlvSerialize>(obj: &T) -> Result<Vec<u8>, TTLVError> {
 }
 
 pub fn from_bytes<T: TtlvDeserialize>(buf: &[u8]) -> Result<T, TTLVError> {
-    let mut reader = Reader::new(&buf);
+    let mut reader = TtlvReader::new(buf);
 
     T::parse(&mut reader)
 }

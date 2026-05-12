@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use xml::reader::{EventReader, XmlEvent};
 
+use crate::de::Reader;
 use crate::error::TTLVError;
 use crate::kmip_enums::{ItemType, Tag, Value, ValueType};
 
@@ -17,6 +18,7 @@ pub struct XmlReader<'a> {
     struct_stack: Vec<(Tag, u64)>,
     depth: u64,
     enum_resolver: &'a dyn EnumResolver,
+    peeked: Option<TTLVResult<Value>>,
 }
 
 impl<'a> XmlReader<'a> {
@@ -26,10 +28,11 @@ impl<'a> XmlReader<'a> {
             struct_stack: Vec::new(),
             depth: 0,
             enum_resolver: resolver,
+            peeked: None,
         }
     }
 
-    pub fn read(&mut self) -> Option<TTLVResult<Value>> {
+    fn read_inner(&mut self) -> Option<TTLVResult<Value>> {
         loop {
             let event = match self.reader.next() {
                 Ok(e) => e,
@@ -107,6 +110,22 @@ impl<'a> XmlReader<'a> {
     }
 }
 
+impl<'a> Reader for XmlReader<'a> {
+    fn read(&mut self) -> Option<TTLVResult<Value>> {
+        if self.peeked.is_some() {
+            return self.peeked.take();
+        }
+        self.read_inner()
+    }
+
+    fn peek_tag(&mut self) -> Option<Tag> {
+        if self.peeked.is_none() {
+            self.peeked = self.read_inner();
+        }
+        self.peeked.as_ref()?.as_ref().ok().map(|v| v.tag)
+    }
+}
+
 fn parse_value(
     tag: Tag,
     item_type: ItemType,
@@ -177,6 +196,7 @@ pub fn read_to_end(buf: &[u8], resolver: &dyn EnumResolver) -> TTLVResult<Vec<Va
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::de::Reader;
     use crate::kmip_enums::Tag;
 
     struct StubResolver;

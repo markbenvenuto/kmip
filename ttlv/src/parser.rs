@@ -8,7 +8,7 @@ use crate::kmip_enums::*;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
-pub fn expect_structure_begin(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<()> {
+pub fn expect_structure_begin(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<()> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {
@@ -22,7 +22,7 @@ pub fn expect_structure_begin(reader: &mut Reader<'_>, expected_tag: Tag) -> TTL
     }
 }
 
-pub fn expect_structure_end(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<()> {
+pub fn expect_structure_end(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<()> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {
@@ -36,7 +36,7 @@ pub fn expect_structure_end(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVR
     }
 }
 
-pub fn expect_integer(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<i32> {
+pub fn expect_integer(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<i32> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {
@@ -50,7 +50,7 @@ pub fn expect_integer(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<
     }
 }
 
-pub fn expect_text_string(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<String> {
+pub fn expect_text_string(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<String> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {
@@ -64,7 +64,7 @@ pub fn expect_text_string(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVRes
     }
 }
 
-pub fn expect_long_integer(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<i64> {
+pub fn expect_long_integer(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<i64> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {
@@ -78,7 +78,7 @@ pub fn expect_long_integer(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVRe
     }
 }
 
-pub fn expect_boolean(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<bool> {
+pub fn expect_boolean(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<bool> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {
@@ -92,7 +92,7 @@ pub fn expect_boolean(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<
     }
 }
 
-pub fn expect_byte_string(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<Vec<u8>> {
+pub fn expect_byte_string(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<Vec<u8>> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {
@@ -106,7 +106,7 @@ pub fn expect_byte_string(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVRes
     }
 }
 
-pub fn expect_enumeration(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<u32> {
+pub fn expect_enumeration(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<u32> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {
@@ -120,7 +120,7 @@ pub fn expect_enumeration(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVRes
     }
 }
 
-pub fn expect_datetime(reader: &mut Reader<'_>, expected_tag: Tag) -> TTLVResult<DateTime<Utc>> {
+pub fn expect_datetime(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult<DateTime<Utc>> {
     let token = reader.read().ok_or(TTLVError::EndOfTokenStream)??;
     if token.tag != expected_tag {
         return Err(TTLVError::UnexpectedTag {

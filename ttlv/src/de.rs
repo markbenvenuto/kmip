@@ -14,8 +14,13 @@ use crate::kmip_enums::*;
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
+pub trait Reader {
+    fn read(&mut self) -> Option<TTLVResult<Value>>;
+    fn peek_tag(&mut self) -> Option<Tag>;
+}
+
 pub trait TtlvDeserialize: Sized {
-    fn parse(reader: &mut Reader<'_>) -> TTLVResult<Self>;
+    fn parse(reader: &mut dyn Reader) -> TTLVResult<Self>;
 }
 
 fn compute_padding(len: usize) -> usize {
@@ -433,14 +438,14 @@ fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
 
 //////////////////
 
-pub struct Reader<'a> {
+pub struct TtlvReader<'a> {
     len: u64,
     cur: Cursor<&'a [u8]>,
     end_positions: Vec<(Tag, u64)>,
     peeked: Option<TTLVResult<Value>>,
 }
 
-impl<'a> Reader<'a> {
+impl<'a> TtlvReader<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
         Self {
             len: buf.len() as u64,
@@ -453,8 +458,6 @@ impl<'a> Reader<'a> {
     fn read_inner(&mut self) -> Option<TTLVResult<Value>> {
         let position = self.cur.position();
 
-        // Check if the current position would be the end of a structure
-        // If it is the end, generate a Value that indicates the struct has ended
         if !self.end_positions.is_empty()
             && self.end_positions[self.end_positions.len() - 1].1 == position
         {
@@ -467,7 +470,6 @@ impl<'a> Reader<'a> {
             }));
         }
 
-        // If we hit EOF, return None
         if position == self.len {
             return None;
         }
@@ -486,15 +488,17 @@ impl<'a> Reader<'a> {
             }
         }
     }
+}
 
-    pub fn read(&mut self) -> Option<TTLVResult<Value>> {
+impl<'a> Reader for TtlvReader<'a> {
+    fn read(&mut self) -> Option<TTLVResult<Value>> {
         if self.peeked.is_some() {
             return self.peeked.take();
         }
         self.read_inner()
     }
 
-    pub fn peek_tag(&mut self) -> Option<Tag> {
+    fn peek_tag(&mut self) -> Option<Tag> {
         if self.peeked.is_none() {
             self.peeked = self.read_inner();
         }
@@ -503,7 +507,7 @@ impl<'a> Reader<'a> {
 }
 
 fn read_to_end(buf: &[u8]) -> TTLVResult<Vec<Value>> {
-    let mut reader = Reader::new(buf);
+    let mut reader = TtlvReader::new(buf);
 
     let mut tokens = Vec::new();
 
@@ -529,7 +533,7 @@ fn read_to_end(buf: &[u8]) -> TTLVResult<Vec<Value>> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        de::{Reader, read_to_end, to_print},
+        de::{TtlvReader, Reader, read_to_end, to_print},
         error::TTLVError,
         kmip_enums::{Tag, Value, ValueType},
         parser::{
@@ -547,7 +551,7 @@ mod tests {
         unique_identifier: String,
     }
 
-    fn parse_request_header(reader: &mut Reader<'_>) -> Result<RequestHeader, TTLVError> {
+    fn parse_request_header(reader: &mut dyn Reader) -> Result<RequestHeader, TTLVError> {
         expect_structure_begin(reader, Tag::RequestHeader)?;
         let protocol_version_major = expect_integer(reader, Tag::ProtocolVersionMajor)?;
         let batch_count = expect_integer(reader, Tag::BatchCount)?;
@@ -558,7 +562,7 @@ mod tests {
         })
     }
 
-    fn parse_request_message(reader: &mut Reader<'_>) -> Result<RequestMessage, TTLVError> {
+    fn parse_request_message(reader: &mut dyn Reader) -> Result<RequestMessage, TTLVError> {
         expect_structure_begin(reader, Tag::RequestMessage)?;
         let request_header = parse_request_header(reader)?;
         let unique_identifier = expect_text_string(reader, Tag::UniqueIdentifier)?;
@@ -878,7 +882,7 @@ mod tests {
             0, 0, 3, 0, 0, 0, 0, 66, 0, 13, 2, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 66, 0, 148, 7,
             0, 0, 0, 0,
         ];
-        let mut reader = Reader::new(&bytes);
+        let mut reader = TtlvReader::new(&bytes);
         let msg = parse_request_message(&mut reader).unwrap();
         assert_eq!(msg.request_header.protocol_version_major, 3);
         assert_eq!(msg.request_header.batch_count, 4);

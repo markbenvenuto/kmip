@@ -47,7 +47,7 @@ fn derive_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let expanded = quote! {
         impl ::ttlv::__private::TtlvDeserialize for #name {
-            fn parse(reader: &mut ::ttlv::__private::Reader<'_>) -> ::core::result::Result<Self, ::ttlv::__private::TTLVError> {
+            fn parse(reader: &mut dyn ::ttlv::__private::Reader) -> ::core::result::Result<Self, ::ttlv::__private::TTLVError> {
                 let token = reader.read().ok_or(::ttlv::__private::TTLVError::EndOfTokenStream)??;
                 let expected = #enum_tag;
                 if token.tag != expected {
@@ -175,7 +175,7 @@ fn derive_tagged_enum_impl(input: DeriveInput) -> syn::Result<TokenStream> {
     let expanded = quote! {
         impl ::ttlv::__private::TtlvDeserialize for #name {
             fn parse(
-                reader: &mut ::ttlv::__private::Reader<'_>,
+                reader: &mut dyn ::ttlv::__private::Reader,
             ) -> ::core::result::Result<Self, ::ttlv::__private::TTLVError> {
                 ::ttlv::__private::expect_structure_begin(reader, #struct_tag)?;
                 let disc = ::ttlv::__private::expect_enumeration(reader, #disc_tag)?;
@@ -326,7 +326,7 @@ fn derive_impl(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let expanded = quote! {
         impl ::ttlv::__private::TtlvDeserialize for #name {
-            fn parse(reader: &mut ::ttlv::__private::Reader<'_>) -> ::core::result::Result<Self, ::ttlv::__private::TTLVError> {
+            fn parse(reader: &mut dyn ::ttlv::__private::Reader) -> ::core::result::Result<Self, ::ttlv::__private::TTLVError> {
                 ::ttlv::__private::expect_structure_begin(reader, #struct_tag)?;
                 #(#field_stmts)*
                 ::ttlv::__private::expect_structure_end(reader, #struct_tag)?;
