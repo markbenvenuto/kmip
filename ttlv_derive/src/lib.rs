@@ -313,6 +313,16 @@ fn serialize_field_statement(field: &syn::Field) -> syn::Result<proc_macro2::Tok
                     }
                 });
             }
+            // Option<Vec<T>> where T != u8 → optional repeated field
+            let val = vec_elem_value(elem);
+            let expr = write_expr(elem, &tag, val)?;
+            return Ok(quote! {
+                if let ::core::option::Option::Some(ref items) = self.#name {
+                    for v in items {
+                        #expr
+                    }
+                }
+            });
         }
         let val = option_elem_value(inner);
         let expr = write_expr(inner, &tag, val)?;
