@@ -1,35 +1,11 @@
-extern crate num_derive;
-
-#[macro_use]
-extern crate lazy_static;
-
-extern crate pretty_hex;
-//extern crate serde_transcode;
-
-extern crate env_logger;
-extern crate log;
 use log::info;
 use serde_bytes::ByteBuf;
 use strum::AsStaticRef;
+use ttlv::read_msg;
 
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde_enum;
-
-use std::{io::Read, io::Write, rc::Rc};
-
-extern crate clap_log_flag;
-extern crate clap_verbosity_flag;
-
-extern crate strum;
-extern crate strum_macros;
+use std::{io::Read, io::Write};
 
 use pretty_hex::*;
-
-extern crate confy;
-
-extern crate chrono;
 
 use chrono::Utc;
 
@@ -202,8 +178,8 @@ impl From<bson::error::Error> for KmipResponseError {
     }
 }
 
-impl From<protocol::Error> for KmipResponseError {
-    fn from(e: protocol::Error) -> Self {
+impl From<ttlv::Error> for KmipResponseError {
+    fn from(e: ttlv::Error) -> Self {
         KmipResponseError::new(&format!("Protocol error: {}", e))
     }
 }
@@ -766,7 +742,7 @@ fn process_encrypt_request<'a>(
     let resp = EncryptResponse {
         unique_identifier: id.to_owned(),
         data: ret.0,
-        iv_counter_nonce: ret.1.map(ByteBuf::from),
+        iv_counter_nonce: ret.1,
     };
 
     Ok(resp)
@@ -923,7 +899,7 @@ fn create_ok_response(
             result_reason: Some(protocol::ResultReason::GeneralFailure),
             result_message: None,
             response_payload: Some(op),
-            result_response_enum: None,
+            // TODO: result_response_enum: None,
         },
     }
 }
@@ -948,7 +924,7 @@ fn create_error_response(
             result_reason: Some(e.reason),
             result_message: Some(e.msg.to_owned()),
             response_payload: None,
-            result_response_enum: Some(request_operation),
+            // TODO: result_response_enum: Some(request_operation),
         },
     }
 }
@@ -958,12 +934,10 @@ fn create_error_response(
 // }
 
 pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
-    let k = Rc::new(protocol::KmipEnumResolver {});
-
     info!("Request Message: {:?}", buf.hex_dump());
-    protocol::to_print(buf);
+    ttlv::to_print(buf);
 
-    let request_ret = protocol::from_bytes::<RequestMessage>(&buf, k.as_ref());
+    let request_ret = protocol::from_bytes::<RequestMessage>(&buf);
 
     if let Err(e) = request_ret {
         // If we fail to decode, we just return a very generic error
@@ -973,10 +947,10 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
             rc.get_server_context().get_clock_source(),
         );
 
-        let vr = protocol::to_bytes(&rm, k).unwrap();
+        let vr = protocol::to_bytes(&rm).unwrap();
         info!("Response Message: {:?}", vr.hex_dump());
 
-        protocol::to_print(vr.as_slice());
+        ttlv::to_print(vr.as_slice());
 
         return vr;
     }
@@ -1069,18 +1043,16 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         .protocol_version
         .protocol_version_minor;
 
-    let vr = protocol::to_bytes(&rm, k).unwrap();
+    let vr = protocol::to_bytes(&rm).unwrap();
     info!("Response Message: {:?}", vr.hex_dump());
 
-    protocol::to_print(vr.as_slice());
+    ttlv::to_print(vr.as_slice());
 
     vr
 }
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-
-    use protocol::{KmipEnumResolver, RequestMessage};
 
     use crate::{
         RequestContext, ServerContext, process_kmip_request, store::KmipStore,
@@ -1114,11 +1086,9 @@ mod tests {
             0x00, 0x00,
         ];
 
-        protocol::to_print(bytes.as_slice());
+        ttlv::to_print(bytes.as_slice());
 
-        let k: KmipEnumResolver = KmipEnumResolver {};
-
-        protocol::from_bytes::<RequestMessage>(&bytes, &k).unwrap();
+        protocol::from_bytes::<RequestMessage>(&bytes).unwrap();
     }
 
     #[test]

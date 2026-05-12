@@ -239,9 +239,13 @@ pub fn write_struct_start(writer: &mut dyn Write) -> TTLVResult<()> {
 }
 
 pub trait EncodedWriter {
-    fn new() -> Self where Self: Sized;
+    fn new() -> Self
+    where
+        Self: Sized;
 
-    fn get_vector(self) -> Vec<u8> where Self: Sized;
+    fn get_vector(self) -> Vec<u8>
+    where
+        Self: Sized;
 
     fn write_tag(&mut self, tag: Tag) -> TTLVResult<()>;
 
@@ -485,7 +489,6 @@ impl Write for NestedWriter {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
 
     use chrono::{DateTime, TimeZone, Utc};
 

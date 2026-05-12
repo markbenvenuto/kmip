@@ -41,7 +41,7 @@ pub struct ManagedAttributes {
 
     pub state: State,
 
-    pub names: Vec<NameStruct>,
+    pub names: Vec<Name>,
 
     #[serde(with = "ts_milliseconds")]
     pub initial_date: chrono::DateTime<Utc>,

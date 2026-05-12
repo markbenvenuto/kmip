@@ -9,8 +9,8 @@
 [workspace]
 resolver = "2"
 members = [
-    # "client",
-    # "kmip_client",
+    "client",
+    "kmip_client",
     "protocol",
     "serde_enum",
     # "server",

@@ -1,5 +1,4 @@
 use std;
-use std::fmt::{self, Display};
 
 use thiserror::Error;
 

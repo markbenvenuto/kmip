@@ -1,14 +1,7 @@
 use chrono::TimeZone;
-use strum::AsStaticRef;
 
-use crate::{
-    error::{Result, TTLVError},
-    ser::EncodedWriter,
-};
-use std::{
-    rc::Rc,
-    str::{self, FromStr},
-};
+use crate::{error::TTLVError, ser::EncodedWriter};
+use std::str::{self};
 
 extern crate num;
 //#[macro_use]
@@ -173,9 +166,6 @@ impl EncodedWriter for NestedWriter {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
-    use chrono::Utc;
 
     // #[test]
     // fn test_struct() {

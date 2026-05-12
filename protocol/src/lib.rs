@@ -1,73 +1,26 @@
 #![allow(clippy::upper_case_acronyms)]
 
-#[macro_use]
-extern crate num_derive;
-
-#[macro_use]
-extern crate serde_derive;
-
-//#[macro_use]
-extern crate serde_enum;
-
-extern crate strum;
-#[macro_use]
-extern crate strum_macros;
-
-use serde_bytes::ByteBuf;
-use serde_enum::{Deserialize_enum, Serialize_enum};
-
+use chrono::DateTime;
 use chrono::Utc;
-use chrono::{DateTime, NaiveDateTime};
-use std::fmt;
-use std::io::{Cursor, Read};
-use std::str::FromStr;
+use num_derive::FromPrimitive;
+use num_derive::ToPrimitive;
+use strum_macros::AsStaticStr;
+use strum_macros::Display;
+use strum_macros::EnumString;
+use ttlv::NestedWriter;
+use ttlv::TTLVError;
 use ttlv::Tag;
+use ttlv::TtlvDeserialize;
 use ttlv::TtlvEnumDeserialize;
 use ttlv::TtlvEnumSerialize;
+use ttlv::TtlvSerialize;
 use ttlv::TtlvTaggedEnumDeserialize;
 use ttlv::TtlvTaggedEnumSerialize;
-use ttlv::kmip_enums::ItemType;
-use ttlv_derive::TtlvDeserialize;
-use ttlv_derive::TtlvSerialize;
-
-mod de;
-mod de_xml;
-mod error;
-mod my_date_format;
-mod my_opt_date_format;
-mod ser;
-mod ser_xml;
-
-#[macro_use]
-extern crate log;
-
-extern crate chrono;
-
-use strum::AsStaticRef;
-
-use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
-use serde::ser::{Serialize, SerializeStruct, Serializer};
-
-pub use de::from_bytes;
-pub use de_xml::from_xml_bytes;
-pub use error::{Error, Result};
-pub use ser::to_bytes;
-pub use ser_xml::to_xml_bytes;
-
-pub use de::to_print;
-pub use error::TTLVError;
-
-pub use de::EnumResolver;
-
-pub use de::read_len;
-pub use de::read_tag;
-pub use de::read_type;
+use ttlv::ser::EncodedWriter;
 
 #[derive(
     FromPrimitive,
     ToPrimitive,
-    Serialize_enum,
-    Deserialize_enum,
     Debug,
     EnumString,
     AsStaticStr,
@@ -123,8 +76,6 @@ pub enum Operation {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -151,8 +102,6 @@ pub enum ObjectType {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -176,8 +125,6 @@ pub enum State {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -196,8 +143,6 @@ pub enum NameType {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -257,8 +202,6 @@ pub enum CryptographicAlgorithm {
 
 #[derive(
     Debug,
-    Deserialize,
-    Serialize,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -294,8 +237,6 @@ pub enum CryptographicUsageMask {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -334,8 +275,6 @@ pub enum KeyFormatType {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -355,8 +294,6 @@ pub enum KeyCompressionType {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -374,8 +311,6 @@ pub enum SecretDataType {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -393,8 +328,6 @@ pub enum EncodingOption {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -415,8 +348,6 @@ pub enum WrappingMethod {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -449,8 +380,6 @@ pub enum BlockCipherMode {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -476,8 +405,6 @@ pub enum PaddingMethod {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -506,8 +433,6 @@ pub enum HashingAlgorithm {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -544,8 +469,6 @@ pub enum KeyRoleType {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -577,8 +500,6 @@ pub enum DigitalSignatureAlgorithm {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -597,8 +518,6 @@ pub enum ValidityIndicator {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     EnumString,
     FromPrimitive,
     ToPrimitive,
@@ -622,8 +541,6 @@ pub enum RevocationReasonCode {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     FromPrimitive,
     ToPrimitive,
     AsStaticStr,
@@ -641,8 +558,6 @@ pub enum ResultStatus {
 
 #[derive(
     Debug,
-    Serialize_enum,
-    Deserialize_enum,
     FromPrimitive,
     ToPrimitive,
     AsStaticStr,
@@ -681,607 +596,413 @@ pub enum ResultReason {
     GeneralFailure = 0x00000100,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct KeyValue {
-    #[serde(with = "serde_bytes", rename = "KeyMaterial")]
     pub key_material: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct EncryptionKeyInformation {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
     //#[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct MACSignatureKeyInformation {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
-    // #[serde(skip_serializing_if = "Option::is_none", rename = "CryptographicParameters")]
     //pub cryptographic_parameters: Option<CryptographicParameters>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct KeyWrappingData {
-    #[serde(rename = "Wrapping Method")]
     pub wrapping_method: WrappingMethod,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "EncryptionKeyInformation"
-    )]
     pub encryption_key_information: Option<EncryptionKeyInformation>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "MACSignatureKeyInformation"
-    )]
     #[ttlv(tag = "MACSignatureKeyInformation")]
     pub mac_signature_key_information: Option<MACSignatureKeyInformation>,
 
-    #[serde(
-        with = "serde_bytes",
-        skip_serializing_if = "Option::is_none",
-        rename = "MACSignature"
-    )]
     #[ttlv(tag = "MACSignature")]
     pub mac_signature: Option<Vec<u8>>,
 
-    #[serde(
-        with = "serde_bytes",
-        skip_serializing_if = "Option::is_none",
-        rename = "IVCounterNonce"
-    )]
     #[ttlv(tag = "IVCounterNonce")]
     pub iv_counter_nonce: Option<Vec<u8>>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "EncodingOption")]
     pub encoding_option: Option<EncodingOption>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct KeyBlock {
-    #[serde(rename = "KeyFormatType")]
     pub key_format_type: KeyFormatType,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyCompressionType")]
     pub key_compression_type: Option<KeyCompressionType>,
 
     // TODO : this type is not just a struct all the time
-    #[serde(rename = "KeyValue")]
     pub key_value: KeyValue,
 
     // omitted in for SecretData and other cases
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "CryptographicAlgorithm"
-    )]
     pub cryptographic_algorithm: Option<CryptographicAlgorithm>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "CryptographicLength"
-    )]
     pub cryptographic_length: Option<i32>,
 
     // TODO
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "CryptographicLength"
-    )]
     pub key_wrapping_data: Option<KeyWrappingData>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
-//#[serde(rename (serialize = "AttributeValue", deserialize = "CryptographicParameters"))]
-#[serde(rename = "CryptographicParameters")]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct CryptographicParameters {
-    #[serde(skip_serializing_if = "Option::is_none", rename = "BlockCipherMode")]
     pub block_cipher_mode: Option<BlockCipherMode>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "PaddingMethod")]
     pub padding_method: Option<PaddingMethod>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "HashingAlgorithm")]
     pub hashing_algorithm: Option<HashingAlgorithm>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyRoleType")]
     pub key_role_type: Option<KeyRoleType>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "DigitalSignatureAlgorithm"
-    )]
     pub digital_signature_algorithm: Option<DigitalSignatureAlgorithm>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "CryptographicAlgorithm"
-    )]
     pub cryptographic_algorithm: Option<CryptographicAlgorithm>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "RandomIV")]
     #[ttlv(tag = "RandomIV")]
     pub random_iv: Option<bool>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "IVLength")]
     #[ttlv(tag = "IVLength")]
     pub iv_length: Option<i32>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "TagLength")]
     pub tag_length: Option<i32>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "FixedFieldLength")]
     pub fixed_field_length: Option<i32>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "InvocationFieldLength"
-    )]
     pub invocation_field_length: Option<i32>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "CounterLength")]
     pub counter_length: Option<i32>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "InitialCounterValue"
-    )]
     pub initial_counter_value: Option<i32>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct SymmetricKey {
-    #[serde(rename = "KeyBlock")]
     pub key_block: KeyBlock,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 pub struct SecretData {
-    #[serde(rename = "SecretDataType")]
     pub secret_data_type: SecretDataType,
 
-    #[serde(rename = "KeyBlock")]
     pub key_block: KeyBlock,
 }
 
-// #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+// #[derive( Debug, TtlvDeserialize)]
 // pub struct AttributeStruct {
-//     #[serde(rename = "AttributeName")]
 //     pub attribute_name: String,
-//     #[serde(rename = "AttributeIndex")]
 //     pub attribute_index: Option<i32>,
 //     // AttributeValue type varies based on type
 //     //AttributeValue: ???
 // }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "Name")]
+#[derive(Debug, Clone, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "Name")]
 pub struct Name {
-    #[serde(rename = "NameValue")]
     pub name_value: String,
 
-    #[serde(rename = "NameType")]
     pub name_type: NameType,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct RevocationReason {
-    #[serde(rename = "RevocationReasonCode")]
     pub revocation_reason_code: RevocationReasonCode,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "RevocationMessage")]
     pub revocation_message: Option<String>,
 }
 
-// #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
+// #[derive( Debug, TtlvDeserialize)]
 // struct TemplateAttribute {
 //     Name : Name,
 //     Attribute : AttributeStruct,
 // }
 
-#[derive(Serialize, Deserialize, Debug, Clone, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
-#[serde(
-    rename = "Attribute",
-    tag = "AttributeName",
-    content = "AttributeValue"
-)]
+#[derive(Debug, Clone, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
 #[ttlv(tag = "Attribute")]
 #[ttlv(discriminator_tag = "AttributeName")]
 pub enum AttributesEnum {
-    #[serde(rename = "Cryptographic Algorithm")]
     // TODO - use CryptographicAlgorithm as the type but serde calls deserialize_identifier
     // and we do not have enough context to realize it is CryptographicAlgorithm, we think it is AttributeValue
     #[ttlv(discriminator = Tag::CryptographicAlgorithm)]
     CryptographicAlgorithm(CryptographicAlgorithm),
 
-    #[serde(rename = "Cryptographic Length")]
     #[ttlv(discriminator = Tag::CryptographicLength)]
     CryptographicLength(i32),
 
-    #[serde(rename = "Cryptographic Usage Mask")]
     #[ttlv(discriminator = Tag::CryptographicUsageMask)]
     CryptographicUsageMask(i32),
 
-    #[serde(with = "my_date_format", rename = "Activation Date")]
     #[ttlv(discriminator = Tag::ActivationDate)]
     ActivationDate(DateTime<Utc>),
 
-    #[serde(with = "my_date_format", rename = "Deactivation Date")]
     #[ttlv(discriminator = Tag::DeactivationDate)]
     DeactivationDate(DateTime<Utc>),
 
-    #[serde(rename = "Name")]
     #[ttlv(discriminator = Tag::Name)]
     Name(Name),
 
-    #[serde(rename = "Cryptographic Parameters")]
     #[ttlv(discriminator = Tag::CryptographicParameters)]
     CryptographicParameters(CryptographicParameters),
 
-    #[serde(rename = "State")]
     #[ttlv(discriminator = Tag::State)]
     State(State),
 
-    #[serde(with = "my_date_format", rename = "Initial Date")]
     #[ttlv(discriminator = Tag::InitialDate)]
     InitialDate(DateTime<Utc>),
 
-    #[serde(with = "my_date_format", rename = "Last Change Date")]
     #[ttlv(discriminator = Tag::LastChangeDate)]
     LastChangeDate(DateTime<Utc>),
 
-    #[serde(rename = "Object Type")]
     #[ttlv(discriminator = Tag::ObjectType)]
     ObjectType(ObjectType),
 
-    #[serde(rename = "Unique Identifier")]
     #[ttlv(discriminator = Tag::UniqueIdentifier)]
     UniqueIdentifier(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
+
 pub struct TemplateAttribute {
-    #[serde(rename = "Name", skip_serializing_if = "Option::is_none")]
     pub name: Option<Name>,
 
-    #[serde(rename = "Attribute")]
     pub attribute: Vec<AttributesEnum>,
 }
 
 ///////////////////////////////////////////////////
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct CreateRequest {
-    #[serde(rename = "ObjectType")]
     pub object_type: ObjectType,
 
-    #[serde(rename = "TemplateAttribute")]
     pub template_attribute: Vec<TemplateAttribute>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct CreateResponse {
-    #[serde(rename = "ObjectType")]
     pub object_type: ObjectType,
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct RegisterRequest {
-    #[serde(rename = "ObjectType")]
     pub object_type: ObjectType,
 
-    #[serde(rename = "TemplateAttribute")]
     pub template_attribute: Vec<TemplateAttribute>,
 
-    #[serde(rename = "SecretData", skip_serializing_if = "Option::is_none")]
     pub secret_data: Option<SecretData>,
 
-    #[serde(rename = "SymmetricKey", skip_serializing_if = "Option::is_none")]
     pub symmetric_key: Option<SymmetricKey>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct RegisterResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "TemplateAttribute")]
     pub template_attribute: Option<Vec<TemplateAttribute>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyFormatType")]
     pub key_format_type: Option<KeyFormatType>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyWrapType")]
     pub key_wrap_type: Option<KeyFormatType>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "KeyCompressionType")]
     pub key_compression_type: Option<KeyCompressionType>,
     // TODO KeyWrappingSpecification: KeyWrappingSpecification
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct GetResponse {
-    #[serde(rename = "ObjectType")]
     pub object_type: ObjectType,
 
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "SymmetricKey")]
     pub symmetric_key: Option<SymmetricKey>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "SecretData")]
     pub secret_data: Option<SecretData>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetAttributesRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(rename = "AttributeName")]
     pub attribute: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct GetAttributesResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(rename = "Attribute")]
     pub attribute: Vec<AttributesEnum>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetAttributeListRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct GetAttributeListResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(rename = "AttributeName")]
     pub attribute: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct ActivateRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct ActivateResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct RevokeRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(rename = "RevocationReason")]
     pub revocation_reason: RevocationReason,
 
     // TODO - the option datetime is messing with Serde
     // Serde thinks the field is required for deserialization even thought it is not
     // ByteBuf works - so look into how it work
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        with = "my_opt_date_format",
-        rename = "CompromiseOccurrenceDate"
-    )]
     pub compromise_occurrence_date: Option<DateTime<Utc>>,
-    // #[serde(skip_serializing_if = "Option::is_none", rename = "CompromiseOccurrenceDate")]
     // pub compromise_occurrence_date: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct RevokeResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct DestroyRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct DestroyResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct EncryptRequest {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "CryptographicParameters"
-    )]
     pub cryptographic_parameters: Option<CryptographicParameters>,
 
-    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
     #[ttlv(tag = "IVCounterNonce")]
     pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct EncryptResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
     #[ttlv(tag = "IVCounterNonce")]
     pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct DecryptRequest {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "CryptographicParameters"
-    )]
     pub cryptographic_parameters: Option<CryptographicParameters>,
 
-    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 
-    #[serde(skip_serializing_if = "Option::is_none", rename = "IVCounterNonce")]
     #[ttlv(tag = "IVCounterNonce")]
     pub iv_counter_nonce: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct DecryptResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct MACRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "CryptographicParameters"
-    )]
     pub cryptographic_parameters: Option<CryptographicParameters>,
 
-    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct MACResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(with = "serde_bytes", rename = "MACData")]
     #[ttlv(tag = "MACData")]
     pub mac_data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(deny_unknown_fields, rename = "RequestPayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct MACVerifyRequest {
     // TODO - this is optional in batches - we use the implicit server generated id from the first batch
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: Option<String>,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "CryptographicParameters"
-    )]
     pub cryptographic_parameters: Option<CryptographicParameters>,
 
-    #[serde(with = "serde_bytes", rename = "Data")]
     pub data: Vec<u8>,
 
-    #[serde(with = "serde_bytes", rename = "MACData")]
     #[ttlv(tag = "MACData")]
     pub mac_data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvDeserialize, TtlvSerialize)]
-#[serde(rename = "ResponsePayload")]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "ResponsePayload")]
 pub struct MACVerifyResponse {
-    #[serde(rename = "UniqueIdentifier")]
     pub unique_identifier: String,
 
-    #[serde(rename = "ValidityIndicator")]
     pub validity_indicator: ValidityIndicator,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
-#[serde(rename = "BatchItem", tag = "Operation", content = "RequestPayload")]
+#[derive(Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
 #[ttlv(tag = "BatchItem")]
 #[ttlv(discriminator_tag = "Operation")]
 #[ttlv(discriminator_enum = "Operation")]
@@ -1297,59 +1018,45 @@ pub enum RequestBatchItem {
     Decrypt(DecryptRequest),
     MAC(MACRequest),
     MACVerify(MACVerifyRequest),
-    // Revoke(RevokeRequest),
+    Revoke(RevokeRequest),
     // TODO - add support for: Unique Batch Item ID, will require custom deserializer, serializer
 }
 
-#[derive(Deserialize, Serialize, Debug, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct ProtocolVersion {
-    #[serde(rename = "ProtocolVersionMajor")]
     pub protocol_version_major: i32,
 
-    #[serde(rename = "ProtocolVersionMinor")]
     pub protocol_version_minor: i32,
 }
 
-#[derive(Deserialize, Serialize, Debug, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct RequestHeader {
-    #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
 
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "ClientCorrelationValue"
-    )]
     pub client_correlation_value: Option<String>,
 
     // TODO: Other fields are optional
-    #[serde(rename = "BatchCount")]
     pub batch_count: i32,
 }
 
-// TODO #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct RequestMessage {
-    #[serde(rename = "RequestHeader")]
     pub request_header: RequestHeader,
 
     // TODO - this should be a vector of batch items
-    #[serde(rename = "BatchItem")]
     pub batch_item: RequestBatchItem,
 }
 
-#[derive(Deserialize, Serialize, Debug, TtlvDeserialize, TtlvSerialize)]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct ResponseHeader {
-    #[serde(rename = "ProtocolVersion")]
     pub protocol_version: ProtocolVersion,
 
-    #[serde(with = "my_date_format", rename = "TimeStamp")]
     pub time_stamp: chrono::DateTime<Utc>,
     // TODO: Other fields are optional
-    #[serde(rename = "BatchCount")]
     pub batch_count: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
+#[derive(Debug, TtlvTaggedEnumDeserialize, TtlvTaggedEnumSerialize)]
 #[ttlv(tag = "BatchItem")]
 #[ttlv(discriminator_tag = "Operation")]
 #[ttlv(discriminator_enum = "Operation")]
@@ -1369,7 +1076,8 @@ pub enum ResponseOperationEnum {
     // TODO - add support for: Unique Batch Item ID
 }
 
-#[derive(Debug)]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
+#[ttlv(tag = "BatchItem")]
 pub struct ResponseBatchItem {
     pub result_status: ResultStatus,
 
@@ -1378,13 +1086,11 @@ pub struct ResponseBatchItem {
     pub result_message: Option<String>,
 
     pub response_payload: Option<ResponseOperationEnum>,
-
     // Hack for error messages - we must specify an operation type but it is not a full enum
-    pub result_response_enum: Option<Operation>,
+    // pub result_response_enum: Option<Operation>,
 }
 
-// #[derive(Serialize, Deserialize, Debug, TtlvDeserialize)]
-#[derive(Debug)]
+#[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 pub struct ResponseMessage {
     pub response_header: ResponseHeader,
 
@@ -1404,7 +1110,7 @@ pub fn get_operation_for_request(item: &RequestBatchItem) -> Operation {
         RequestBatchItem::Decrypt(_) => Operation::Decrypt,
         RequestBatchItem::MAC(_) => Operation::MAC,
         RequestBatchItem::MACVerify(_) => Operation::MACVerify,
-        // RequestBatchItem::Revoke(_) => Operation::Revoke,
+        RequestBatchItem::Revoke(_) => Operation::Revoke,
     }
 }
 
@@ -1425,676 +1131,32 @@ pub fn get_operation_for_response(item: &ResponseOperationEnum) -> Operation {
     }
 }
 
-// impl Serialize for ResponseBatchItem {
-//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let mut field_count = 1;
-//         let mut serialize_reason = false;
-//         let mut serialize_operation = false;
-//         let mut serialize_operation_enum = false;
-//         let mut serialize_message = false;
+pub fn to_bytes<T: TtlvSerialize>(obj: &T) -> Result<Vec<u8>, TTLVError> {
+    let mut writer = NestedWriter::new();
 
-//         if self.result_status == ResultStatus::OperationFailed {
-//             field_count += 2;
-//             serialize_reason = true;
-//             serialize_operation_enum = true;
+    obj.serialize(&mut writer)?;
 
-//             if self.result_message.is_some() {
-//                 field_count += 1;
-//                 serialize_message = true;
-//             }
-//         }
+    Ok(writer.get_vector())
+}
 
-//         //         if self.Operation.is_some() {
-//         //             field_count += 2;
-//         //             serialize_operation = true;
-//         // //            assert_eq!(self.Operation.is_some(), self.ResponsePayload.is_some() );
-//         //         }
+pub fn from_bytes<T: TtlvDeserialize>(buf: &[u8]) -> Result<T, TTLVError> {
+    todo!();
+    // let mut writer = NestedWriter::new();
 
-//         if self.response_payload.is_some() {
-//             field_count += 2;
-//             serialize_operation = true;
-//         }
+    // obj.serialize(&mut writer)?;
 
-//         let mut ser_struct = serializer.serialize_struct("BatchItem", field_count)?;
+    // Ok(writer.get_vector())
+}
 
-//         // if serialize_operation {
-//         //     let op = self.Operation.as_ref();
-//         //     ser_struct.serialize_field("Operation", &op)?;
-//         // }
+pub fn to_xml_bytes<T: TtlvSerialize>(obj: &T) -> Result<String, TTLVError> {
+    todo!();
+}
 
-//         if serialize_operation {
-//             let op = get_operation_for_response(self.response_payload.as_ref().unwrap());
-//             ser_struct.serialize_field("Operation", &op)?;
-//         }
+pub fn from_xml_str<T: TtlvDeserialize>(buf: &str) -> Result<T, TTLVError> {
+    todo!();
+    // let mut writer = NestedWriter::new();
 
-//         if serialize_operation_enum {
-//             ser_struct
-//                 .serialize_field("Operation", &self.result_response_enum.as_ref().unwrap())?;
-//         }
+    // obj.serialize(&mut writer)?;
 
-//         ser_struct.serialize_field("ResultStatus", &self.result_status)?;
-
-//         if serialize_reason {
-//             ser_struct.serialize_field("ResultReason", &self.result_reason)?;
-//         }
-
-//         if serialize_message {
-//             ser_struct.serialize_field("ResultMessage", &self.result_message)?;
-//         }
-
-//         if serialize_operation {
-//             // TODO - use a macro to derive this stuff
-//             //ser_struct.serialize_field("ResultPayload", &self.response_payload.as_ref())?;
-//             match self.response_payload.as_ref().unwrap() {
-//                 ResponseOperationEnum::Create(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::Get(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::GetAttributes(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::GetAttributeList(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::Activate(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::Destroy(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::Register(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::Encrypt(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::Decrypt(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::MAC(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::MACVerify(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//                 ResponseOperationEnum::Revoke(x) => {
-//                     ser_struct.serialize_field("ResponsePayload", x)?;
-//                 }
-//             }
-//         }
-
-//         ser_struct.end()
-//     }
-// }
-
-// impl<'de> Deserialize<'de> for ResponseBatchItem {
-//     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         enum Field {
-//             Operation,
-//             ResultStatus,
-//             ResultReason,
-//             ResultMessage,
-//             ResponsePayload,
-//         }
-
-//         impl<'de> Deserialize<'de> for Field {
-//             fn deserialize<D>(deserializer: D) -> std::result::Result<Field, D::Error>
-//             where
-//                 D: Deserializer<'de>,
-//             {
-//                 struct FieldVisitor;
-
-//                 impl<'de> Visitor<'de> for FieldVisitor {
-//                     type Value = Field;
-
-//                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//                         formatter.write_str("response batch item`")
-//                     }
-
-//                     fn visit_str<E>(self, value: &str) -> std::result::Result<Field, E>
-//                     where
-//                         E: serde::de::Error,
-//                     {
-//                         info!("VISITING: {:?}", value);
-//                         // TODO - include
-//                         match value {
-//                             "Operation" => Ok(Field::Operation),
-//                             "ResultStatus" => Ok(Field::ResultStatus),
-//                             "ResultReason" => Ok(Field::ResultReason),
-//                             "ResultMessage" => Ok(Field::ResultMessage),
-//                             "ResponsePayload" => Ok(Field::ResponsePayload),
-//                             _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
-//                         }
-//                     }
-//                 }
-
-//                 deserializer.deserialize_identifier(FieldVisitor)
-//             }
-//         }
-
-//         struct ResponseBatchItemVisitor;
-
-//         impl<'de> Visitor<'de> for ResponseBatchItemVisitor {
-//             type Value = ResponseBatchItem;
-
-//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//                 formatter.write_str("struct ResponseBatchItem")
-//             }
-
-//             fn visit_map<V>(self, mut map: V) -> std::result::Result<ResponseBatchItem, V::Error>
-//             where
-//                 V: MapAccess<'de>,
-//             {
-//                 let mut operation: Option<Operation> = None;
-//                 let mut result_status: Option<ResultStatus> = None;
-//                 let mut result_reason: Option<ResultReason> = None;
-//                 let mut result_message: Option<String> = None;
-//                 let mut response_payload: Option<ResponseOperationEnum> = None;
-
-//                 while let Some(key) = map.next_key()? {
-//                     match key {
-//                         Field::Operation => {
-//                             if operation.is_some() {
-//                                 return Err(serde::de::Error::duplicate_field("operation"));
-//                             }
-//                             operation = Some(map.next_value()?);
-//                         }
-//                         Field::ResultStatus => {
-//                             if result_status.is_some() {
-//                                 return Err(serde::de::Error::duplicate_field("result_status"));
-//                             }
-//                             result_status = Some(map.next_value()?);
-//                         }
-//                         Field::ResultReason => {
-//                             if result_reason.is_some() {
-//                                 return Err(serde::de::Error::duplicate_field("result_reason"));
-//                             }
-//                             result_reason = Some(map.next_value()?);
-//                         }
-//                         Field::ResultMessage => {
-//                             if result_message.is_some() {
-//                                 return Err(serde::de::Error::duplicate_field("result_message"));
-//                             }
-//                             result_message = Some(map.next_value()?);
-//                         }
-//                         Field::ResponsePayload => {
-//                             if response_payload.is_some() {
-//                                 return Err(serde::de::Error::duplicate_field("response_payload"));
-//                             }
-
-//                             let op = operation
-//                                 .as_ref()
-//                                 .expect("Operation must come before ResponsePayload");
-
-//                             response_payload = match op {
-//                                 Operation::Create => {
-//                                     let c: CreateResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::Create(c))
-//                                 }
-//                                 Operation::Get => {
-//                                     let c: GetResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::Get(c))
-//                                 }
-//                                 Operation::GetAttributes => {
-//                                     let c: GetAttributesResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::GetAttributes(c))
-//                                 }
-//                                 Operation::GetAttributeList => {
-//                                     let c: GetAttributeListResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::GetAttributeList(c))
-//                                 }
-//                                 Operation::Activate => {
-//                                     let c: ActivateResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::Activate(c))
-//                                 }
-//                                 Operation::Destroy => {
-//                                     let c: DestroyResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::Destroy(c))
-//                                 }
-//                                 Operation::Register => {
-//                                     let c: RegisterResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::Register(c))
-//                                 }
-//                                 Operation::Encrypt => {
-//                                     let c: EncryptResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::Encrypt(c))
-//                                 }
-//                                 Operation::Decrypt => {
-//                                     let c: DecryptResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::Decrypt(c))
-//                                 }
-//                                 Operation::MAC => {
-//                                     let c: MACResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::MAC(c))
-//                                 }
-//                                 Operation::MACVerify => {
-//                                     let c: MACVerifyResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::MACVerify(c))
-//                                 }
-//                                 Operation::Revoke => {
-//                                     let c: RevokeResponse = map.next_value()?;
-//                                     Some(ResponseOperationEnum::Revoke(c))
-//                                 }
-//                                 _ => {
-//                                     unimplemented!();
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-
-//                 let operation =
-//                     operation.ok_or_else(|| serde::de::Error::missing_field("Operation"))?;
-//                 let result_status =
-//                     result_status.ok_or_else(|| serde::de::Error::missing_field("ResultStatus"))?;
-
-//                 // TODO check for reason and message per KMIP rules
-
-//                 Ok(ResponseBatchItem {
-//                     result_status,
-//                     result_reason,
-//                     result_message,
-//                     response_payload,
-//                     result_response_enum: Some(operation),
-//                 })
-//             }
-//         }
-
-//         const FIELDS: &[&str] = &[
-//             "Operation",
-//             "ResultStatus",
-//             "ResultReason",
-//             "ResultMessage",
-//             "ResponsePayload",
-//         ];
-//         deserializer.deserialize_struct("ResponseBatchItem", FIELDS, ResponseBatchItemVisitor)
-//     }
-// }
-
-// impl<'de> Deserialize<'de> for RevokeRequest {
-//     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         enum Field {
-//             UniqueIdentifier,
-//             RevocationReason,
-//             CompromiseOccurrenceDate,
-//         }
-
-//         impl<'de> Deserialize<'de> for Field {
-//             fn deserialize<D>(deserializer: D) -> std::result::Result<Field, D::Error>
-//             where
-//                 D: Deserializer<'de>,
-//             {
-//                 struct FieldVisitor;
-
-//                 impl<'de> Visitor<'de> for FieldVisitor {
-//                     type Value = Field;
-
-//                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//                         formatter.write_str("revoke request")
-//                     }
-
-//                     fn visit_str<E>(self, value: &str) -> std::result::Result<Field, E>
-//                     where
-//                         E: serde::de::Error,
-//                     {
-//                         info!("VISITING: {:?}", value);
-//                         // TODO - include
-//                         match value {
-//                             "UniqueIdentifier" => Ok(Field::UniqueIdentifier),
-//                             "RevocationReason" => Ok(Field::RevocationReason),
-//                             "CompromiseOccurrenceDate" => Ok(Field::CompromiseOccurrenceDate),
-//                             _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
-//                         }
-//                     }
-//                 }
-
-//                 deserializer.deserialize_identifier(FieldVisitor)
-//             }
-//         }
-
-//         struct RevokeRequestVisitor;
-
-//         impl<'de> Visitor<'de> for RevokeRequestVisitor {
-//             type Value = RevokeRequest;
-
-//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//                 formatter.write_str("struct RevokeRequest")
-//             }
-
-//             fn visit_map<V>(self, mut map: V) -> std::result::Result<RevokeRequest, V::Error>
-//             where
-//                 V: MapAccess<'de>,
-//             {
-//                 let mut unique_identifier: Option<String> = None;
-//                 let mut revocation_reason: Option<RevocationReason> = None;
-//                 let mut compromise_occurrence_date: Option<DateTime<Utc>> = None;
-
-//                 while let Some(key) = map.next_key()? {
-//                     match key {
-//                         Field::UniqueIdentifier => {
-//                             if unique_identifier.is_some() {
-//                                 return Err(serde::de::Error::duplicate_field("UniqueIdentifier"));
-//                             }
-//                             unique_identifier = Some(map.next_value()?);
-//                         }
-//                         Field::RevocationReason => {
-//                             if revocation_reason.is_some() {
-//                                 return Err(serde::de::Error::duplicate_field("RevocationReason"));
-//                             }
-//                             revocation_reason = Some(map.next_value()?);
-//                         }
-//                         Field::CompromiseOccurrenceDate => {
-//                             if compromise_occurrence_date.is_some() {
-//                                 return Err(serde::de::Error::duplicate_field(
-//                                     "CompromiseOccurrenceDate",
-//                                 ));
-//                             }
-//                             let a1: i64 = map.next_value()?;
-
-//                             compromise_occurrence_date = Some(chrono::DateTime::<Utc>::from_utc(
-//                                 NaiveDateTime::from_timestamp(a1, 0),
-//                                 Utc,
-//                             ));
-//                             // compromise_occurrence_date = Some(map.next_value::<my_date_format>::deserialize()?);
-//                         }
-//                     }
-//                 }
-
-//                 let unique_identifier = unique_identifier
-//                     .ok_or_else(|| serde::de::Error::missing_field("UniqueIdentifier"))?;
-//                 let revocation_reason = revocation_reason
-//                     .ok_or_else(|| serde::de::Error::missing_field("RevocationReason"))?;
-
-//                 // TODO check for reason and message per KMIP rules
-
-//                 Ok(RevokeRequest {
-//                     unique_identifier,
-//                     revocation_reason,
-//                     compromise_occurrence_date,
-//                 })
-//             }
-//         }
-
-//         const FIELDS: &[&str] = &[
-//             "UniqueIdentifier",
-//             "RevocationReason",
-//             "CompromiseOccurrenceDate",
-//         ];
-//         deserializer.deserialize_struct("RevokeRequest", FIELDS, RevokeRequestVisitor)
-//     }
-// }
-
-// impl Serialize for AttributesEnum {
-//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let mut state = serializer.serialize_struct("Attribute", 2)?;
-
-//         match &*self {
-//             AttributesEnum::CryptographicAlgorithm(i) => {
-//                 state.serialize_field(
-//                     "AttributeName",
-//                     &"Cryptographic Algorithm"
-//                 )?;
-//                 state.serialize_field("AttributeValue", &i)?;
-//             }
-//             AttributesEnum::CryptographicLength(i) => {
-//                 state.serialize_field(
-//                     "AttributeName",
-//                     &"Cryptographic Length"
-//                 )?;
-//                 state.serialize_field("AttributeValue", &i)?;
-//             }
-//             AttributesEnum::CryptographicUsageMask(i) => {
-//                 // TODO - serialize as mask
-//                 state.serialize_field(
-//                     "AttributeName",
-//                     &"Cryptographic Usage Mask"
-//                 )?;
-//                 state.serialize_field("AttributeValue", &i)?;
-//             }
-//             AttributesEnum::ActivationDate(date) => {
-//                 state.serialize_field(
-//                     "AttributeName",
-//                     &"Activation Date"
-//                 )?;
-//                 state.serialize_field("AttributeValue", &date)?;
-//             }
-//             AttributesEnum::Name(i) => {
-//                 state.serialize_field(
-//                     "AttributeName",
-//                     &"Name"
-//                 )?;
-//                 state.serialize_field("AttributeValue", &i)?;
-//             }
-//             AttributesEnum::CryptographicParameters(i) => {
-//                 state.serialize_field(
-//                     "AttributeName",
-//                     &"Cryptographic Parameters"
-//                 )?;
-//                 state.serialize_field("AttributeValue", &i)?;
-//             }
-//             AttributesEnum::State(i) => {
-//                 state.serialize_field(
-//                     "AttributeName",
-//                     &"State"
-//                 )?;
-//                 state.serialize_field("AttributeValue", &i)?;
-//             }
-
-//         }
-
-//         state.end()
-//     }
-// }
-
-// pub struct KmipEnumResolver;
-
-// impl EnumResolver for KmipEnumResolver {
-//     fn resolve_enum(&self, orig: &str, value: i32) -> std::result::Result<String, TTLVError> {
-//         let trimmed = orig.replace(" ", "").replace("_", "");
-//         let name = trimmed.as_ref();
-//         let tag = Tag::from_str(name).map_err(|_| TTLVError::XmlError)?;
-//         self.to_string(tag, value)
-//     }
-
-//     fn resolve_enum_str(&self, tag: Tag, orig: &str) -> std::result::Result<i32, TTLVError> {
-//         let trimmed = orig.replace(" ", "").replace("_", "");
-//         let value = trimmed.as_ref();
-
-//         match tag {
-//             Tag::CryptographicAlgorithm => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(
-//                     num::ToPrimitive::to_i32(&CryptographicAlgorithm::from_str(value).unwrap())
-//                         .unwrap(),
-//                 )
-//             }
-//             Tag::CryptographicUsageMask => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(
-//                     num::ToPrimitive::to_i32(&CryptographicUsageMask::from_str(value).unwrap())
-//                         .unwrap(),
-//                 )
-//             }
-//             Tag::Operation => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&Operation::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::ObjectType => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&ObjectType::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::NameType => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&NameTypeEnum::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::SecretDataType => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&SecretDataType::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::KeyFormatType => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&KeyFormatTypeEnum::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::BlockCipherMode => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&BlockCipherMode::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::PaddingMethod => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&PaddingMethod::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::HashingAlgorithm => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&HashingAlgorithm::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::DigitalSignatureAlgorithm => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(
-//                     num::ToPrimitive::to_i32(&DigitalSignatureAlgorithm::from_str(value).unwrap())
-//                         .unwrap(),
-//                 )
-//             }
-
-//             Tag::RevocationReasonCode => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(
-//                     num::ToPrimitive::to_i32(&RevocationReasonCode::from_str(value).unwrap())
-//                         .unwrap(),
-//                 )
-//             }
-//             Tag::ValidityIndicator => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&ValidityIndicator::from_str(value).unwrap()).unwrap())
-//             }
-//             Tag::State => {
-//                 // TODO - go from string to i32 in one pass instead of two
-//                 Ok(num::ToPrimitive::to_i32(&State::from_str(value).unwrap()).unwrap())
-//             }
-//             _ => {
-//                 println!("Not implemented resolve_enum_str: {:?}", tag);
-//                 unimplemented! {}
-//             }
-//         }
-//     }
-
-//     fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError> {
-//         match tag {
-//             Tag::CryptographicAlgorithm => {
-//                 let o: CryptographicAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::Operation => {
-//                 let o: Operation = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::ObjectType => {
-//                 let o: ObjectType = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::ResultStatus => {
-//                 let o: ResultStatus = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::ResultReason => {
-//                 let o: ResultReason = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::NameType => {
-//                 let o: NameTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::KeyFormatType => {
-//                 let o: KeyFormatTypeEnum = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::BlockCipherMode => {
-//                 let o: BlockCipherMode = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::PaddingMethod => {
-//                 let o: PaddingMethod = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::HashingAlgorithm => {
-//                 let o: HashingAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::DigitalSignatureAlgorithm => {
-//                 let o: DigitalSignatureAlgorithm = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::SecretDataType => {
-//                 let o: SecretDataType = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::RevocationReasonCode => {
-//                 let o: RevocationReasonCode = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::ValidityIndicator => {
-//                 let o: ValidityIndicator = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-//             Tag::State => {
-//                 let o: State = num::FromPrimitive::from_i32(value).unwrap();
-//                 return Ok(o.as_static().to_owned());
-//             }
-
-//             _ => {
-//                 println!("Not implemented to_string: {:?}", tag);
-//                 unimplemented! {}
-//             }
-//         }
-//     }
-// }
-
-pub fn read_msg(reader: &mut dyn Read) -> std::result::Result<Vec<u8>, TTLVError> {
-    let mut msg: Vec<u8> = Vec::new();
-    msg.resize(8, 0);
-
-    // TODO -assert item type in buffer
-    reader
-        .read_exact(msg.as_mut())
-        .map_err(|error| TTLVError::BadRead { count: 8, error })?;
-
-    // Check length
-    let len: usize;
-    {
-        let mut cur = Cursor::new(msg);
-        read_tag(&mut cur)?;
-        let t = read_type(&mut cur)?;
-        if t != ItemType::Structure {
-            return Err(TTLVError::UnexpectedType {
-                expected: ItemType::Structure,
-                actual: t,
-            });
-        }
-
-        len = read_len(&mut cur)? as usize;
-
-        msg = cur.into_inner();
-    }
-
-    msg.resize(msg.len() + len, 0);
-
-    let slice: &mut [u8] = msg.as_mut();
-    reader
-        .read_exact(&mut slice[8..])
-        .map_err(|error| TTLVError::BadRead { count: len, error })?;
-
-    Ok(msg)
+    // Ok(writer.get_vector())
 }

@@ -3,25 +3,20 @@ extern crate log;
 
 extern crate num_derive;
 
-use std::{
-    io::{Read, Write},
-    rc::Rc,
-};
+use std::io::{Read, Write};
 
 use pretty_hex::*;
 
-// use protocol::{CryptographicAlgorithm, KmipEnumResolver, ProtocolVersion, RequestBatchItem, RequestHeader, RequestMessage};
-
 use protocol::*;
-use serde_bytes::ByteBuf;
 use thiserror::Error;
+use ttlv::read_msg;
 
 #[derive(Error, Debug)]
 pub enum ClientError {
     // #[error("data store disconnected")]
     // Disconnect(#[from] io::Error),
     #[error("protocol serialization error")]
-    Protocol(#[from] protocol::Error),
+    Protocol(#[from] ttlv::TTLVError),
 
     #[error("ttlv protocol serialization error")]
     TTLVProtocol(String),
@@ -44,11 +39,11 @@ pub enum ClientError {
 }
 
 // TODO - convert TTLVError to thiserror
-impl From<protocol::TTLVError> for ClientError {
-    fn from(e: protocol::TTLVError) -> Self {
-        ClientError::TTLVProtocol(format!("TTLV error: {}", e))
-    }
-}
+// impl From<TTLVError> for ClientError {
+//     fn from(e: TTLVError) -> Self {
+//         ClientError::TTLVProtocol(format!("TTLV error: {}", e))
+//     }
+// }
 
 pub struct Client<'a, T: 'a + Read + Write + ?Sized> {
     stream: &'a mut T,
@@ -67,9 +62,7 @@ fn create_ok_request(op: RequestBatchItem) -> std::result::Result<Vec<u8>, Clien
         batch_item: op,
     };
 
-    let k = Rc::new(KmipEnumResolver {});
-
-    Ok(protocol::to_bytes(&r, k)?)
+    Ok(protocol::to_bytes(&r)?)
 }
 
 //fn get_response<R> ()
@@ -212,7 +205,7 @@ where
     pub fn decrypt(
         &mut self,
         id: &str,
-        iv: &Option<ByteBuf>,
+        iv: &Option<Vec<u8>>,
         data: &[u8],
     ) -> std::result::Result<DecryptResponse, ClientError> {
         let req = RequestBatchItem::Decrypt(DecryptRequest {
@@ -237,7 +230,7 @@ where
         bytes: &mut [u8],
     ) -> std::result::Result<ResponseOperationEnum, ClientError> {
         println!("Request bytes:");
-        protocol::to_print(bytes);
+        ttlv::to_print(bytes);
 
         self.stream.write_all(bytes).unwrap();
 
@@ -248,11 +241,9 @@ where
         println!("Response bytes:");
         info!("Response Message: {:?}", msg.hex_dump());
 
-        protocol::to_print(&msg);
+        ttlv::to_print(&msg);
 
-        let k: KmipEnumResolver = KmipEnumResolver {};
-
-        let response = protocol::from_bytes::<ResponseMessage>(&msg, &k)?;
+        let response = protocol::from_bytes::<ResponseMessage>(&msg)?;
 
         //println!("Response: {:?} ", response);
 
@@ -281,15 +272,12 @@ where
     }
 
     pub fn make_xml_request(&mut self, xml_str: &str) -> String {
-        let k = Rc::new(KmipEnumResolver {});
+        let request = protocol::from_xml_str::<RequestMessage>(xml_str).unwrap();
 
-        let request =
-            protocol::from_xml_bytes::<RequestMessage>(xml_str.as_bytes(), k.as_ref()).unwrap();
+        let bytes = protocol::to_bytes(&request).unwrap();
 
-        let bytes = protocol::to_bytes(&request, k.clone()).unwrap();
-
-        let bytes2 = protocol::to_xml_bytes(&request, k.clone()).unwrap();
-        eprint!("xml bytes {:?}", std::str::from_utf8(&bytes2));
+        let bytes2 = protocol::to_xml_bytes(&request).unwrap();
+        eprint!("xml bytes {:?}", &bytes2);
 
         self.stream.write_all(bytes.as_slice()).unwrap();
 
@@ -299,18 +287,16 @@ where
 
         info!("Response Message: {:?}", msg.hex_dump());
 
-        protocol::to_print(&msg);
+        ttlv::to_print(&msg);
 
         // TODO validate request
-        let response = protocol::from_bytes::<ResponseMessage>(&msg, k.as_ref()).unwrap();
+        let response = protocol::from_bytes::<ResponseMessage>(&msg).unwrap();
 
         //println!("Response: {:?} ", response);
 
         // TODO check response
 
-        std::str::from_utf8(&protocol::to_xml_bytes(&response, k).unwrap())
-            .unwrap()
-            .to_string()
+        protocol::to_xml_bytes(&response).unwrap()
     }
 
     //     fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {

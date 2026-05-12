@@ -1,6 +1,5 @@
 #![allow(clippy::unreadable_literal)]
 
-use chrono::Utc;
 use num_derive::{FromPrimitive, ToPrimitive};
 use strum_macros::{AsRefStr, EnumString};
 

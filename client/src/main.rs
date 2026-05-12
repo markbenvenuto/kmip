@@ -22,7 +22,6 @@ use rustls::crypto::CryptoProvider;
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime};
 use rustls::{DigitallySignedStruct, SignatureScheme};
-use serde_bytes::ByteBuf;
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, Parser)]
@@ -245,7 +244,8 @@ fn main() {
             roots: webpki_roots::TLS_SERVER_ROOTS.into(),
         };
         let ca_cert = CertificateDer::from_pem_file(
-            args.ca_cert_file.expect("--caFile is required unless --insecure is set"),
+            args.ca_cert_file
+                .expect("--caFile is required unless --insecure is set"),
         )
         .unwrap();
         root_store.add(ca_cert).unwrap();
@@ -320,7 +320,7 @@ fn main() {
             // println!("IV: {:?}", hex::encode(response.unwrap().iv_counter_nonce.unwrap_or)));
         }
         Command::Decrypt { id, iv, data } => {
-            let iv = iv.map(|x| ByteBuf::from(hex::decode(x).unwrap()));
+            let iv = iv.map(|x| hex::decode(x).unwrap());
             let data = hex::decode(data).unwrap();
             let response = client.decrypt(&id, &iv, &data);
 

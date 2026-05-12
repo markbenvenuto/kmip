@@ -2,6 +2,7 @@ extern crate ring;
 use ring::rand::*;
 
 use crate::RngSource;
+use lazy_static::lazy_static;
 
 lazy_static! {
     static ref GLOBAL_RAND: SystemRandom = SystemRandom::new();

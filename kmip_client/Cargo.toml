@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 protocol = { workspace = true }
+ttlv = { workspace = true }
 log = { workspace = true }
 serde_bytes = { workspace = true }
 

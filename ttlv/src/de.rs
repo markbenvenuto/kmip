@@ -4,7 +4,6 @@ use std::io::Read;
 use std::string::ToString;
 
 use byteorder::{BigEndian, ReadBytesExt};
-use chrono::Date;
 use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Utc;

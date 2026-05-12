@@ -42,7 +42,7 @@ macro_rules! encrypt_cipher_mode {
 
 fn get_iv(
     required_iv_size: usize,
-    nonce: &Option<ByteBuf>,
+    nonce: &Option<Vec<u8>>,
     random_iv: bool,
     rng_source: &dyn RngSource,
 ) -> Result<Vec<u8>, KmipResponseError> {
@@ -76,7 +76,7 @@ pub fn encrypt_block_cipher(
     padding_method: PaddingMethod,
     key: &[u8],
     data: &[u8],
-    nonce: &Option<ByteBuf>,
+    nonce: &Option<Vec<u8>>,
     random_iv: bool,
     rng_source: &dyn RngSource,
 ) -> Result<(Vec<u8>, Option<Vec<u8>>), KmipResponseError> {
@@ -191,7 +191,7 @@ pub fn decrypt_block_cipher(
     padding_method: PaddingMethod,
     key: &[u8],
     data: &[u8],
-    nonce: &Option<ByteBuf>,
+    nonce: &Option<Vec<u8>>,
 ) -> Result<Vec<u8>, KmipResponseError> {
     match algo {
         CryptographicAlgorithm::AES => {
