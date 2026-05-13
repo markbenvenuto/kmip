@@ -279,6 +279,30 @@ fn normalize_digest_values(xml: &str) -> String {
         .into_owned()
 }
 
+pub struct ConversationNormalizer {
+    var_map: HashMap<String, String>,
+}
+
+impl ConversationNormalizer {
+    pub fn new() -> Self {
+        ConversationNormalizer {
+            var_map: HashMap::new(),
+        }
+    }
+
+    pub fn apply_to_request(&mut self, xml: &str) -> String {
+        apply_var_substitution(xml, &self.var_map)
+    }
+
+    pub fn apply_to_response(&mut self, actual: &str, expected: &str) -> (String, String) {
+        extract_variables(actual, &mut self.var_map);
+        let norm_expected = apply_var_substitution(expected, &self.var_map);
+        let norm_actual = normalize_digest_values(actual);
+        let norm_expected = normalize_digest_values(&norm_expected);
+        (norm_actual, norm_expected)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -384,5 +408,51 @@ mod tests {
         let xml = r#"<DigestValue type="ByteString" value="NORMALIZED_FOR_TEST"/>"#;
         let result = normalize_digest_values(xml);
         assert_eq!(result, xml);
+    }
+
+    #[test]
+    fn test_normalizer_apply_to_request_substitutes_uid() {
+        let mut normalizer = ConversationNormalizer::new();
+        normalizer.var_map.insert(
+            "$UNIQUE_IDENTIFIER_0".to_string(),
+            "real-id-42".to_string(),
+        );
+        let req = r#"<UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>"#;
+        let result = normalizer.apply_to_request(req);
+        assert!(result.contains(r#"value="real-id-42""#));
+    }
+
+    #[test]
+    fn test_normalizer_apply_to_response_extracts_and_substitutes() {
+        let mut normalizer = ConversationNormalizer::new();
+
+        let actual = r#"<UniqueIdentifier type="TextString" value="real-id-99"/>"#;
+        let expected = r#"<UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>"#;
+
+        let (norm_actual, norm_expected) = normalizer.apply_to_response(actual, expected);
+
+        // actual is unchanged (no DigestValue to normalize)
+        assert_eq!(norm_actual, actual);
+        // expected had $UNIQUE_IDENTIFIER_0 replaced with the extracted value
+        assert!(norm_expected.contains(r#"value="real-id-99""#));
+    }
+
+    #[test]
+    fn test_normalizer_apply_to_response_normalizes_digest() {
+        let mut normalizer = ConversationNormalizer::new();
+
+        let actual = r#"<DigestValue type="ByteString" value="deadbeef"/>"#;
+        let expected = r#"<DigestValue type="ByteString" value="cafebabe"/>"#;
+
+        let (norm_actual, norm_expected) = normalizer.apply_to_response(actual, expected);
+
+        assert_eq!(
+            norm_actual,
+            r#"<DigestValue type="ByteString" value="NORMALIZED_FOR_TEST"/>"#
+        );
+        assert_eq!(
+            norm_expected,
+            r#"<DigestValue type="ByteString" value="NORMALIZED_FOR_TEST"/>"#
+        );
     }
 }
