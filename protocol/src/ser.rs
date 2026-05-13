@@ -17,7 +17,7 @@ impl TtlvSerialize for AttributesEnum {
             }
             Self::CryptographicUsageMask(v) => {
                 ser_write_text_string(writer, Tag::AttributeName, "Cryptographic Usage Mask")?;
-                ser_write_integer(writer, Tag::AttributeValue, *v)?;
+                ser_write_integer_attribute(writer, Tag::CryptographicUsageMask, *v)?;
             }
             Self::ActivationDate(v) => {
                 ser_write_text_string(writer, Tag::AttributeName, "Activation Date")?;

@@ -226,6 +226,16 @@ pub fn ser_write_integer(writer: &mut dyn EncodedWriter, tag: Tag, v: i32) -> TT
     writer.write_i32(v)
 }
 
+pub fn ser_write_integer_attribute(
+    writer: &mut dyn EncodedWriter,
+    tag: Tag,
+    v: i32,
+) -> TTLVResult<()> {
+    writer.write_tag(Tag::AttributeValue)?;
+    writer.set_attribute_tag(tag)?;
+    writer.write_i32(v)
+}
+
 pub fn ser_write_long_integer(writer: &mut dyn EncodedWriter, tag: Tag, v: i64) -> TTLVResult<()> {
     writer.write_tag(tag)?;
     writer.write_i64(v)

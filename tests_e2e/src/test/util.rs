@@ -286,7 +286,10 @@ fn normalize_digest_values(xml: &str) -> String {
             Regex::new(r#"DigestValue\s+type="ByteString"\s+value="[^"]*""#).unwrap();
     }
     DIGEST_RE
-        .replace_all(xml, r#"DigestValue type="ByteString" value="NORMALIZED_FOR_TEST""#)
+        .replace_all(
+            xml,
+            r#"DigestValue type="ByteString" value="NORMALIZED_FOR_TEST""#,
+        )
         .into_owned()
 }
 
@@ -311,64 +314,6 @@ fn strip_digest_attribute_block_if_absent(actual: &str, expected: &str) -> Strin
     }
 }
 
-/// Normalize human-readable CryptographicUsageMask symbolic values in `expected` to the
-/// integer form that the server returns.  The OASIS test-case XML files use names like
-/// `"Decrypt Encrypt"` while the server emits the bitmask integer (e.g. `"12"`).
-fn normalize_crypto_usage_mask(xml: &str) -> String {
-    // KMIP usage-mask bit values (Section 2.1.3 of the KMIP spec):
-    //   Sign=0x01, Verify=0x02, Encrypt=0x04, Decrypt=0x08, WrapKey=0x10, UnwrapKey=0x20,
-    //   Export=0x40, MACGenerate=0x80, MACVerify=0x100, DeriveKey=0x200, ...
-    let bit_map: &[(&str, u32)] = &[
-        ("Sign", 0x0001),
-        ("Verify", 0x0002),
-        ("Encrypt", 0x0004),
-        ("Decrypt", 0x0008),
-        ("WrapKey", 0x0010),
-        ("UnwrapKey", 0x0020),
-        ("Export", 0x0040),
-        ("MACGenerate", 0x0080),
-        ("MACVerify", 0x0100),
-        ("DeriveKey", 0x0200),
-        ("ContentCommitment", 0x0400),
-        ("KeyAgreement", 0x0800),
-        ("CertificateSign", 0x1000),
-        ("CRLSign", 0x2000),
-    ];
-
-    lazy_static! {
-        static ref USAGE_MASK_RE: Regex = Regex::new(
-            r#"(?s)(<AttributeName\s+type="TextString"\s+value="Cryptographic Usage Mask"/>\s*<AttributeValue\s+type="Integer"\s+value=")([^"]+)(")"#
-        )
-        .unwrap();
-    }
-
-    USAGE_MASK_RE
-        .replace_all(xml, |caps: &regex::Captures| {
-            let value = &caps[2];
-            // If already numeric, leave as-is
-            if value.parse::<u32>().is_ok() {
-                return caps[0].to_string();
-            }
-            // Try to interpret as space-separated symbolic names
-            let mut mask: u32 = 0;
-            let mut matched = true;
-            for token in value.split_whitespace() {
-                if let Some(&(_, bit)) = bit_map.iter().find(|&&(name, _)| name == token) {
-                    mask |= bit;
-                } else {
-                    matched = false;
-                    break;
-                }
-            }
-            if matched && mask > 0 {
-                format!("{}{}{}", &caps[1], mask, &caps[3])
-            } else {
-                caps[0].to_string()
-            }
-        })
-        .into_owned()
-}
-
 pub struct ConversationNormalizer {
     var_map: HashMap<String, String>,
 }
@@ -388,9 +333,7 @@ impl ConversationNormalizer {
         extract_variables(actual, &mut self.var_map);
         let norm_expected = apply_var_substitution(expected, &self.var_map);
         let norm_expected = strip_digest_attribute_block_if_absent(actual, &norm_expected);
-        let norm_actual = normalize_crypto_usage_mask(actual);
-        let norm_expected = normalize_crypto_usage_mask(&norm_expected);
-        let norm_actual = normalize_digest_values(&norm_actual);
+        let norm_actual = normalize_digest_values(&actual);
         let norm_expected = normalize_digest_values(&norm_expected);
         (norm_actual, norm_expected)
     }
@@ -398,8 +341,9 @@ impl ConversationNormalizer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::HashMap;
+
+    use super::*;
 
     #[test]
     fn test_extract_timestamp() {
@@ -431,8 +375,14 @@ mod tests {
         "#;
         let mut var_map = HashMap::new();
         extract_variables(xml, &mut var_map);
-        assert_eq!(var_map.get("$UNIQUE_IDENTIFIER_0"), Some(&"id-one".to_string()));
-        assert_eq!(var_map.get("$UNIQUE_IDENTIFIER_1"), Some(&"id-two".to_string()));
+        assert_eq!(
+            var_map.get("$UNIQUE_IDENTIFIER_0"),
+            Some(&"id-one".to_string())
+        );
+        assert_eq!(
+            var_map.get("$UNIQUE_IDENTIFIER_1"),
+            Some(&"id-two".to_string())
+        );
     }
 
     #[test]
@@ -452,7 +402,10 @@ mod tests {
         "#;
         let mut var_map = HashMap::new();
         extract_variables(xml, &mut var_map);
-        assert_eq!(var_map.get("$UNIQUE_IDENTIFIER_0"), Some(&"same-id".to_string()));
+        assert_eq!(
+            var_map.get("$UNIQUE_IDENTIFIER_0"),
+            Some(&"same-id".to_string())
+        );
         assert!(var_map.get("$UNIQUE_IDENTIFIER_1").is_none());
     }
 
@@ -506,10 +459,9 @@ mod tests {
     #[test]
     fn test_normalizer_apply_to_request_substitutes_uid() {
         let mut normalizer = ConversationNormalizer::new();
-        normalizer.var_map.insert(
-            "$UNIQUE_IDENTIFIER_0".to_string(),
-            "real-id-42".to_string(),
-        );
+        normalizer
+            .var_map
+            .insert("$UNIQUE_IDENTIFIER_0".to_string(), "real-id-42".to_string());
         let req = r#"<UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>"#;
         let result = normalizer.apply_to_request(req);
         assert!(result.contains(r#"value="real-id-42""#));

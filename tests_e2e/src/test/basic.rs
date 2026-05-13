@@ -1303,7 +1303,7 @@ fn e2e_test_xml_sklc_m_1_14() {
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Cryptographic Usage Mask"/>
-            <AttributeValue type="Integer" value="12"/>
+            <AttributeValue type="Integer" value="Encrypt Decrypt"/>
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Unique Identifier"/>
@@ -1501,7 +1501,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Cryptographic Usage Mask"/>
-            <AttributeValue type="Integer" value="12"/>
+            <AttributeValue type="Integer" value="Encrypt Decrypt"/>
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Unique Identifier"/>
@@ -2226,19 +2226,15 @@ fn e2e_test_xml_cs_bc_m_10_14() {
 // https://docs.oasis-open.org/kmip/profiles/v1.4/os/test-cases/kmip-v1.4/mandatory/SKFF-M-1-14.xml
 #[test]
 fn e2e_test_xml_skff_m_1_14() {
-    let conv = std::str::from_utf8(
-        include_bytes!("../../../test_cases/1.4/SKFF-M-1-14.xml"),
-    )
-    .unwrap();
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/SKFF-M-1-14.xml")).unwrap();
     run_e2e_xml_conversation(conv);
 }
 
 // https://docs.oasis-open.org/kmip/profiles/v1.4/os/test-cases/kmip-v1.4/mandatory/SKLC-M-1-14.xml
 #[test]
 fn e2e_test_xml_sklc_m_1_14_file() {
-    let conv = std::str::from_utf8(
-        include_bytes!("../../../test_cases/1.4/SKLC-M-1-14.xml"),
-    )
-    .unwrap();
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/SKLC-M-1-14.xml")).unwrap();
     run_e2e_xml_conversation(conv);
 }
