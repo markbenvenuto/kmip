@@ -10,8 +10,11 @@ publish = false
 
 [dependencies]
 aes  = { workspace = true }
+cbc  = { workspace = true }
+ecb  = { workspace = true }
+crypto-common  = { workspace = true }
+block-padding  = { workspace = true }
 aws-lc-rs = { workspace = true }
-block-modes  = { workspace = true }
 bson  = { workspace = true }
 byteorder  = { workspace = true }
 chrono  = { workspace = true }

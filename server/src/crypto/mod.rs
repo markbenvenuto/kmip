@@ -1,10 +1,7 @@
 use aes::{Aes128, Aes192, Aes256};
-use block_modes::{
-    BlockMode,
-    Cbc,
-    Ecb,
-    block_padding::{NoPadding, Pkcs7},
-};
+use block_padding::{NoPadding, Pkcs7};
+use cbc::Encryptor;
+use crypto_common::KeyIvInit;
 use digest::{FixedOutput, Update};
 use hmac::{EagerHash, Hmac, KeyInit};
 use protocol::{BlockCipherMode, CryptographicAlgorithm, PaddingMethod, ValidityIndicator};
@@ -19,17 +16,19 @@ macro_rules! encrypt_cipher_mode {
         match $padd {
             PaddingMethod::None => {
                 // TODO - check room for padding
-                type CipherAndMode = $mode<$cipher, NoPadding>;
-                let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
-                Ok((cipher.encrypt_vec($data), None))
+                // type CipherAndMode = $mode<$cipher, NoPadding>;
+                // type CipherAndMode = $mode::Encryptor<$cipher>;
+                // let cipher = CipherAndMode::new($key, $iv); //.expect("Wrong key size");
+                // Ok((cipher.encrypt_vec($data), None))
+                Ok((vec![0], None))
             }
-            PaddingMethod::PKCS5 => {
-                // TODO - allocate room for padding, unsure what KMIP requres
-                // Pkcs7 is a more general version of Pkcs5
-                type CipherAndMode = $mode<$cipher, Pkcs7>;
-                let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
-                Ok((cipher.encrypt_vec($data), None))
-            }
+            // PaddingMethod::PKCS5 => {
+            //     // TODO - allocate room for padding, unsure what KMIP requres
+            //     // Pkcs7 is a more general version of Pkcs5
+            //     type CipherAndMode = $mode<$cipher, Pkcs7>;
+            //     let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
+            //     Ok((cipher.encrypt_vec($data), None))
+            // }
             _ => Err(KmipResponseError::new(
                 "Cipher and padding is not supported",
             )),
@@ -85,7 +84,7 @@ pub fn encrypt_block_cipher(
                     BlockCipherMode::ECB => {
                         encrypt_cipher_mode!(
                             Aes128,
-                            Ecb,
+                            ecb,
                             padding_method,
                             Default::default(),
                             data,
@@ -105,7 +104,7 @@ pub fn encrypt_block_cipher(
                     BlockCipherMode::ECB => {
                         encrypt_cipher_mode!(
                             Aes192,
-                            Ecb,
+                            ecb,
                             padding_method,
                             Default::default(),
                             data,
@@ -162,19 +161,19 @@ pub fn encrypt_block_cipher(
 macro_rules! decrypt_cipher_mode {
     ($cipher: ty, $mode:ident, $padd: ident, $iv : expr, $data: ident, $key : ident) => {
         match $padd {
-            PaddingMethod::None => {
-                // decrypt_cipher_mode_padding!($cipher, $mode, NoPadding, $data, $key)
-                type CipherAndMode = $mode<$cipher, NoPadding>;
-                let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
-                Ok(cipher.decrypt_vec($data).expect("TODO - add eerror"))
-            }
-            PaddingMethod::PKCS5 => {
-                // decrypt_cipher_mode_padding!($cipher, $mode, NoPadding, $data, $key)
-                // Pkcs7 is a more general version of Pkcs5
-                type CipherAndMode = $mode<$cipher, Pkcs7>;
-                let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
-                Ok(cipher.decrypt_vec($data).expect("TODO - add eerror"))
-            }
+            // PaddingMethod::None => {
+            //     // decrypt_cipher_mode_padding!($cipher, $mode, NoPadding, $data, $key)
+            //     type CipherAndMode = $mode<$cipher, NoPadding>;
+            //     let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
+            //     Ok(cipher.decrypt_vec($data).expect("TODO - add eerror"))
+            // }
+            // PaddingMethod::PKCS5 => {
+            //     // decrypt_cipher_mode_padding!($cipher, $mode, NoPadding, $data, $key)
+            //     // Pkcs7 is a more general version of Pkcs5
+            //     type CipherAndMode = $mode<$cipher, Pkcs7>;
+            //     let cipher = CipherAndMode::new_var($key, $iv).expect("Wrong key size");
+            //     Ok(cipher.decrypt_vec($data).expect("TODO - add eerror"))
+            // }
             _ => Err(KmipResponseError::new(
                 "Cipher and padding is not supported",
             )),
@@ -198,7 +197,7 @@ pub fn decrypt_block_cipher(
                     BlockCipherMode::ECB => {
                         decrypt_cipher_mode!(
                             Aes128,
-                            Ecb,
+                            ecb,
                             padding_method,
                             Default::default(),
                             data,
@@ -208,7 +207,7 @@ pub fn decrypt_block_cipher(
                     BlockCipherMode::CBC => {
                         decrypt_cipher_mode!(
                             Aes128,
-                            Cbc,
+                            cbc,
                             padding_method,
                             nonce
                                 .as_ref()
@@ -226,7 +225,7 @@ pub fn decrypt_block_cipher(
                     BlockCipherMode::ECB => {
                         decrypt_cipher_mode!(
                             Aes192,
-                            Ecb,
+                            ecb,
                             padding_method,
                             Default::default(),
                             data,
@@ -236,7 +235,7 @@ pub fn decrypt_block_cipher(
                     BlockCipherMode::CBC => {
                         decrypt_cipher_mode!(
                             Aes192,
-                            Cbc,
+                            cbc,
                             padding_method,
                             nonce
                                 .as_ref()
@@ -254,7 +253,7 @@ pub fn decrypt_block_cipher(
                     BlockCipherMode::ECB => {
                         decrypt_cipher_mode!(
                             Aes256,
-                            Ecb,
+                            ecb,
                             padding_method,
                             Default::default(),
                             data,
@@ -264,7 +263,7 @@ pub fn decrypt_block_cipher(
                     BlockCipherMode::CBC => {
                         decrypt_cipher_mode!(
                             Aes256,
-                            Cbc,
+                            cbc,
                             padding_method,
                             nonce
                                 .as_ref()
