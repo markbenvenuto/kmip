@@ -29,7 +29,6 @@ quick-xml  =  { workspace = true }
 webpki  =  { workspace = true }
 webpki-roots  =  { workspace = true }
 
-minidom  =  { workspace = true }
 
 difference=    { workspace = true }
 

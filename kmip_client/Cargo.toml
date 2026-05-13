@@ -12,7 +12,6 @@ publish = false
 protocol = { workspace = true }
 ttlv = { workspace = true }
 tracing = { workspace = true }
-serde_bytes = { workspace = true }
 
 pretty-hex  = { workspace = true }
 
@@ -21,3 +20,5 @@ num-traits  = { workspace = true }
 num-derive  = { workspace = true }
 
 thiserror = { workspace = true }
+
+quick-xml = { workspace = true }

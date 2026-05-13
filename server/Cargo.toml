@@ -16,7 +16,6 @@ ttlv  = { workspace = true }
 serde  = { workspace = true }
 serde_derive  = { workspace = true }
 pretty-hex  = { workspace = true }
-serde_bytes  = { workspace = true }
 
 thiserror  = { workspace = true }
 

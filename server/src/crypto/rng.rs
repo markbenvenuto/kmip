@@ -1,4 +1,3 @@
-extern crate ring;
 use lazy_static::lazy_static;
 use ring::rand::*;
 

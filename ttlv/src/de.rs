@@ -4,7 +4,6 @@ use std::{
 };
 
 use byteorder::{BigEndian, ReadBytesExt};
-use chrono::{DateTime, NaiveDateTime, Utc};
 use pretty_hex::*;
 
 use crate::{error::TTLVError, kmip_enums::*};

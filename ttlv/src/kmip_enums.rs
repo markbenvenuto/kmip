@@ -16,7 +16,7 @@ pub enum ItemType {
     DateTime = 0x09,
     // One second resolution
     Interval = 0x0A,
-    // DateTimeExtended = 0x0B, // KMIP 2.0 addition
+    // DateTimeExtended = 0x0B, // KMIP 2.0 addition, POSIX time in micro-seconds
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,21 +1,3 @@
-use chrono::Utc;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
-use tracing::{info, warn};
-
-#[macro_use]
-extern crate serde_derive;
-
-extern crate clap_log_flag;
-extern crate clap_verbosity_flag;
-
-extern crate strum;
-#[macro_use]
-extern crate strum_macros;
-
-extern crate confy;
-
-extern crate chrono;
-
 use std::{
     net,
     net::{IpAddr, Ipv4Addr, TcpListener},
@@ -24,6 +6,7 @@ use std::{
     thread,
 };
 
+use chrono::Utc;
 use clap::Parser;
 use kmip_server::{
     ClockSource,
@@ -32,7 +15,15 @@ use kmip_server::{
     handle_client,
     store::KmipStore,
 };
-use rustls::{self, RootCertStore, ServerConfig, ServerConnection};
+use rustls::{
+    self,
+    RootCertStore,
+    ServerConfig,
+    ServerConnection,
+    pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},
+};
+use strum_macros::EnumString;
+use tracing::{info, warn};
 // use bson;
 
 #[derive(Debug, Clone, EnumString)]

@@ -1,14 +1,12 @@
 use std::{
-    fs::File,
-    io::{self, BufRead, BufReader, Read, Write},
+    io::{Read, Write},
     net::TcpStream,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
 };
 
 use clap::{Parser, Subcommand};
-use kmip_client::Client;
-use minidom::Element;
+use kmip_client::{Client, parse_kmip_messages};
 use protocol::*;
 use rustls::{
     ClientConfig,
@@ -177,34 +175,12 @@ impl ServerCertVerifier for NoVerifier {
     }
 }
 
-fn get_buf_reader<P: AsRef<Path>>(filename: P) -> io::Result<impl BufRead> {
-    let file = File::open(filename)?;
-    Ok(BufReader::new(file))
-}
-
 fn run_xml<'a, T>(filename: &PathBuf, client: &mut Client<'a, T>)
 where
     T: 'a + Read + Write,
 {
-    let reader = get_buf_reader(filename).unwrap();
-    let root: Element = Element::from_reader(reader).unwrap();
+    let (reqs, resps) = parse_kmip_messages(&std::fs::read_to_string(filename).unwrap());
 
-    let mut reqs: Vec<String> = Vec::new();
-    let mut resps: Vec<String> = Vec::new();
-    for child in root.children() {
-        let mut buf: Vec<u8> = Vec::new();
-        child.write_to(&mut buf).unwrap();
-        let xml_str = std::str::from_utf8(&buf).unwrap().to_string();
-        // println!("{:?}", child);
-        println!("xml_str{:?}", xml_str);
-        if child.name() == "RequestMessage" {
-            reqs.push(xml_str);
-        } else if child.name() == "ResponseMessage" {
-            resps.push(xml_str);
-        } else {
-            panic!("Unknown XML child {:?}", child.name());
-        }
-    }
     assert_eq!(reqs.len(), resps.len());
 
     for req in reqs {

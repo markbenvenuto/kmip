@@ -8,7 +8,6 @@ use block_modes::{
 use digest::{BlockInput, FixedOutput, Reset, Update};
 use hmac::{Hmac, Mac, NewMac};
 use protocol::{BlockCipherMode, CryptographicAlgorithm, PaddingMethod, ValidityIndicator};
-use serde_bytes::ByteBuf;
 use sha2::{Sha224, Sha256, Sha384, Sha512};
 
 use crate::{KmipResponseError, RngSource};

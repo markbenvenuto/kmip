@@ -7,8 +7,6 @@ See https://rust-cli.github.io/book/tutorial/testing.html
 
 https://github.com/droundy/roundqueue/blob/master/tests/lib.rs
 */
-//extern crate kmip_client;
-//extern crate main;
 
 #[test]
 fn test_create_request3() {

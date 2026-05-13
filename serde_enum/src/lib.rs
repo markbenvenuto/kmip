@@ -5,8 +5,6 @@
 
 #![recursion_limit = "128"]
 
-extern crate proc_macro;
-
 mod parse;
 
 use std::iter;

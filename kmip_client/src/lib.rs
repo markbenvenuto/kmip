@@ -1,12 +1,10 @@
-use tracing::{debug, info};
-
-extern crate num_derive;
-
 use std::io::{Read, Write};
 
 use pretty_hex::*;
 use protocol::*;
+use quick_xml::{events::Event, reader::Reader, writer::Writer};
 use thiserror::Error;
+use tracing::{debug, info};
 use ttlv::read_msg;
 
 #[derive(Error, Debug)]
@@ -62,8 +60,6 @@ fn create_ok_request(op: RequestBatchItem) -> std::result::Result<Vec<u8>, Clien
 
     Ok(ttlv::to_bytes(&r)?)
 }
-
-//fn get_response<R> ()
 
 impl<'a, T> Client<'a, T>
 where
@@ -322,22 +318,45 @@ where
     //     }
 }
 
-// pub trait Stream: Read + Write {}
+/// Returns a tuple containing: (Vector of Requests, Vector of Responses)
+pub fn parse_kmip_messages(xml: &str) -> (Vec<String>, Vec<String>) {
+    let mut reader = Reader::from_str(xml);
+    reader.config_mut().trim_text(true);
 
-// pub struct Client<'a> {
-//     stream: &'a mut dyn Stream,
-// }
+    let mut requests = Vec::new();
+    let mut responses = Vec::new();
+    let mut buf = Vec::new();
 
-// impl<'a> Client<'a> {
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Err(_) | Ok(Event::Eof) => break,
+            Ok(Event::Start(ref e)) => {
+                let tag_name = e.name();
+                if tag_name.as_ref() == b"RequestMessage" || tag_name.as_ref() == b"ResponseMessage"
+                {
+                    // Capture the full content of this specific element
+                    let span_start =
+                        reader.buffer_position() as usize - (tag_name.as_ref().len() + 2);
 
-//     pub fn create_from_stream(stream : &'a mut dyn Stream) -> Client<'a>
-//         {
-//             Client {
-//                 stream : stream,
-//             }
-//     }
+                    // We need to find the corresponding end tag
+                    if let Ok(_) = reader.read_to_end_into(tag_name, &mut Vec::new()) {
+                        let span_end = reader.buffer_position() as usize;
+                        let full_tag = &xml[span_start..span_end];
 
-//     pub fn create( object_type: ObjectTypeEnum, attributes: Vec<AttributesEnum>) {
+                        if tag_name.as_ref() == b"RequestMessage" {
+                            requests.push(full_tag.to_string());
+                        } else if tag_name.as_ref() == b"ResponseMessage" {
+                            responses.push(full_tag.to_string());
+                        } else {
+                            panic!("Unexpected XML input: {tag_name:?} ");
+                        }
+                    }
+                }
+            }
+            _ => (),
+        }
+        buf.clear();
+    }
 
-//     }
-// }
+    (requests, responses)
+}

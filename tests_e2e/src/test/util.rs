@@ -1,24 +1,23 @@
 use std::{
     env,
-    fs::File,
-    io::{self, BufRead, BufReader, Cursor},
+    io::Cursor,
     net,
     net::{IpAddr, Ipv4Addr, TcpListener, TcpStream},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Barrier, Mutex},
     thread,
 };
 
 use difference::assert_diff;
-use kmip_client::Client;
+use kmip_client::{parse_kmip_messages, Client};
 use kmip_server::{
     handle_client,
     store::KmipStore,
     test_util::{TestClockSource, TestRngSource},
     ServerContext,
 };
-use minidom::Element;
-use quick_xml::{events::Event, reader::Reader, writer::Writer};
+use lazy_static::lazy_static;
+use quick_xml::{reader::Reader, writer::Writer};
 use rustls::{ClientConnection, Stream};
 
 struct PortAllocator {
@@ -175,11 +174,6 @@ where
     t1.join().unwrap();
 }
 
-fn get_buf_reader<P: AsRef<Path>>(filename: P) -> io::Result<impl BufRead> {
-    let file = File::open(filename)?;
-    Ok(BufReader::new(file))
-}
-
 fn pretty_print_xml(xml: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true); // Prevents doubling up on existing whitespace
@@ -212,49 +206,6 @@ fn assert_xml_eq(left: &str, right: &str) {
 
         assert_diff! {&left_xml, &right_xml, "\n", 0};
     }
-}
-
-/// Returns a tuple containing: (Vector of Requests, Vector of Responses)
-fn parse_kmip_messages(xml: &str) -> (Vec<String>, Vec<String>) {
-    let mut reader = Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
-
-    let mut requests = Vec::new();
-    let mut responses = Vec::new();
-    let mut buf = Vec::new();
-
-    loop {
-        match reader.read_event_into(&mut buf) {
-            Err(_) | Ok(Event::Eof) => break,
-            Ok(Event::Start(ref e)) => {
-                let tag_name = e.name();
-                if tag_name.as_ref() == b"RequestMessage" || tag_name.as_ref() == b"ResponseMessage"
-                {
-                    // Capture the full content of this specific element
-                    let span_start =
-                        reader.buffer_position() as usize - (tag_name.as_ref().len() + 2);
-
-                    // We need to find the corresponding end tag
-                    if let Ok(_) = reader.read_to_end_into(tag_name, &mut Vec::new()) {
-                        let span_end = reader.buffer_position() as usize;
-                        let full_tag = &xml[span_start..span_end];
-
-                        if tag_name.as_ref() == b"RequestMessage" {
-                            requests.push(full_tag.to_string());
-                        } else if tag_name.as_ref() == b"ResponseMessage" {
-                            responses.push(full_tag.to_string());
-                        } else {
-                            panic!("Unexpected XML input: {tag_name:?} ");
-                        }
-                    }
-                }
-            }
-            _ => (),
-        }
-        buf.clear();
-    }
-
-    (requests, responses)
 }
 
 pub fn run_e2e_xml_conversation(conv: &str) {
