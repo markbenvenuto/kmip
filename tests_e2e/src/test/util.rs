@@ -269,6 +269,16 @@ fn apply_var_substitution(xml: &str, var_map: &HashMap<String, String>) -> Strin
     result
 }
 
+fn normalize_digest_values(xml: &str) -> String {
+    lazy_static! {
+        static ref DIGEST_RE: Regex =
+            Regex::new(r#"DigestValue\s+type="ByteString"\s+value="[^"]*""#).unwrap();
+    }
+    DIGEST_RE
+        .replace_all(xml, r#"DigestValue type="ByteString" value="NORMALIZED_FOR_TEST""#)
+        .into_owned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,6 +359,30 @@ mod tests {
         let var_map = HashMap::new();
         let xml = r#"<UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>"#;
         let result = apply_var_substitution(xml, &var_map);
+        assert_eq!(result, xml);
+    }
+
+    #[test]
+    fn test_normalize_digest_values_replaces_hash() {
+        let xml = r#"<DigestValue type="ByteString" value="bc12861408b8ac72cdb3b2748ad342b7dc519bd109046a1b931fdaed73591f29"/>"#;
+        let result = normalize_digest_values(xml);
+        assert_eq!(
+            result,
+            r#"<DigestValue type="ByteString" value="NORMALIZED_FOR_TEST"/>"#
+        );
+    }
+
+    #[test]
+    fn test_normalize_digest_values_noop_on_other_elements() {
+        let xml = r#"<SomeElement type="ByteString" value="abc123"/>"#;
+        let result = normalize_digest_values(xml);
+        assert_eq!(result, xml);
+    }
+
+    #[test]
+    fn test_normalize_digest_values_already_normalized() {
+        let xml = r#"<DigestValue type="ByteString" value="NORMALIZED_FOR_TEST"/>"#;
+        let result = normalize_digest_values(xml);
         assert_eq!(result, xml);
     }
 }
