@@ -10,19 +10,19 @@ publish = false
 
 [dependencies]
 aes  = { workspace = true }
-cbc  = { workspace = true }
-ecb  = { workspace = true }
-crypto-common  = { workspace = true }
-block-padding  = { workspace = true }
 aws-lc-rs = { workspace = true }
+block-padding  = { workspace = true }
 bson  = { workspace = true }
 byteorder  = { workspace = true }
+cbc  = { workspace = true }
 chrono  = { workspace = true }
 clap  = { workspace = true }
 clap-log-flag  = { workspace = true }
 clap-verbosity-flag  = { workspace = true }
 confy  = { workspace = true }
+crypto-common  = { workspace = true }
 digest  = { workspace = true }
+ecb  = { workspace = true }
 futures  = { workspace = true }
 hmac  = { workspace = true }
 lazy_static  = { workspace = true }
