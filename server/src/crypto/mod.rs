@@ -5,8 +5,8 @@ use block_modes::{
     Ecb,
     block_padding::{NoPadding, Pkcs7},
 };
-use digest::{BlockInput, FixedOutput, Reset, Update};
-use hmac::{Hmac, Mac, NewMac};
+use digest::{FixedOutput, Update};
+use hmac::{EagerHash, Hmac, KeyInit};
 use protocol::{BlockCipherMode, CryptographicAlgorithm, PaddingMethod, ValidityIndicator};
 use sha2::{Sha224, Sha256, Sha384, Sha512};
 
@@ -287,19 +287,19 @@ pub fn decrypt_block_cipher(
 
 fn do_hmac<D>(key: &[u8], data: &[u8]) -> Result<Vec<u8>, KmipResponseError>
 where
-    D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
+    D: EagerHash,
 {
     // Create HMAC-SHA256 instance which implements `Mac` trait
-    let mut mac = Hmac::<D>::new_varkey(key).expect("HMAC can take key of any size");
+    let mut mac = Hmac::<D>::new_from_slice(key).expect("HMAC can take key of any size");
     mac.update(data);
 
     // `result` has type `Output` which is a thin wrapper around array of
     // bytes for providing constant time equality check
-    let result = mac.finalize();
+    let result = mac.finalize_fixed();
     // To get underlying array use `into_bytes` method, but be careful, since
     // incorrect use of the code value may permit timing attacks which defeat
     // the security provided by the `Output`
-    Ok(result.into_bytes().as_slice().to_vec())
+    Ok(result.to_vec())
 }
 
 pub fn hmac(
@@ -326,14 +326,13 @@ fn do_hmac_verify<D>(
     mac_data: &[u8],
 ) -> Result<ValidityIndicator, KmipResponseError>
 where
-    D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
+    D: EagerHash,
 {
     // Create HMAC-SHA256 instance which implements `Mac` trait
-    let mut mac = Hmac::<D>::new_varkey(key).expect("HMAC can take key of any size");
+    let mut mac = Hmac::<D>::new_from_slice(key).expect("HMAC can take key of any size");
     mac.update(data);
 
-    Ok(mac
-        .verify(mac_data)
+    Ok(hmac::Mac::verify_slice(mac, mac_data)
         .map_or(ValidityIndicator::Invalid, |_| ValidityIndicator::Valid))
 }
 

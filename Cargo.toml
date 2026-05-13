@@ -33,11 +33,11 @@ clap-log-flag = "0.2.1"
 clap-verbosity-flag = "3.0.4"
 confy = "2.0.0"
 difference = "2.0.0"
-digest = "0.9.0"
+digest = "0.11.3"
 futures = "0.3.13"
 heck = "0.5"
 hex = "0.4.3"
-hmac = "0.10.1"
+hmac = "0.13.0"
 kmip_client = { path = "kmip_client" }
 kmip_server = { path = "server" }
 lazy_static = "1.4.0"
@@ -51,11 +51,11 @@ proc-macro2 = "1"
 protocol = { path = "protocol" }
 quick-xml = "0.40.0"
 quote = "1"
-ring = "0.16.15"
+ring = "0.17.14"
 rustls = { version = "0.23.36", features = ["aws_lc_rs"] }
 serde = "1.0.125"
 serde_derive = "1.0.125"
-sha2 = "0.9.9"
+sha2 = "0.11.0"
 strum = "0.28.0"
 strum_macros = "0.28.0"
 syn = { version = "2", features = ["full"] }
