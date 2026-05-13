@@ -68,8 +68,6 @@ impl<'a> XmlReader<'a> {
 
                     match type_attr {
                         None => {
-                            println!("X Tag:{:?}", tag);
-
                             self.struct_stack.push((tag, self.depth));
                             return Some(Ok(Value {
                                 tag,
@@ -77,7 +75,6 @@ impl<'a> XmlReader<'a> {
                             }));
                         }
                         Some(type_attr) => {
-                            println!("XV Tag:{:?}", tag);
                             let item_type = match ItemType::from_str(&type_attr.value) {
                                 Ok(t) => t,
                                 Err(e) => {

@@ -1,11 +1,39 @@
 use std::str::{self};
 
 use chrono::{DateTime, Utc};
+use num_derive::FromPrimitive;
+use strum_macros::IntoStaticStr;
 use xml::writer::{EmitterConfig, XmlEvent};
 
 use crate::{de_xml::EnumResolver, error::TTLVError, kmip_enums::*, ser::EncodedWriter};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
+
+// UGLY HACK to support this bitmask
+#[derive(Debug, FromPrimitive, IntoStaticStr, Clone, Copy)]
+#[repr(i32)]
+enum CryptographicUsageMask {
+    Sign = 0x00000001,
+    Verify = 0x00000002,
+    Encrypt = 0x00000004,
+    Decrypt = 0x00000008,
+    WrapKey = 0x00000010,
+    UnwrapKey = 0x00000020,
+    Export = 0x00000040,
+    MACGenerate = 0x00000080,
+    MACVerify = 0x00000100,
+    DeriveKey = 0x00000200,
+    ContentCommitment = 0x00000400, // (NonRepudiation)
+    KeyAgreement = 0x00000800,
+    CertificateSign = 0x00001000,
+    CRLSign = 0x00002000,
+    GenerateCryptogram = 0x00004000,
+    ValidateCryptogram = 0x00008000,
+    TranslateEncrypt = 0x00010000,
+    TranslateDecrypt = 0x00020000,
+    TranslateWrap = 0x00040000,
+    TranslateUnwrap = 0x00080000,
+}
 
 pub struct XmlNestedWriter<'a> {
     writer: xml::writer::EventWriter<std::vec::Vec<u8>>,
@@ -67,31 +95,34 @@ impl<'a> EncodedWriter for XmlNestedWriter<'a> {
     }
 
     fn write_i32(&mut self, v: i32) -> TTLVResult<()> {
-        // TODO special case masks - 5.4.1.6.4 Integer - Special case for Masks
-        //  (Cryptographic Usage Mask, Storage Status Mask):
-
         let tag = self.tag.unwrap();
 
-        // TODO - cannot make this work until change  to stop being an i32
-        // if tag == Tag::CryptographicUsageMask {
-        //     let mut buffer = String::new();
+        // TODO special case masks - 5.4.1.6.4 Integer - Special case for Masks
+        //  (Cryptographic Usage Mask, Storage Status Mask):
+        if tag == Tag::AttributeValue
+            && let Some(attribute_tag) = self.attribute_tag
+            && attribute_tag == Tag::CryptographicUsageMask
+        {
+            let mut buffer = String::new();
 
-        //     let max_bit =
-        //         f32::log2(CryptographicUsageMask::TranslateUnwrap as usize as f32) as usize;
-        //     for i in 0..max_bit {
-        //         let bit: i32 = 1 << i;
-        //         if (v & bit) == 1 {
-        //             if buffer.is_empty() {
-        //                 buffer.push(' ');
-        //             }
-        //             let o: CryptographicUsageMask = num::FromPrimitive::from_i32(bit).unwrap();
-        //             let s = o.as_static();
-        //             buffer.push_str(s);
-        //         }
-        //     }
+            let max_bit =
+                f32::log2(CryptographicUsageMask::TranslateUnwrap as usize as f32) as usize;
+            for i in 0..max_bit {
+                let bit: i32 = 1 << i;
 
-        //     return self.write_element(tag.as_ref(), "Integer", &buffer);
-        // }
+                if (v & bit) > 0 {
+                    if !buffer.is_empty() {
+                        buffer.push(' ');
+                    }
+
+                    let o: CryptographicUsageMask = num::FromPrimitive::from_i32(bit).unwrap();
+                    let s: &str = o.into();
+                    buffer.push_str(s);
+                }
+            }
+
+            return self.write_element(tag.as_ref(), "Integer", &buffer);
+        }
 
         self.write_element(tag.as_ref(), "Integer", &v.to_string())
     }

@@ -16,7 +16,7 @@ where
 
 fn from_str<T>(orig: &str) -> std::result::Result<u32, TTLVError>
 where
-    T: num::ToPrimitive + FromStr + std::fmt::Debug,
+    T: num::ToPrimitive + FromStr,
     <T as FromStr>::Err: std::fmt::Debug,
 {
     // TODO - stop using unwrap
