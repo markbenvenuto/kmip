@@ -1,5 +1,5 @@
+use aws_lc_rs::rand::*;
 use lazy_static::lazy_static;
-use ring::rand::*;
 
 use crate::RngSource;
 

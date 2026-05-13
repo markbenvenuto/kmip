@@ -24,6 +24,7 @@ edition = "2024"
 
 [workspace.dependencies]
 aes = "0.6.0"
+aws-lc-rs = "1.17.0"
 block-modes = "0.7.0"
 bson = { version = "3.1.0", features = ["serde"] }
 byteorder = "1.4.3"
@@ -51,7 +52,6 @@ proc-macro2 = "1"
 protocol = { path = "protocol" }
 quick-xml = "0.40.0"
 quote = "1"
-ring = "0.17.14"
 rustls = { version = "0.23.36", features = ["aws_lc_rs"] }
 serde = "1.0.125"
 serde_derive = "1.0.125"
