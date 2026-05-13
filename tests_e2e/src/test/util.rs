@@ -269,8 +269,12 @@ fn extract_variables(xml: &str, var_map: &mut HashMap<String, String>) {
 }
 
 fn apply_var_substitution(xml: &str, var_map: &HashMap<String, String>) -> String {
+    // Sort by key length descending so longer keys (e.g. $UNIQUE_IDENTIFIER_10) are replaced
+    // before shorter prefixes ($UNIQUE_IDENTIFIER_1), and iteration order is deterministic.
+    let mut pairs: Vec<(&String, &String)> = var_map.iter().collect();
+    pairs.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
     let mut result = xml.to_string();
-    for (var, value) in var_map {
+    for (var, value) in pairs {
         result = result.replace(var.as_str(), value.as_str());
     }
     result
@@ -384,8 +388,9 @@ impl ConversationNormalizer {
         extract_variables(actual, &mut self.var_map);
         let norm_expected = apply_var_substitution(expected, &self.var_map);
         let norm_expected = strip_digest_attribute_block_if_absent(actual, &norm_expected);
+        let norm_actual = normalize_crypto_usage_mask(actual);
         let norm_expected = normalize_crypto_usage_mask(&norm_expected);
-        let norm_actual = normalize_digest_values(actual);
+        let norm_actual = normalize_digest_values(&norm_actual);
         let norm_expected = normalize_digest_values(&norm_expected);
         (norm_actual, norm_expected)
     }
