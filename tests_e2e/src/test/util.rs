@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env,
     io::Cursor,
     net,
@@ -18,6 +19,7 @@ use kmip_server::{
 };
 use lazy_static::lazy_static;
 use quick_xml::{reader::Reader, writer::Writer};
+use regex::Regex;
 use rustls::{ClientConnection, Stream};
 
 struct PortAllocator {
@@ -228,4 +230,94 @@ pub fn run_e2e_xml_conversation(conv: &str) {
             // assert_eq! {resp, expected_resp };
         }
     });
+}
+
+fn extract_variables(xml: &str, var_map: &mut HashMap<String, String>) {
+    lazy_static! {
+        static ref TIMESTAMP_RE: Regex =
+            Regex::new(r#"TimeStamp\s+type="DateTime"\s+value="([^"]*)""#).unwrap();
+        static ref UID_RE: Regex =
+            Regex::new(r#"UniqueIdentifier\s+type="TextString"\s+value="([^"]*)""#).unwrap();
+    }
+
+    if !var_map.contains_key("$NOW") {
+        if let Some(caps) = TIMESTAMP_RE.captures(xml) {
+            var_map.insert("$NOW".to_string(), caps[1].to_string());
+        }
+    }
+
+    let mut counter = var_map
+        .keys()
+        .filter(|k| k.starts_with("$UNIQUE_IDENTIFIER_"))
+        .count();
+
+    for caps in UID_RE.captures_iter(xml) {
+        let value = caps[1].to_string();
+        // Check var_map.values() each iteration so insertions within this loop are visible
+        if !var_map.values().any(|v| v == &value) {
+            var_map.insert(format!("$UNIQUE_IDENTIFIER_{}", counter), value);
+            counter += 1;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_extract_timestamp() {
+        let xml = r#"<TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>"#;
+        let mut var_map = HashMap::new();
+        extract_variables(xml, &mut var_map);
+        assert_eq!(
+            var_map.get("$NOW"),
+            Some(&"1970-01-01T00:02:03+00:00".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_unique_identifier() {
+        let xml = r#"<UniqueIdentifier type="TextString" value="abc-123"/>"#;
+        let mut var_map = HashMap::new();
+        extract_variables(xml, &mut var_map);
+        assert_eq!(
+            var_map.get("$UNIQUE_IDENTIFIER_0"),
+            Some(&"abc-123".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_two_unique_identifiers() {
+        let xml = r#"
+            <UniqueIdentifier type="TextString" value="id-one"/>
+            <UniqueIdentifier type="TextString" value="id-two"/>
+        "#;
+        let mut var_map = HashMap::new();
+        extract_variables(xml, &mut var_map);
+        assert_eq!(var_map.get("$UNIQUE_IDENTIFIER_0"), Some(&"id-one".to_string()));
+        assert_eq!(var_map.get("$UNIQUE_IDENTIFIER_1"), Some(&"id-two".to_string()));
+    }
+
+    #[test]
+    fn test_now_not_overwritten_on_second_call() {
+        let xml = r#"<TimeStamp type="DateTime" value="second-value"/>"#;
+        let mut var_map = HashMap::new();
+        var_map.insert("$NOW".to_string(), "first-value".to_string());
+        extract_variables(xml, &mut var_map);
+        assert_eq!(var_map.get("$NOW"), Some(&"first-value".to_string()));
+    }
+
+    #[test]
+    fn test_uid_not_added_twice_for_same_value() {
+        let xml = r#"
+            <UniqueIdentifier type="TextString" value="same-id"/>
+            <UniqueIdentifier type="TextString" value="same-id"/>
+        "#;
+        let mut var_map = HashMap::new();
+        extract_variables(xml, &mut var_map);
+        assert_eq!(var_map.get("$UNIQUE_IDENTIFIER_0"), Some(&"same-id".to_string()));
+        assert!(var_map.get("$UNIQUE_IDENTIFIER_1").is_none());
+    }
 }
