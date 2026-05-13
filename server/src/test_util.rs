@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 
 use crate::{ClockSource, RngSource};
 
@@ -17,8 +17,8 @@ impl Default for TestClockSource {
 }
 
 impl ClockSource for TestClockSource {
-    fn now(&self) -> chrono::DateTime<Utc> {
-        chrono::DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(123, 0), Utc)
+    fn now(&self) -> DateTime<Utc> {
+        DateTime::<Utc>::from_timestamp(123, 0).unwrap()
     }
 }
 

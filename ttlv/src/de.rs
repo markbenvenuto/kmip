@@ -307,11 +307,15 @@ fn read_value(reader: &mut dyn Read) -> TTLVResult<Value> {
 /////////////////////////////
 struct IndentPrinter {
     indent: usize,
+    buf: Vec<u8>,
 }
 
 impl IndentPrinter {
     fn new() -> IndentPrinter {
-        IndentPrinter { indent: 0 }
+        IndentPrinter {
+            indent: 0,
+            buf: Vec::new(),
+        }
     }
 
     fn indent(&mut self) {
@@ -322,22 +326,39 @@ impl IndentPrinter {
         self.indent -= 1;
     }
 
-    fn print(&self, msg: &str) {
-        // for _ in 0..self.indent {
-        //     std::io::stdout().write(" ".as_bytes());
-        // }
-        // std::io::stdout().write(msg.as_bytes());
+    fn print(&mut self, msg: &str) {
         let space = " ".repeat(self.indent * 4);
         // Use println! to play nicely with unit tests
         println!("{}{}", space, msg);
+    }
+
+    fn print_to_stdout(&self) {
+        println!("{}", str::from_utf8(&self.buf).unwrap());
+    }
+
+    fn to_string(&self) -> String {
+        str::from_utf8(&self.buf).unwrap().to_string()
     }
 }
 
 pub fn to_print(buf: &[u8]) {
     let mut printer: IndentPrinter = IndentPrinter::new();
+
     if let Err(r) = to_print_int(&mut printer, buf) {
         println!("Erroring in to_print: {:?}", r);
     }
+
+    printer.print_to_stdout();
+}
+
+pub fn to_print_str(buf: &[u8]) -> String {
+    let mut printer: IndentPrinter = IndentPrinter::new();
+
+    if let Err(r) = to_print_int(&mut printer, buf) {
+        println!("Erroring in to_print: {:?}", r);
+    }
+
+    printer.to_string()
 }
 
 fn to_print_int(printer: &mut IndentPrinter, buf: &[u8]) -> TTLVResult<()> {
@@ -504,34 +525,11 @@ impl<'a> Reader for TtlvReader<'a> {
     }
 }
 
-fn read_to_end(buf: &[u8]) -> TTLVResult<Vec<Value>> {
-    let mut reader = TtlvReader::new(buf);
-
-    let mut tokens = Vec::new();
-
-    loop {
-        let token_opt = reader.read();
-        match token_opt {
-            None => break,
-            Some(token) => {
-                tokens.push(token?);
-            }
-        }
-    }
-
-    Ok(tokens)
-}
-
-// pub trait EnumResolver {
-//     fn resolve_enum(&self, name: &str, value: i32) -> TTLVResult<String>;
-//     fn resolve_enum_str(&self, tag: Tag, value: &str) -> std::result::Result<i32, TTLVError>;
-//     fn to_string(&self, tag: Tag, value: i32) -> std::result::Result<String, TTLVError>;
-// }
-
 #[cfg(test)]
 mod tests {
+
     use crate::{
-        de::{Reader, TtlvReader, read_to_end, to_print},
+        de::{Reader, TTLVResult, TtlvReader, to_print},
         error::TTLVError,
         kmip_enums::{Tag, Value, ValueType},
         parser::{
@@ -541,6 +539,24 @@ mod tests {
             expect_text_string,
         },
     };
+
+    fn read_to_end(buf: &[u8]) -> TTLVResult<Vec<Value>> {
+        let mut reader = TtlvReader::new(buf);
+
+        let mut tokens = Vec::new();
+
+        loop {
+            let token_opt = reader.read();
+            match token_opt {
+                None => break,
+                Some(token) => {
+                    tokens.push(token?);
+                }
+            }
+        }
+
+        Ok(tokens)
+    }
 
     struct RequestHeader {
         protocol_version_major: i32,

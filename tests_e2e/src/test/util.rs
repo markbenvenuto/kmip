@@ -63,7 +63,7 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
     let root_dir = get_test_data_dir();
     let server_cert_file = root_dir.join("server.pem");
     let server_key_file = root_dir.join("server.key");
-    let ca_cert_file = root_dir.join("ca.pem");
+    let _ca_cert_file = root_dir.join("ca.pem");
 
     // TODO - dynamically allocate port
     let addr: net::SocketAddr = net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);

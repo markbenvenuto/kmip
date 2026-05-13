@@ -1,6 +1,6 @@
 use std::str::{self};
 
-use chrono::TimeZone;
+use chrono::{DateTime, Utc};
 use xml::writer::{EmitterConfig, XmlEvent};
 
 use crate::{de_xml::EnumResolver, error::TTLVError, kmip_enums::*, ser::EncodedWriter};
@@ -111,7 +111,7 @@ impl<'a> EncodedWriter for XmlNestedWriter<'a> {
 
     fn write_i64_datetime(&mut self, v: i64) -> TTLVResult<()> {
         // TODO - to_rfc3339 can panic if the datetime is bad
-        let dt = chrono::Utc.timestamp(v, 0);
+        let dt = DateTime::<Utc>::from_timestamp(v, 0).unwrap();
         self.write_element(self.tag.unwrap().as_ref(), "DateTime", &dt.to_rfc3339())
     }
 

@@ -2,9 +2,9 @@ use std::io::{Read, Write};
 
 use pretty_hex::*;
 use protocol::*;
-use quick_xml::{events::Event, reader::Reader, writer::Writer};
+use quick_xml::{events::Event, reader::Reader};
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::debug;
 use ttlv::read_msg;
 
 #[derive(Error, Debug)]
@@ -28,18 +28,16 @@ pub enum ClientError {
 
     #[error("the data for key `{0}` is not available")]
     Redaction(String),
+
     #[error("invalid header (expected {expected:?}, found {found:?})")]
     InvalidHeader { expected: String, found: String },
+
+    #[error("unexpected response type for operation {0}")]
+    UnexpectedResponse(&'static str),
+
     #[error("unknown client error")]
     Unknown,
 }
-
-// TODO - convert TTLVError to thiserror
-// impl From<TTLVError> for ClientError {
-//     fn from(e: TTLVError) -> Self {
-//         ClientError::TTLVProtocol(format!("TTLV error: {}", e))
-//     }
-// }
 
 pub struct Client<'a, T: 'a + Read + Write + ?Sized> {
     stream: &'a mut T,
@@ -101,7 +99,7 @@ where
         if let ResponseOperationEnum::Create(x) = rsp {
             return Ok(x);
         } else {
-            panic!();
+            return Err(ClientError::UnexpectedResponse("Create"));
         }
     }
 
@@ -119,7 +117,7 @@ where
         if let ResponseOperationEnum::Get(x) = rsp {
             return Ok(x);
         } else {
-            panic!();
+            return Err(ClientError::UnexpectedResponse("Get"));
         }
     }
 
@@ -134,7 +132,7 @@ where
         if let ResponseOperationEnum::Activate(x) = rsp {
             return Ok(x);
         } else {
-            panic!();
+            return Err(ClientError::UnexpectedResponse("Activate"));
         }
     }
 
@@ -155,7 +153,7 @@ where
         if let ResponseOperationEnum::Revoke(x) = rsp {
             return Ok(x);
         } else {
-            panic!();
+            return Err(ClientError::UnexpectedResponse("Revoke"));
         }
     }
 
@@ -170,7 +168,7 @@ where
         if let ResponseOperationEnum::Destroy(x) = rsp {
             return Ok(x);
         } else {
-            panic!();
+            return Err(ClientError::UnexpectedResponse("Destroy"));
         }
     }
 
@@ -192,7 +190,7 @@ where
         if let ResponseOperationEnum::Encrypt(x) = rsp {
             return Ok(x);
         } else {
-            panic!();
+            return Err(ClientError::UnexpectedResponse("Encrypt"));
         }
     }
 
@@ -215,7 +213,7 @@ where
         if let ResponseOperationEnum::Decrypt(x) = rsp {
             return Ok(x);
         } else {
-            panic!();
+            return Err(ClientError::UnexpectedResponse("Decrypt"));
         }
     }
 
@@ -223,8 +221,7 @@ where
         &mut self,
         bytes: &mut [u8],
     ) -> std::result::Result<ResponseOperationEnum, ClientError> {
-        println!("Request bytes:");
-        ttlv::to_print(bytes);
+        debug!("Request bytes: {}", ttlv::to_print_str(bytes));
 
         self.stream.write_all(bytes).unwrap();
 
@@ -232,10 +229,9 @@ where
 
         let msg = read_msg(&mut self.stream)?;
 
-        println!("Response bytes:");
-        info!("Response Message: {:?}", msg.hex_dump());
-
-        ttlv::to_print(&msg);
+        debug!("Response bytes:");
+        debug!("Response Message: {:?}", msg.hex_dump());
+        debug!("Request Message: {}", ttlv::to_print_str(&msg));
 
         let response = ttlv::from_bytes::<ResponseMessage>(&msg)?;
 
@@ -281,9 +277,8 @@ where
 
         let msg = read_msg(&mut self.stream).unwrap();
 
-        info!("Response Message: {:?}", msg.hex_dump());
-
-        ttlv::to_print(&msg);
+        debug!("Response Message: {:?}", msg.hex_dump());
+        debug!("Response Message: {:?}", ttlv::to_print_str(&msg));
 
         // TODO validate request
         let response = ttlv::from_bytes::<ResponseMessage>(&msg).unwrap();
@@ -294,28 +289,6 @@ where
 
         ttlv::to_xml_bytes(&response, &resolver).unwrap()
     }
-
-    //     fn create_ok_response(op: ResponseOperationEnum) -> Vec<u8> {
-    //         let r = ResponseMessage {
-    //             response_header: ResponseHeader {
-    //                 protocol_version: ProtocolVersion {
-    //                     protocol_version_major: 1,
-    //                     protocol_version_minor: 0,
-    //                 },
-    //                 time_stamp: Utc::now(),
-    //                 batch_count: 1,
-    //             },
-    //             batch_item: ResponseBatchItem {
-    //                 result_status: ResultStatus::Success,
-    //                 result_reason: ResultReason::GeneralFailure,
-    //                 result_message: None,
-    //                 response_payload: Some(op),
-    //                 // ResponseOperation: None,
-    //             },
-    //         };
-
-    //         return ttlv::to_bytes(&r).unwrap();
-    //     }
 }
 
 /// Returns a tuple containing: (Vector of Requests, Vector of Responses)

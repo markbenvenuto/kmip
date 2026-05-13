@@ -14,7 +14,6 @@ use rustls::{
     RootCertStore,
     SignatureScheme,
     client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-    crypto::CryptoProvider,
     pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime, pem::PemObject},
 };
 

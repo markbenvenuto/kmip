@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 
 use crate::{Reader, TTLVError, kmip_enums::*};
 
@@ -157,10 +157,7 @@ pub fn expect_datetime(reader: &mut dyn Reader, expected_tag: Tag) -> TTLVResult
         });
     }
     match token.value {
-        ValueType::DateTime(v) => Ok(chrono::DateTime::<Utc>::from_utc(
-            NaiveDateTime::from_timestamp(v, 0),
-            Utc,
-        )),
+        ValueType::DateTime(v) => Ok(DateTime::<Utc>::from_timestamp(v, 0).unwrap()),
         _ => Err(TTLVError::WrongValueType {
             tag: token.tag,
             expected: ItemType::DateTime,

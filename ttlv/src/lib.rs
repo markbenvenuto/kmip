@@ -8,7 +8,7 @@ mod ser_xml;
 
 use std::io::{Cursor, Read};
 
-pub use de::{Reader, TtlvDeserialize, TtlvReader, to_print};
+pub use de::{Reader, TtlvDeserialize, TtlvReader, to_print, to_print_str};
 pub use error::TTLVError;
 pub use kmip_enums::Tag;
 pub use ser::{NestedWriter, TtlvSerialize};

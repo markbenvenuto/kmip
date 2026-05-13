@@ -10,7 +10,7 @@ use std::{
 use chrono::Utc;
 use pretty_hex::*;
 use strum::AsStaticRef;
-use tracing::info;
+use tracing::{debug, info};
 use ttlv::read_msg;
 
 pub mod crypto;
@@ -935,8 +935,8 @@ fn create_error_response(
 // }
 
 pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
-    info!("Request Message: {:?}", buf.hex_dump());
-    ttlv::to_print(buf);
+    debug!("Request Message: {:?}", buf.hex_dump());
+    debug!("Request bytes: {}", ttlv::to_print_str(buf));
 
     let request_ret = ttlv::from_bytes::<RequestMessage>(&buf);
 
@@ -949,9 +949,9 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         );
 
         let vr = ttlv::to_bytes(&rm).unwrap();
-        info!("Response Message: {:?}", vr.hex_dump());
+        debug!("Response Message: {:?}", vr.hex_dump());
 
-        ttlv::to_print(vr.as_slice());
+        debug!("Response Message: {}", ttlv::to_print_str(vr.as_slice()));
 
         return vr;
     }
@@ -1045,9 +1045,9 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
         .protocol_version_minor;
 
     let vr = ttlv::to_bytes(&rm).unwrap();
-    info!("Response Message: {:?}", vr.hex_dump());
+    debug!("Response Message: {:?}", vr.hex_dump());
 
-    ttlv::to_print(vr.as_slice());
+    debug!("Response Message: {:?}", ttlv::to_print_str(vr.as_slice()));
 
     vr
 }
