@@ -1,24 +1,24 @@
-use std::sync::Arc;
-
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
-use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::path::Path;
-use std::path::PathBuf;
-
-use minidom::Element;
+use std::{
+    fs::File,
+    io::{self, BufRead, BufReader, Read, Write},
+    net::TcpStream,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use clap::{Parser, Subcommand};
 use kmip_client::Client;
+use minidom::Element;
 use protocol::*;
-use rustls::ClientConfig;
-use rustls::RootCertStore;
-use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
-use rustls::crypto::CryptoProvider;
-use rustls::pki_types::pem::PemObject;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime};
-use rustls::{DigitallySignedStruct, SignatureScheme};
+use rustls::{
+    ClientConfig,
+    DigitallySignedStruct,
+    RootCertStore,
+    SignatureScheme,
+    client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
+    crypto::CryptoProvider,
+    pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime, pem::PemObject},
+};
 
 /// Search for a pattern in a file and display the lines that contain it.
 #[derive(Debug, Parser)]

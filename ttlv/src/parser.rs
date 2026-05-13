@@ -1,10 +1,6 @@
-use chrono::DateTime;
-use chrono::NaiveDateTime;
-use chrono::Utc;
+use chrono::{DateTime, NaiveDateTime, Utc};
 
-use crate::Reader;
-use crate::TTLVError;
-use crate::kmip_enums::*;
+use crate::{Reader, TTLVError, kmip_enums::*};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 

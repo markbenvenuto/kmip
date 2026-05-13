@@ -1,7 +1,6 @@
 use chrono::Utc;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
 use tracing::{info, warn};
-use rustls::pki_types::pem::PemObject;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 #[macro_use]
 extern crate serde_derive;
@@ -17,20 +16,23 @@ extern crate confy;
 
 extern crate chrono;
 
-use std::{net::IpAddr, net::Ipv4Addr, sync::Arc};
-
-use rustls::{self, RootCertStore, ServerConfig, ServerConnection};
+use std::{
+    net,
+    net::{IpAddr, Ipv4Addr, TcpListener},
+    path::PathBuf,
+    sync::Arc,
+    thread,
+};
 
 use clap::Parser;
-use std::net;
-use std::net::TcpListener;
-use std::path::PathBuf;
-use std::thread;
-
-use kmip_server::ServerContext;
-use kmip_server::crypto::rng::SecureRngSource;
-use kmip_server::store::KmipStore;
-use kmip_server::{ClockSource, handle_client};
+use kmip_server::{
+    ClockSource,
+    ServerContext,
+    crypto::rng::SecureRngSource,
+    handle_client,
+    store::KmipStore,
+};
+use rustls::{self, RootCertStore, ServerConfig, ServerConnection};
 // use bson;
 
 #[derive(Debug, Clone, EnumString)]

@@ -1,5 +1,4 @@
-use chrono::NaiveDateTime;
-use chrono::Utc;
+use chrono::{NaiveDateTime, Utc};
 
 use crate::{ClockSource, RngSource};
 

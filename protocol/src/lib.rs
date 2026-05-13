@@ -2,21 +2,18 @@
 
 use std::str::FromStr;
 
-use chrono::DateTime;
-use chrono::Utc;
-use num_derive::FromPrimitive;
-use num_derive::ToPrimitive;
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
-use strum_macros::AsStaticStr;
-use strum_macros::Display;
-use strum_macros::EnumString;
-use ttlv::TtlvDeserialize;
-use ttlv::TtlvEnumDeserialize;
-use ttlv::TtlvEnumSerialize;
-use ttlv::TtlvSerialize;
-use ttlv::TtlvTaggedEnumDeserialize;
-use ttlv::TtlvTaggedEnumSerialize;
+use chrono::{DateTime, Utc};
+use num_derive::{FromPrimitive, ToPrimitive};
+use serde_derive::{Deserialize, Serialize};
+use strum_macros::{AsStaticStr, Display, EnumString};
+use ttlv::{
+    TtlvDeserialize,
+    TtlvEnumDeserialize,
+    TtlvEnumSerialize,
+    TtlvSerialize,
+    TtlvTaggedEnumDeserialize,
+    TtlvTaggedEnumSerialize,
+};
 
 mod de;
 mod enum_resolver;
@@ -816,7 +813,8 @@ pub struct RegisterResponse {
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetRequest {
-    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first
+    // batch
     pub unique_identifier: String,
 
     pub key_format_type: Option<KeyFormatType>,
@@ -842,7 +840,8 @@ pub struct GetResponse {
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetAttributesRequest {
-    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first
+    // batch
     pub unique_identifier: String,
 
     pub attribute_name: Option<Vec<String>>,
@@ -859,7 +858,8 @@ pub struct GetAttributesResponse {
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct GetAttributeListRequest {
-    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first
+    // batch
     pub unique_identifier: String,
 }
 
@@ -874,7 +874,8 @@ pub struct GetAttributeListResponse {
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct ActivateRequest {
-    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first
+    // batch
     pub unique_identifier: String,
 }
 
@@ -887,7 +888,8 @@ pub struct ActivateResponse {
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct RevokeRequest {
-    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first
+    // batch
     pub unique_identifier: String,
 
     pub revocation_reason: RevocationReason,
@@ -908,7 +910,8 @@ pub struct RevokeResponse {
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct DestroyRequest {
-    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first
+    // batch
     pub unique_identifier: String,
 }
 
@@ -966,7 +969,8 @@ pub struct DecryptResponse {
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct MACRequest {
-    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first
+    // batch
     pub unique_identifier: Option<String>,
 
     pub cryptographic_parameters: Option<CryptographicParameters>,
@@ -986,7 +990,8 @@ pub struct MACResponse {
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
 #[ttlv(tag = "RequestPayload")]
 pub struct MACVerifyRequest {
-    // TODO - this is optional in batches - we use the implicit server generated id from the first batch
+    // TODO - this is optional in batches - we use the implicit server generated id from the first
+    // batch
     pub unique_identifier: Option<String>,
 
     pub cryptographic_parameters: Option<CryptographicParameters>,

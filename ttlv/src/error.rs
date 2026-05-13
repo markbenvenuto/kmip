@@ -27,20 +27,20 @@ pub enum Error {
     // Deserializer without going through `ser::Error` and `de::Error`. These
     // are specific to the format, in this case JSON.
     Eof,
-    UnsupportedType, // Syntax,
-                     // ExpectedBoolean,
-                     // ExpectedInteger,
-                     // ExpectedString,
-                     // ExpectedNull,
-                     // ExpectedArray,
-                     // ExpectedArrayComma,
-                     // ExpectedArrayEnd,
-                     // ExpectedMap,
-                     // ExpectedMapColon,
-                     // ExpectedMapComma,
-                     // ExpectedMapEnd,
-                     // ExpectedEnum,
-                     // TrailingCharacters
+    UnsupportedType, /* Syntax,
+                      * ExpectedBoolean,
+                      * ExpectedInteger,
+                      * ExpectedString,
+                      * ExpectedNull,
+                      * ExpectedArray,
+                      * ExpectedArrayComma,
+                      * ExpectedArrayEnd,
+                      * ExpectedMap,
+                      * ExpectedMapColon,
+                      * ExpectedMapComma,
+                      * ExpectedMapEnd,
+                      * ExpectedEnum,
+                      * TrailingCharacters */
 }
 
 impl std::convert::From<TTLVError> for Error {

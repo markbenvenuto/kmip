@@ -1,30 +1,24 @@
+use std::{
+    error::Error,
+    fmt,
+    io::{Read, Write},
+    net::SocketAddr,
+    string::ToString,
+    sync::{Arc, Mutex},
+};
+
+use chrono::Utc;
+use pretty_hex::*;
 use strum::AsStaticRef;
 use tracing::info;
 use ttlv::read_msg;
-
-use std::{io::Read, io::Write};
-
-use pretty_hex::*;
-
-use chrono::Utc;
-
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::sync::Mutex;
-
-use std::error::Error;
-use std::fmt;
-use std::string::ToString;
 
 pub mod crypto;
 pub mod store;
 pub mod test_util;
 
 use protocol::*;
-
-use store::ManagedAttributes;
-use store::ManagedObjectEnum;
-use store::{KmipStore, SymmetricKeyStore};
+use store::{KmipStore, ManagedAttributes, ManagedObjectEnum, SymmetricKeyStore};
 
 /// Process some amount of received plaintext.
 pub fn handle_client<T>(stream: &mut T, server_context: &ServerContext)
@@ -323,8 +317,10 @@ fn process_create_request(
     match req.object_type {
         ObjectType::SymmetricKey => {
             // let crypt_len = ma.cryptographic_length.unwrap();
-            // let algo = num::FromPrimitive::from_i32(ma.cryptographic_algorithm.unwrap()).unwrap();
-            // //                    ma.cryptographic_algorithm = Some(num::FromPrimitive::from_i32(*a).unwrap());
+            // let algo =
+            // num::FromPrimitive::from_i32(ma.cryptographic_algorithm.unwrap()).unwrap();
+            // //                    ma.cryptographic_algorithm =
+            // Some(num::FromPrimitive::from_i32(*a).unwrap());
 
             // TODO - process activation date if set
 
@@ -362,7 +358,8 @@ fn process_create_request(
                 ));
             }
 
-            //let crypt_len = sks.symmetric_key.key_block.cryptographic_length.ok_or_else(|| KmipResponseError::new("Invalid value for cryptographic_length"))?;
+            //let crypt_len = sks.symmetric_key.key_block.cryptographic_length.ok_or_else(||
+            // KmipResponseError::new("Invalid value for cryptographic_length"))?;
             let crypt_len = sks.cryptographic_length;
             // TODO - validate crypt len
 
@@ -719,10 +716,12 @@ fn process_encrypt_request<'a>(
     }
 
     // TODO
-    // We only support block ciphers for now, if we support streaming ciphers we will have to do something
+    // We only support block ciphers for now, if we support streaming ciphers we will have to do
+    // something
     let block_cipher_mode =
         block_cipher_mode.ok_or_else(|| KmipResponseError::new("Block Cipher Mode is required"))?;
-    // let padding_method = padding_method.ok_or_else(|| KmipResponseError::new("Padding Method Mode is required"))?;
+    // let padding_method = padding_method.ok_or_else(|| KmipResponseError::new("Padding Method Mode
+    // is required"))?;
     let padding_method = padding_method.unwrap_or(PaddingMethod::None);
 
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
@@ -777,10 +776,12 @@ fn process_decrypt_request(
     }
 
     // TODO
-    // We only support block ciphers for now, if we support streaming ciphers we will have to do something
+    // We only support block ciphers for now, if we support streaming ciphers we will have to do
+    // something
     let block_cipher_mode =
         block_cipher_mode.ok_or_else(|| KmipResponseError::new("Block Cipher Mode is required"))?;
-    // let padding_method = padding_method.ok_or_else(|| KmipResponseError::new("Padding Method Mode is required"))?;
+    // let padding_method = padding_method.ok_or_else(|| KmipResponseError::new("Padding Method Mode
+    // is required"))?;
     let padding_method = padding_method.unwrap_or(PaddingMethod::None);
 
     // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
@@ -1057,8 +1058,11 @@ mod tests {
     use protocol::RequestMessage;
 
     use crate::{
-        RequestContext, ServerContext, process_kmip_request, store::KmipStore,
-        test_util::TestClockSource, test_util::TestRngSource,
+        RequestContext,
+        ServerContext,
+        process_kmip_request,
+        store::KmipStore,
+        test_util::{TestClockSource, TestRngSource},
     };
 
     #[test]

@@ -2,7 +2,6 @@
 //! of a C-like enum.
 //!
 //! # Examples
-//!
 
 #![recursion_limit = "128"]
 
@@ -10,13 +9,13 @@ extern crate proc_macro;
 
 mod parse;
 
+use std::iter;
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse_macro_input;
 
 use crate::parse::Input;
-
-use std::iter;
 
 #[proc_macro_derive(Serialize_enum)]
 pub fn derive_serialize(input: TokenStream) -> TokenStream {

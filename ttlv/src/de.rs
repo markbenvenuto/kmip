@@ -1,16 +1,13 @@
-use std::io::Cursor;
-use std::io::Read;
-
-use std::string::ToString;
+use std::{
+    io::{Cursor, Read},
+    string::ToString,
+};
 
 use byteorder::{BigEndian, ReadBytesExt};
-use chrono::DateTime;
-use chrono::NaiveDateTime;
-use chrono::Utc;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use pretty_hex::*;
 
-use crate::error::TTLVError;
-use crate::kmip_enums::*;
+use crate::{error::TTLVError, kmip_enums::*};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
@@ -95,7 +92,8 @@ fn check_type_len(actual: u32, expected: u32, context: &str) -> TTLVResult<()> {
 fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<u32> {
     let len = read_len(reader)?;
 
-    // Work around a bug in a particular implementation that is serializing Enumeration as 8 bytes, sigh. They are otherwise writing it correctly though
+    // Work around a bug in a particular implementation that is serializing Enumeration as 8 bytes,
+    // sigh. They are otherwise writing it correctly though
     if len == 8 {
         // Ignore incorrect length for now, sadness
     } else {
@@ -119,7 +117,8 @@ fn read_enumeration(reader: &mut dyn Read) -> TTLVResult<u32> {
 fn read_i32(reader: &mut dyn Read) -> TTLVResult<i32> {
     let len = read_len(reader)?;
 
-    // Work around a bug in a particular implementation that is serializing Integer as 8 bytes, sigh. They are otherwise writing it correctly though
+    // Work around a bug in a particular implementation that is serializing Integer as 8 bytes,
+    // sigh. They are otherwise writing it correctly though
     if len == 8 {
         // Ignore incorrect length for now, sadness
     } else {
@@ -533,11 +532,14 @@ fn read_to_end(buf: &[u8]) -> TTLVResult<Vec<Value>> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        de::{TtlvReader, Reader, read_to_end, to_print},
+        de::{Reader, TtlvReader, read_to_end, to_print},
         error::TTLVError,
         kmip_enums::{Tag, Value, ValueType},
         parser::{
-            expect_integer, expect_structure_begin, expect_structure_end, expect_text_string,
+            expect_integer,
+            expect_structure_begin,
+            expect_structure_end,
+            expect_text_string,
         },
     };
 
@@ -638,7 +640,8 @@ mod tests {
         ];
         to_print(&bytes);
 
-        // A Structure containing an Enumeration, value 254, followed by an Integer, value 255, having tags 420004 and 420005 respectively:
+        // A Structure containing an Enumeration, value 254, followed by an Integer, value 255,
+        // having tags 420004 and 420005 respectively:
         let bytes = [
             0x42, 0x00, 0x20, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x04, 0x05, 0x00, 0x00,
             0x00, 0x04, 0x00, 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x05, 0x02,
@@ -767,7 +770,8 @@ mod tests {
             }]
         );
 
-        // A Structure containing an Enumeration, value 254, followed by an Integer, value 255, having tags 420004 and 420005 respectively:
+        // A Structure containing an Enumeration, value 254, followed by an Integer, value 255,
+        // having tags 420004 and 420005 respectively:
         let bytes = [
             0x42, 0x00, 0x20, 0x01, 0x00, 0x00, 0x00, 0x20, 0x42, 0x00, 0x04, 0x05, 0x00, 0x00,
             0x00, 0x04, 0x00, 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x42, 0x00, 0x05, 0x02,

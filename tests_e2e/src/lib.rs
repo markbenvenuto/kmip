@@ -10,8 +10,11 @@ mod tests {
     use std::sync::Arc;
 
     use kmip_server::{
-        process_kmip_request, store::KmipStore, test_util::TestClockSource,
-        test_util::TestRngSource, RequestContext, ServerContext,
+        process_kmip_request,
+        store::KmipStore,
+        test_util::{TestClockSource, TestRngSource},
+        RequestContext,
+        ServerContext,
     };
 
     use crate::util::{run_e2e_client_test, run_e2e_xml_conversation};

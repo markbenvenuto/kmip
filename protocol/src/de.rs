@@ -1,11 +1,11 @@
 use num::FromPrimitive;
-use ttlv::Reader;
-use ttlv::TTLVError;
-use ttlv::Tag;
-use ttlv::TtlvDeserialize;
-use ttlv::parser::expect_boolean;
-use ttlv::parser::expect_enumeration;
-use ttlv::parser::expect_integer;
+use ttlv::{
+    Reader,
+    TTLVError,
+    Tag,
+    TtlvDeserialize,
+    parser::{expect_boolean, expect_enumeration, expect_integer},
+};
 
 use crate::*;
 

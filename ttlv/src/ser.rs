@@ -581,13 +581,14 @@ mod tests {
         // assert_eq!(
         //     writer.get_vector(),
         //     [
-        //         0x42, 0x00, 0x20, 0x0A, 0x00, 0x00, 0x00, 0x04, 0x00, 0x0D, 0x2F, 0x00, 0x00, 0x00,
-        //         0x00, 0x00,
+        //         0x42, 0x00, 0x20, 0x0A, 0x00, 0x00, 0x00, 0x04, 0x00, 0x0D, 0x2F, 0x00, 0x00,
+        // 0x00,         0x00, 0x00,
         //     ]
         // );
         //
 
-        // A Structure containing an Enumeration, value 254, followed by an Integer, value 255, having tags 420004 and 420005 respectively:
+        // A Structure containing an Enumeration, value 254, followed by an Integer, value 255,
+        // having tags 420004 and 420005 respectively:
         let mut writer = NestedWriter::new();
         writer.write_tag(Tag::CompromiseDate).unwrap();
         writer.write_struct_start().unwrap();

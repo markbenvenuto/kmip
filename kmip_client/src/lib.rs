@@ -5,7 +5,6 @@ extern crate num_derive;
 use std::io::{Read, Write};
 
 use pretty_hex::*;
-
 use protocol::*;
 use thiserror::Error;
 use ttlv::read_msg;

@@ -1,6 +1,4 @@
-use ttlv::TTLVError;
-use ttlv::Tag;
-use ttlv::TtlvSerialize;
+use ttlv::{TTLVError, Tag, TtlvSerialize};
 
 use crate::*;
 

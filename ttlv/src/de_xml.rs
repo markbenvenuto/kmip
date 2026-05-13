@@ -1,11 +1,12 @@
-use std::io::Cursor;
-use std::str::FromStr;
+use std::{io::Cursor, str::FromStr};
 
 use xml::reader::{EventReader, XmlEvent};
 
-use crate::de::Reader;
-use crate::error::TTLVError;
-use crate::kmip_enums::{ItemType, Tag, Value, ValueType};
+use crate::{
+    de::Reader,
+    error::TTLVError,
+    kmip_enums::{ItemType, Tag, Value, ValueType},
+};
 
 type TTLVResult<T> = std::result::Result<T, TTLVError>;
 
@@ -281,8 +282,7 @@ pub fn read_to_end(buf: &[u8], resolver: &dyn EnumResolver) -> TTLVResult<Vec<Va
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::de::Reader;
-    use crate::kmip_enums::Tag;
+    use crate::{de::Reader, kmip_enums::Tag};
 
     struct StubResolver;
 

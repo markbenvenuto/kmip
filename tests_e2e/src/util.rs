@@ -1,36 +1,25 @@
-use std::fs::File;
-use std::io::Cursor;
-use std::io::{self, BufRead, BufReader};
-use std::path::Path;
 use std::{
+    env,
+    fs::File,
+    io::{self, BufRead, BufReader, Cursor},
     net,
-    net::TcpListener,
-    net::{IpAddr, Ipv4Addr, TcpStream},
-    path::PathBuf,
-    sync::Arc,
-    sync::Barrier,
-    sync::Mutex,
+    net::{IpAddr, Ipv4Addr, TcpListener, TcpStream},
+    path::{Path, PathBuf},
+    sync::{Arc, Barrier, Mutex},
     thread,
 };
 
-use quick_xml::events::Event;
-use quick_xml::reader::Reader;
-use quick_xml::writer::Writer;
-
 use difference::assert_diff;
-
 use kmip_client::Client;
-
 use kmip_server::{
-    handle_client, store::KmipStore, test_util::TestClockSource, test_util::TestRngSource,
+    handle_client,
+    store::KmipStore,
+    test_util::{TestClockSource, TestRngSource},
     ServerContext,
 };
-
 use minidom::Element;
-
+use quick_xml::{events::Event, reader::Reader, writer::Writer};
 use rustls::{ClientConnection, Stream};
-
-use std::env;
 
 struct PortAllocator {
     start: u16,
@@ -60,7 +49,8 @@ fn get_test_data_dir() -> PathBuf {
     root_dir
 }
 
-// TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write it
+// TODO - stop using Barrier, which really need Windows ManualResetEvent but I am too lazy to write
+// it
 fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port: u16, count: i32) {
     use rustls::{
         pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer},
@@ -129,7 +119,8 @@ where
 
     use rustls::{
         pki_types::{pem::PemObject, CertificateDer, ServerName},
-        ClientConfig, RootCertStore,
+        ClientConfig,
+        RootCertStore,
     };
 
     let root_dir = get_test_data_dir();

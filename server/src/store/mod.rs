@@ -4,16 +4,22 @@ mod option_datefmt;
 
 use std::sync::Arc;
 
-use chrono::Utc;
-use chrono::serde::ts_milliseconds;
+use chrono::{Utc, serde::ts_milliseconds};
+pub use mem::KmipMemoryStore;
+use protocol::{
+    AttributesEnum,
+    CryptographicAlgorithm,
+    CryptographicParameters,
+    Name,
+    ObjectType,
+    SecretData,
+    State,
+    SymmetricKey,
+};
 use serde::{Deserialize, Serialize};
 
 pub use crate::store::mongodb::KmipMongoDBStore;
 use crate::{ClockSource, KmipResponseError};
-pub use mem::KmipMemoryStore;
-
-use protocol::{AttributesEnum, ObjectType, SymmetricKey};
-use protocol::{CryptographicAlgorithm, CryptographicParameters, Name, SecretData, State};
 
 // TODO - the storage format for SymmetricKey should be different from the wire format
 #[derive(Serialize, Deserialize, Debug)]
@@ -75,11 +81,11 @@ pub struct ManagedAttributes {
 }
 
 // impl ManagedAttributes {
-//     pub fn get_cryptographic_algorithm(&self) -> std::result::Result<CryptographicAlgorithm, KmipResponseError> {
-//         match self.cryptographic_algorithm {
+//     pub fn get_cryptographic_algorithm(&self) -> std::result::Result<CryptographicAlgorithm,
+// KmipResponseError> {         match self.cryptographic_algorithm {
 //             Some(i) => {
-//                 Ok(num::FromPrimitive::from_i32(i).ok_or(KmipResponseError::new("Corruption in cryptographic_algorithm"))?)
-//             }
+//                 Ok(num::FromPrimitive::from_i32(i).ok_or(KmipResponseError::new("Corruption in
+// cryptographic_algorithm"))?)             }
 //             _ => Err(KmipResponseError::new("No cryptographic_algorithm present"))
 //         }
 //     }

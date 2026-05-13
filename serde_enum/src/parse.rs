@@ -1,6 +1,14 @@
 use proc_macro2::Span;
-use syn::parse::{Error, Parse, ParseStream, Parser, Result};
-use syn::{parenthesized, Data, DeriveInput, Fields, Ident, Meta, NestedMeta};
+use syn::{
+    Data,
+    DeriveInput,
+    Fields,
+    Ident,
+    Meta,
+    NestedMeta,
+    parenthesized,
+    parse::{Error, Parse, ParseStream, Parser, Result},
+};
 
 pub struct Input {
     pub ident: Ident,

@@ -2,7 +2,13 @@ use heck::ToPascalCase;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    Data, DeriveInput, Fields, GenericArgument, PathArguments, Type, parse_macro_input,
+    Data,
+    DeriveInput,
+    Fields,
+    GenericArgument,
+    PathArguments,
+    Type,
+    parse_macro_input,
     spanned::Spanned,
 };
 
@@ -224,8 +230,8 @@ fn variant_match_arm(
                 None => {
                     return Err(syn::Error::new_spanned(
                         variant_name,
-                        "TtlvTaggedEnumDeserialize variants must have #[ttlv(discriminator = ...)] \
-                         or the enum must have #[ttlv(discriminator_enum = \"...\")]",
+                        "TtlvTaggedEnumDeserialize variants must have #[ttlv(discriminator = \
+                         ...)] or the enum must have #[ttlv(discriminator_enum = \"...\")]",
                     ));
                 }
             },

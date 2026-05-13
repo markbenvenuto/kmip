@@ -1,7 +1,5 @@
 use strum::AsStaticRef;
-use ttlv::TTLVError;
-use ttlv::Tag;
-use ttlv::de_xml::EnumResolver;
+use ttlv::{TTLVError, Tag, de_xml::EnumResolver};
 
 use crate::*;
 

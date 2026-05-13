@@ -1,7 +1,8 @@
 use std::sync::Mutex;
 
-use crate::store::KmipStoreProvider;
 use mongodb::{Client, Collection};
+
+use crate::store::KmipStoreProvider;
 
 struct KmipMongoDBStoreInner {
     counter: i32,
