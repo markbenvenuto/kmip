@@ -2466,6 +2466,7 @@ dependencies = [
  "lazy_static",
  "protocol",
  "quick-xml",
+ "regex",
  "rustls",
  "tracing",
  "ttlv",
