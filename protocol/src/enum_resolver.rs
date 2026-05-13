@@ -17,9 +17,10 @@ where
 fn from_str<T>(orig: &str) -> std::result::Result<u32, TTLVError>
 where
     T: num::ToPrimitive + FromStr,
+    <T as FromStr>::Err: std::fmt::Debug,
 {
     // TODO - stop using unwrap
-    let o = &CryptographicAlgorithm::from_str(orig).unwrap();
+    let o = &T::from_str(orig).unwrap();
     let v = num::ToPrimitive::to_u32(o).unwrap();
     Ok(v)
 }
