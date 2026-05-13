@@ -261,6 +261,14 @@ fn extract_variables(xml: &str, var_map: &mut HashMap<String, String>) {
     }
 }
 
+fn apply_var_substitution(xml: &str, var_map: &HashMap<String, String>) -> String {
+    let mut result = xml.to_string();
+    for (var, value) in var_map {
+        result = result.replace(var.as_str(), value.as_str());
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -319,5 +327,28 @@ mod tests {
         extract_variables(xml, &mut var_map);
         assert_eq!(var_map.get("$UNIQUE_IDENTIFIER_0"), Some(&"same-id".to_string()));
         assert!(var_map.get("$UNIQUE_IDENTIFIER_1").is_none());
+    }
+
+    #[test]
+    fn test_apply_var_substitution_replaces_all() {
+        let mut var_map = HashMap::new();
+        var_map.insert("$NOW".to_string(), "1970-01-01T00:02:03+00:00".to_string());
+        var_map.insert("$UNIQUE_IDENTIFIER_0".to_string(), "abc-123".to_string());
+
+        let xml = r#"<TimeStamp type="DateTime" value="$NOW"/><UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>"#;
+        let result = apply_var_substitution(xml, &var_map);
+
+        assert!(result.contains(r#"value="1970-01-01T00:02:03+00:00""#));
+        assert!(result.contains(r#"value="abc-123""#));
+        assert!(!result.contains("$NOW"));
+        assert!(!result.contains("$UNIQUE_IDENTIFIER_0"));
+    }
+
+    #[test]
+    fn test_apply_var_substitution_empty_map_is_noop() {
+        let var_map = HashMap::new();
+        let xml = r#"<UniqueIdentifier type="TextString" value="$UNIQUE_IDENTIFIER_0"/>"#;
+        let result = apply_var_substitution(xml, &var_map);
+        assert_eq!(result, xml);
     }
 }
