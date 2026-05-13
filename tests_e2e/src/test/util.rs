@@ -215,19 +215,26 @@ pub fn run_e2e_xml_conversation(conv: &str) {
 
     assert_eq!(reqs.len(), resps.len());
 
+    let mut normalizer = ConversationNormalizer::new();
+
     run_e2e_client_test(reqs.len() as i32, |mut client| {
         for (i, req) in reqs.iter().enumerate() {
-            println!("XML Request1111: {:?}", req);
+            let req = normalizer.apply_to_request(req);
+
+            println!("XML Request: {:?}", req);
 
             let mut resp = client.make_xml_request(&req);
             eprintln!("{:?}", resp);
 
             resp = resp.replace("<?xml version=\"1.0\" encoding=\"utf-8\"?>", "");
             resp = resp.replace(" />", "/>");
+
             let mut expected_resp = resps[i].to_owned();
             expected_resp = expected_resp.replace(" xmlns=\"ignore\"", "");
-            assert_xml_eq(&resp, &expected_resp);
-            // assert_eq! {resp, expected_resp };
+
+            let (norm_resp, norm_expected) = normalizer.apply_to_response(&resp, &expected_resp);
+
+            assert_xml_eq(&norm_resp, &norm_expected);
         }
     });
 }
