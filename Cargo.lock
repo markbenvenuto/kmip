@@ -2184,15 +2184,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_enum"
-version = "0.1.0"
-dependencies = [
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "serde_json"
 version = "1.0.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"

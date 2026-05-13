@@ -12,7 +12,6 @@ members = [
     "client",
     "kmip_client",
     "protocol",
-    "serde_enum",
     "server",
     "tests_e2e",
     "ttlv",
@@ -23,17 +22,10 @@ members = [
 version = "0.1.0"
 edition = "2024"
 
-
 [workspace.dependencies]
-protocol = {path="protocol"}
-kmip_client = {path="kmip_client"}
-serde_enum = {path="serde_enum"}
-ttlv = {path="ttlv"}
-ttlv_derive = {path="ttlv_derive"}
-
 aes = "0.6.0"
 block-modes = "0.7.0"
-bson = { version="3.1.0", features=["serde"] }
+bson = { version = "3.1.0", features = ["serde"] }
 byteorder = "1.4.3"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "4.5.60"
@@ -42,28 +34,37 @@ clap-verbosity-flag = "3.0.4"
 confy = "0.4.0"
 difference = "2.0.0"
 digest = "0.9.0"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 futures = "0.3.13"
+heck = "0.5"
 hex = "0.4.3"
 hmac = "0.10.1"
+kmip_client = { path = "kmip_client" }
+kmip_server = { path = "server" }
 lazy_static = "1.4.0"
-tracing = "0.1"
 mio = "1.1.1"
 mongodb = { version = "3.5.1", features = ["sync"] }
 num = "0.4.0"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 pretty-hex = "0.2.1"
+proc-macro2 = "1"
+protocol = { path = "protocol" }
 quick-xml = "0.40.0"
+quote = "1"
 ring = "0.16.15"
-rustls = {version="0.23.36", features=["aws_lc_rs"]}
+rustls = { version = "0.23.36", features = ["aws_lc_rs"] }
 serde = "1.0.125"
 serde_derive = "1.0.125"
 sha2 = "0.9.9"
 strum = "0.20.0"
 strum_macros = "0.20.1"
-thiserror="2.0.18"
+syn = { version = "2", features = ["full"] }
+thiserror = "2.0.18"
 tokio = "1.4.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ttlv = { path = "ttlv" }
+ttlv_derive = { path = "ttlv_derive" }
 vecio = "0.1.0"
 webpki = "0.21.4"
 webpki-roots = "1.0.6"

@@ -8,29 +8,15 @@ license = "Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+difference = { workspace = true }
+hex  = { workspace = true }
 kmip_client = { workspace = true }
-kmip_server = {path="../server"}
-protocol =  { workspace = true }
-ttlv =  { workspace = true }
-
+kmip_server  = { workspace = true }
+lazy_static  = { workspace = true }
+protocol = { workspace = true }
+quick-xml  = { workspace = true }
+rustls  = { workspace = true }
 tracing = { workspace = true }
-
-hex  =  { workspace = true }
-# pretty-hex  =  { workspace = true }
-
-# num  =  { workspace = true }
-# num-traits  =  { workspace = true }
-# num-derive  =  { workspace = true }
-
-rustls  =  { workspace = true }
-
-quick-xml  =  { workspace = true }
-
-webpki  =  { workspace = true }
-webpki-roots  =  { workspace = true }
-
-
-difference=    { workspace = true }
-
-# crossbeam-channel="0.5.0"
-lazy_static  =  { workspace = true }
+ttlv = { workspace = true }
+webpki  = { workspace = true }
+webpki-roots  = { workspace = true }

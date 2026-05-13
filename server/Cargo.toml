@@ -9,61 +9,37 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-protocol =  { workspace = true }
+aes  = { workspace = true }
+block-modes  = { workspace = true }
+bson  = { workspace = true }
 byteorder  = { workspace = true }
-ttlv  = { workspace = true }
-
+chrono  = { workspace = true }
+clap  = { workspace = true }
+clap-log-flag  = { workspace = true }
+clap-verbosity-flag  = { workspace = true }
+confy  = { workspace = true }
+digest  = { workspace = true }
+futures  = { workspace = true }
+hmac  = { workspace = true }
+lazy_static  = { workspace = true }
+mio  = { workspace = true }
+mongodb  = { workspace = true }
+num  = { workspace = true }
+num-derive  = { workspace = true }
+num-traits  = { workspace = true }
+pretty-hex  = { workspace = true }
+protocol = { workspace = true }
+ring  = { workspace = true }
+rustls  = { workspace = true }
 serde  = { workspace = true }
 serde_derive  = { workspace = true }
-pretty-hex  = { workspace = true }
-
-thiserror  = { workspace = true }
-
-clap  = { workspace = true }
-clap-verbosity-flag  = { workspace = true }
-clap-log-flag  = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-
-confy  = { workspace = true }
-
-num  = { workspace = true }
-num-traits  = { workspace = true }
-num-derive  = { workspace = true }
-
-
-rustls  = { workspace = true }
-mio  = { workspace = true }
-
-ring  = { workspace = true }
-
-vecio  = { workspace = true }
-
+sha2  = { workspace = true }
 strum  = { workspace = true }
 strum_macros  = { workspace = true }
-
-chrono  = { workspace = true }
-
-lazy_static  = { workspace = true }
-
-bson  = { workspace = true }
-
-mongodb  = { workspace = true }
-futures  = { workspace = true }
+thiserror  = { workspace = true }
 tokio  = { workspace = true }
-
-# TODO - consider https://github.com/rust-cli/human-panic
-
-# TODO - https://github.com/RustCrypto/block-ciphers?
-
-
-# Crypto
-# https://github.com/RustCrypto
-block-modes  = { workspace = true }
-aes  = { workspace = true }
-
-digest  = { workspace = true }
-hmac  = { workspace = true }
-
-sha2  = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+ttlv  = { workspace = true }
+vecio  = { workspace = true }
 webpki-roots  = { workspace = true }
