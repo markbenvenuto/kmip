@@ -9,7 +9,6 @@ use std::{
 
 use chrono::Utc;
 use pretty_hex::*;
-use strum::AsStaticRef;
 use tracing::{debug, info};
 use ttlv::read_msg;
 
@@ -153,7 +152,7 @@ impl fmt::Display for KmipResponseError {
         write!(
             f,
             "KMIP Response error ({}), : {}",
-            self.reason.as_static(),
+            Into::<&'static str>::into(self.reason),
             self.msg
         )
     }

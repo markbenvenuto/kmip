@@ -1,9 +1,28 @@
-use strum::AsStaticRef;
 use ttlv::{TTLVError, Tag, de_xml::EnumResolver};
 
 use crate::*;
 
 pub struct KmipEnumResolver;
+
+fn to_static_str<T>(value: u32) -> std::result::Result<String, TTLVError>
+where
+    T: num::FromPrimitive + Into<&'static str>,
+{
+    // TODO - stop using unwrap
+    let o: T = num::FromPrimitive::from_u32(value).unwrap();
+    let ss: &'static str = o.into();
+    Ok(ss.to_owned())
+}
+
+fn from_str<T>(orig: &str) -> std::result::Result<u32, TTLVError>
+where
+    T: num::ToPrimitive + FromStr,
+{
+    // TODO - stop using unwrap
+    let o = &CryptographicAlgorithm::from_str(orig).unwrap();
+    let v = num::ToPrimitive::to_u32(o).unwrap();
+    Ok(v)
+}
 
 impl EnumResolver for KmipEnumResolver {
     fn resolve(&self, tag: Tag, orig: &str) -> std::result::Result<u32, TTLVError> {
@@ -11,75 +30,20 @@ impl EnumResolver for KmipEnumResolver {
         let value = trimmed.as_ref();
 
         match tag {
-            Tag::CryptographicAlgorithm => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(
-                    num::ToPrimitive::to_u32(&CryptographicAlgorithm::from_str(value).unwrap())
-                        .unwrap(),
-                )
-            }
-            Tag::CryptographicUsageMask => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(
-                    num::ToPrimitive::to_u32(&CryptographicUsageMask::from_str(value).unwrap())
-                        .unwrap(),
-                )
-            }
-            Tag::Operation => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&Operation::from_str(value).unwrap()).unwrap())
-            }
-            Tag::ObjectType => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&ObjectType::from_str(value).unwrap()).unwrap())
-            }
-            Tag::NameType => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&NameType::from_str(value).unwrap()).unwrap())
-            }
-            Tag::SecretDataType => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&SecretDataType::from_str(value).unwrap()).unwrap())
-            }
-            Tag::KeyFormatType => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&KeyFormatType::from_str(value).unwrap()).unwrap())
-            }
-            Tag::BlockCipherMode => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&BlockCipherMode::from_str(value).unwrap()).unwrap())
-            }
-            Tag::PaddingMethod => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&PaddingMethod::from_str(value).unwrap()).unwrap())
-            }
-            Tag::HashingAlgorithm => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&HashingAlgorithm::from_str(value).unwrap()).unwrap())
-            }
-            Tag::DigitalSignatureAlgorithm => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(
-                    num::ToPrimitive::to_u32(&DigitalSignatureAlgorithm::from_str(value).unwrap())
-                        .unwrap(),
-                )
-            }
-
-            Tag::RevocationReasonCode => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(
-                    num::ToPrimitive::to_u32(&RevocationReasonCode::from_str(value).unwrap())
-                        .unwrap(),
-                )
-            }
-            Tag::ValidityIndicator => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&ValidityIndicator::from_str(value).unwrap()).unwrap())
-            }
-            Tag::State => {
-                // TODO - go from string to i32 in one pass instead of two
-                Ok(num::ToPrimitive::to_u32(&State::from_str(value).unwrap()).unwrap())
-            }
+            Tag::CryptographicAlgorithm => from_str::<CryptographicAlgorithm>(value),
+            Tag::CryptographicUsageMask => from_str::<CryptographicUsageMask>(value),
+            Tag::Operation => from_str::<Operation>(value),
+            Tag::ObjectType => from_str::<ObjectType>(value),
+            Tag::NameType => from_str::<NameType>(value),
+            Tag::SecretDataType => from_str::<SecretDataType>(value),
+            Tag::KeyFormatType => from_str::<KeyFormatType>(value),
+            Tag::BlockCipherMode => from_str::<BlockCipherMode>(value),
+            Tag::PaddingMethod => from_str::<PaddingMethod>(value),
+            Tag::HashingAlgorithm => from_str::<HashingAlgorithm>(value),
+            Tag::DigitalSignatureAlgorithm => from_str::<DigitalSignatureAlgorithm>(value),
+            Tag::RevocationReasonCode => from_str::<RevocationReasonCode>(value),
+            Tag::ValidityIndicator => from_str::<ValidityIndicator>(value),
+            Tag::State => from_str::<State>(value),
             _ => {
                 println!("Not implemented resolve_enum_str: {:?}", tag);
                 unimplemented! {}
@@ -90,64 +54,49 @@ impl EnumResolver for KmipEnumResolver {
     fn to_string(&self, tag: Tag, value: u32) -> std::result::Result<String, TTLVError> {
         match tag {
             Tag::CryptographicAlgorithm => {
-                let o: CryptographicAlgorithm = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<CryptographicAlgorithm>(value);
             }
             Tag::Operation => {
-                let o: Operation = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<Operation>(value);
             }
             Tag::ObjectType => {
-                let o: ObjectType = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<ObjectType>(value);
             }
             Tag::ResultStatus => {
-                let o: ResultStatus = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<ResultStatus>(value);
             }
             Tag::ResultReason => {
-                let o: ResultReason = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<ResultReason>(value);
             }
             Tag::NameType => {
-                let o: NameType = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<NameType>(value);
             }
             Tag::KeyFormatType => {
-                let o: KeyFormatType = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<KeyFormatType>(value);
             }
             Tag::BlockCipherMode => {
-                let o: BlockCipherMode = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<BlockCipherMode>(value);
             }
             Tag::PaddingMethod => {
-                let o: PaddingMethod = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<PaddingMethod>(value);
             }
             Tag::HashingAlgorithm => {
-                let o: HashingAlgorithm = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<HashingAlgorithm>(value);
             }
             Tag::DigitalSignatureAlgorithm => {
-                let o: DigitalSignatureAlgorithm = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<DigitalSignatureAlgorithm>(value);
             }
             Tag::SecretDataType => {
-                let o: SecretDataType = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<SecretDataType>(value);
             }
             Tag::RevocationReasonCode => {
-                let o: RevocationReasonCode = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<RevocationReasonCode>(value);
             }
             Tag::ValidityIndicator => {
-                let o: ValidityIndicator = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<ValidityIndicator>(value);
             }
             Tag::State => {
-                let o: State = num::FromPrimitive::from_u32(value).unwrap();
-                return Ok(o.as_static().to_owned());
+                return to_static_str::<State>(value);
             }
 
             _ => {
