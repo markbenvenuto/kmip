@@ -51,6 +51,7 @@ proc-macro2 = "1"
 protocol = { path = "protocol" }
 quick-xml = "0.40.0"
 quote = "1"
+regex = "1"
 ring = "0.16.15"
 rustls = { version = "0.23.36", features = ["aws_lc_rs"] }
 serde = "1.0.125"
