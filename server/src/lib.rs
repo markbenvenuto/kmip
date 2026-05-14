@@ -245,7 +245,6 @@ fn merge_to_symmetric_key(
                 }
 
                 protocol::AttributesEnum::CryptographicParameters(a) => {
-                    // TODO - validate
                     sks.cryptographic_parameters = Some(a.clone());
                 }
                 _ => merge_to_managed_attribute(ma, attr)?,
@@ -297,6 +296,17 @@ fn merge_to_managed_attribute(
                 "Cannot set 'Unique Identifier' via a client request",
             ));
         }
+        protocol::AttributesEnum::ProcessStartDate(a) => {
+            ma.process_start_date = Some(*a);
+        }
+        protocol::AttributesEnum::ProtectStopDate(a) => {
+            ma.protect_stop_date = Some(*a);
+        }
+        protocol::AttributesEnum::UsageLimits(u) => {
+            ma.usage_limits_total = Some(u.usage_limits_total);
+            ma.usage_limits_count = u.usage_limits_count;
+        }
+        protocol::AttributesEnum::XID(_) | protocol::AttributesEnum::Unknown => {}
         _ => {
             return Err(KmipResponseError::new(&format!(
                 "Attribute {:?} is not supported on object",
@@ -682,59 +692,80 @@ fn process_destroy_request<'a>(
     Ok(resp)
 }
 
-fn process_encrypt_request<'a>(
-    rc: &'a RequestContext,
+fn process_encrypt_request(
+    rc: &RequestContext,
     req: &EncryptRequest,
 ) -> std::result::Result<EncryptResponse, KmipResponseError> {
     let id = rc.get_id_placeholder(&req.unique_identifier)?;
 
-    let mo = rc.get_server_context().get_store().get(id)?;
+    let mut mo = rc.get_server_context().get_store().get(id)?;
 
-    let sks = mo.get_symmetric_key()?;
-
-    let key = &sks.symmetric_key.key_block.key_value.key_material;
-
-    let algo = sks.cryptographic_algorithm;
-
-    let mut block_cipher_mode: Option<BlockCipherMode> = None;
-    let mut padding_method: Option<PaddingMethod> = None;
-    let mut random_iv: Option<bool> = None;
-
-    // Default to the on disk information
-    if let Some(disk_params) = &sks.cryptographic_parameters {
-        block_cipher_mode = disk_params.block_cipher_mode;
-        padding_method = disk_params.padding_method;
-        random_iv = disk_params.random_iv;
+    // Check key lifecycle dates
+    let now = rc.get_server_context().get_clock_source().now();
+    if let Some(psd) = mo.attributes.process_start_date {
+        if now < psd {
+            return Err(create_permission_denied());
+        }
     }
 
-    // Defer to the passed in information
-    if let Some(params) = &req.cryptographic_parameters {
-        block_cipher_mode = params.block_cipher_mode.or(block_cipher_mode);
-        padding_method = params.padding_method.or(padding_method);
-        random_iv = params.random_iv.or(random_iv);
+    if let Some(psd) = mo.attributes.protect_stop_date {
+        if now >= psd {
+            return Err(create_permission_denied());
+        }
     }
 
-    // TODO
-    // We only support block ciphers for now, if we support streaming ciphers we will have to do
-    // something
+    // Check usage limits
+    if let Some(count) = mo.attributes.usage_limits_count {
+        if count <= 0 {
+            return Err(create_permission_denied());
+        }
+    }
+
+    let (key, algo, block_cipher_mode, padding_method, random_iv) = {
+        let sks = mo.get_symmetric_key()?;
+        let key = sks.symmetric_key.key_block.key_value.key_material.clone();
+        let algo = sks.cryptographic_algorithm;
+
+        let mut block_cipher_mode: Option<BlockCipherMode> = None;
+        let mut padding_method: Option<PaddingMethod> = None;
+        let mut random_iv: Option<bool> = None;
+
+        if let Some(disk_params) = &sks.cryptographic_parameters {
+            block_cipher_mode = disk_params.block_cipher_mode;
+            padding_method = disk_params.padding_method;
+            random_iv = disk_params.random_iv;
+        }
+
+        if let Some(params) = &req.cryptographic_parameters {
+            block_cipher_mode = params.block_cipher_mode.or(block_cipher_mode);
+            padding_method = params.padding_method.or(padding_method);
+            random_iv = params.random_iv.or(random_iv);
+        }
+
+        (key, algo, block_cipher_mode, padding_method, random_iv)
+    };
+
     let block_cipher_mode =
         block_cipher_mode.ok_or_else(|| KmipResponseError::new("Block Cipher Mode is required"))?;
-    // let padding_method = padding_method.ok_or_else(|| KmipResponseError::new("Padding Method Mode
-    // is required"))?;
     let padding_method = padding_method.unwrap_or(PaddingMethod::None);
 
-    // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
-    //req.iv_counter_nonce.map(|x| x.as_ref()))?;
     let ret = crypto::encrypt_block_cipher(
         algo,
         block_cipher_mode,
         padding_method,
-        key,
+        &key,
         &req.data,
         &req.iv_counter_nonce,
         random_iv.unwrap_or(false),
         rc.get_server_context().get_rng_source(),
     )?;
+
+    // Decrement usage limits if applicable
+    if let Some(count) = mo.attributes.usage_limits_count {
+        let bytes_used = req.data.len() as i64;
+        mo.attributes.usage_limits_count = Some(count - bytes_used);
+        rc.get_server_context().get_store().update(id, &mut mo)?;
+    }
 
     let resp = EncryptResponse {
         unique_identifier: id.to_owned(),
@@ -753,43 +784,51 @@ fn process_decrypt_request(
 
     let mo = rc.get_server_context().get_store().get(id)?;
 
-    let sks = mo.get_symmetric_key()?;
-
-    let key = &sks.symmetric_key.key_block.key_value.key_material;
-
-    let algo = sks.cryptographic_algorithm;
-
-    let mut block_cipher_mode: Option<BlockCipherMode> = None;
-    let mut padding_method: Option<PaddingMethod> = None;
-
-    // Default to the on disk information
-    if let Some(disk_params) = &sks.cryptographic_parameters {
-        block_cipher_mode = disk_params.block_cipher_mode;
-        padding_method = disk_params.padding_method;
+    // Check key lifecycle dates
+    let now = rc.get_server_context().get_clock_source().now();
+    if let Some(psd) = mo.attributes.process_start_date {
+        if now < psd {
+            return Err(create_permission_denied());
+        }
     }
 
-    // Defer to the passed in information
-    if let Some(params) = &req.cryptographic_parameters {
-        block_cipher_mode = params.block_cipher_mode.or(block_cipher_mode);
-        padding_method = params.padding_method.or(padding_method);
-    }
+    let (key, algo, block_cipher_mode, padding_method) = {
+        let sks = mo.get_symmetric_key()?;
+        let key = sks.symmetric_key.key_block.key_value.key_material.clone();
+        let algo = sks.cryptographic_algorithm;
 
-    // TODO
-    // We only support block ciphers for now, if we support streaming ciphers we will have to do
-    // something
+        let mut block_cipher_mode: Option<BlockCipherMode> = None;
+        let mut padding_method: Option<PaddingMethod> = None;
+
+        if let Some(disk_params) = &sks.cryptographic_parameters {
+            block_cipher_mode = disk_params.block_cipher_mode;
+            padding_method = disk_params.padding_method;
+        }
+
+        if let Some(params) = &req.cryptographic_parameters {
+            block_cipher_mode = params.block_cipher_mode.or(block_cipher_mode);
+            padding_method = params.padding_method.or(padding_method);
+        }
+
+        (key, algo, block_cipher_mode, padding_method)
+    };
+
     let block_cipher_mode =
         block_cipher_mode.ok_or_else(|| KmipResponseError::new("Block Cipher Mode is required"))?;
-    // let padding_method = padding_method.ok_or_else(|| KmipResponseError::new("Padding Method Mode
-    // is required"))?;
     let padding_method = padding_method.unwrap_or(PaddingMethod::None);
 
-    // TODO - what to do about random_iv? For now, always generate a random iv unless passed a nonce
-    //req.iv_counter_nonce.map(|x| x.as_ref()))?;
+    if matches!(block_cipher_mode, BlockCipherMode::CBC) && req.iv_counter_nonce.is_none() {
+        return Err(KmipResponseError::new_reason(
+            protocol::ResultReason::InvalidMessage,
+            "missing-iv",
+        ));
+    }
+
     let ret = crypto::decrypt_block_cipher(
         algo,
         block_cipher_mode,
         padding_method,
-        key,
+        &key,
         &req.data,
         &req.iv_counter_nonce,
     )?;

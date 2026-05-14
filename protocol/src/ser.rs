@@ -42,10 +42,6 @@ impl TtlvSerialize for AttributesEnum {
                     ser_write_enumeration_typed(writer, Tag::BlockCipherMode, &value)?;
                 }
 
-                if let Some(value) = v.block_cipher_mode {
-                    ser_write_enumeration_typed(writer, Tag::BlockCipherMode, &value)?;
-                }
-
                 if let Some(value) = v.padding_method {
                     ser_write_enumeration_typed(writer, Tag::PaddingMethod, &value)?;
                 }
@@ -111,6 +107,29 @@ impl TtlvSerialize for AttributesEnum {
                 ser_write_text_string(writer, Tag::AttributeName, "Unique Identifier")?;
                 ser_write_text_string(writer, Tag::AttributeValue, s)?;
             }
+            Self::XID(s) => {
+                ser_write_text_string(writer, Tag::AttributeName, "x-ID")?;
+                ser_write_text_string(writer, Tag::AttributeValue, s)?;
+            }
+            Self::ProcessStartDate(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Process Start Date")?;
+                ser_write_datetime(writer, Tag::AttributeValue, v)?;
+            }
+            Self::ProtectStopDate(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Protect Stop Date")?;
+                ser_write_datetime(writer, Tag::AttributeValue, v)?;
+            }
+            Self::UsageLimits(v) => {
+                ser_write_text_string(writer, Tag::AttributeName, "Usage Limits")?;
+                ser_write_structure_begin(writer, Tag::AttributeValue)?;
+                ser_write_long_integer(writer, Tag::UsageLimitsTotal, v.usage_limits_total)?;
+                if let Some(value) = v.usage_limits_count {
+                    ser_write_long_integer(writer, Tag::UsageLimitsTotal, value)?;
+                }
+                ser_write_enumeration_typed(writer, Tag::UsageLimitsUnit, &v.unit)?;
+                ser_write_structure_end(writer)?;
+            }
+            Self::Unknown => unreachable!("guarded above"),
         }
         ser_write_structure_end(writer)?;
         Ok(())

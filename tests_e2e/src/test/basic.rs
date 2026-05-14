@@ -81,7 +81,7 @@ fn e2e_test_xml_tc_311_10() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="0"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -114,7 +114,7 @@ fn e2e_test_xml_tc_311_10() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="0"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -169,7 +169,7 @@ fn e2e_test_xml_tc_315_10() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="0"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -201,7 +201,7 @@ fn e2e_test_xml_tc_315_10() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="0"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -272,7 +272,7 @@ fn e2e_test_xml_cs_bc_m_1_14() {
         </Attribute>
         <Attribute>
           <AttributeName type="TextString" value="Activation Date"/>
-          <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+          <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         </Attribute>
       </TemplateAttribute>
     </RequestPayload>
@@ -285,7 +285,7 @@ fn e2e_test_xml_cs_bc_m_1_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -321,7 +321,7 @@ fn e2e_test_xml_cs_bc_m_1_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -359,7 +359,7 @@ fn e2e_test_xml_cs_bc_m_1_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -393,7 +393,7 @@ fn e2e_test_xml_cs_bc_m_1_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -449,7 +449,7 @@ fn e2e_test_xml_cs_bc_m_4_14() {
         </Attribute> -->
         <Attribute>
           <AttributeName type="TextString" value="Activation Date"/>
-          <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+          <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         </Attribute>
       </TemplateAttribute>
       <SymmetricKey>
@@ -472,7 +472,7 @@ fn e2e_test_xml_cs_bc_m_4_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -510,7 +510,7 @@ fn e2e_test_xml_cs_bc_m_4_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -548,7 +548,7 @@ fn e2e_test_xml_cs_bc_m_4_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -582,7 +582,7 @@ fn e2e_test_xml_cs_bc_m_4_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -638,7 +638,7 @@ fn e2e_test_xml_cs_bc_m_5_14() {
             </Attribute> -->
             <Attribute>
               <AttributeName type="TextString" value="Activation Date"/>
-              <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+              <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
             </Attribute>
           </TemplateAttribute>
           <SymmetricKey>
@@ -661,7 +661,7 @@ fn e2e_test_xml_cs_bc_m_5_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -699,7 +699,7 @@ fn e2e_test_xml_cs_bc_m_5_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -737,7 +737,7 @@ fn e2e_test_xml_cs_bc_m_5_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -771,7 +771,7 @@ fn e2e_test_xml_cs_bc_m_5_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -826,7 +826,7 @@ fn e2e_test_xml_cs_ac_m_4_14() {
             </Attribute>-->
             <Attribute>
               <AttributeName type="TextString" value="Activation Date"/>
-              <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+              <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
             </Attribute>
             <Attribute>
               <AttributeName type="TextString" value="Cryptographic Parameters"/>
@@ -855,7 +855,7 @@ fn e2e_test_xml_cs_ac_m_4_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -890,7 +890,7 @@ fn e2e_test_xml_cs_ac_m_4_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -928,7 +928,7 @@ fn e2e_test_xml_cs_ac_m_4_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -962,7 +962,7 @@ fn e2e_test_xml_cs_ac_m_4_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1018,7 +1018,7 @@ fn e2e_test_xml_cs_ac_m_5_14() {
         </Attribute>-->
         <Attribute>
           <AttributeName type="TextString" value="Activation Date"/>
-          <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+          <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         </Attribute>
         <Attribute>
           <AttributeName type="TextString" value="Cryptographic Parameters"/>
@@ -1047,7 +1047,7 @@ fn e2e_test_xml_cs_ac_m_5_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -1083,7 +1083,7 @@ fn e2e_test_xml_cs_ac_m_5_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -1121,7 +1121,7 @@ fn e2e_test_xml_cs_ac_m_5_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -1155,7 +1155,7 @@ fn e2e_test_xml_cs_ac_m_5_14() {
       <ProtocolVersionMajor type="Integer" value="1"/>
       <ProtocolVersionMinor type="Integer" value="4"/>
     </ProtocolVersion>
-    <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+    <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
     <BatchCount type="Integer" value="1"/>
   </ResponseHeader>
   <BatchItem>
@@ -1244,7 +1244,7 @@ fn e2e_test_xml_sklc_m_1_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1289,7 +1289,7 @@ fn e2e_test_xml_sklc_m_1_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1323,11 +1323,11 @@ fn e2e_test_xml_sklc_m_1_14() {
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Initial Date"/>
-            <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+            <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Last Change Date"/>
-            <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+            <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
           </Attribute>
 
         </ResponsePayload>
@@ -1356,7 +1356,7 @@ fn e2e_test_xml_sklc_m_1_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1443,7 +1443,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1487,7 +1487,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1521,11 +1521,11 @@ fn e2e_test_xml_sklc_m_2_14() {
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Initial Date"/>
-            <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+            <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Last Change Date"/>
-            <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+            <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
           </Attribute>
 
         </ResponsePayload>
@@ -1554,7 +1554,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1591,7 +1591,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1605,7 +1605,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           </Attribute>
           <Attribute>
             <AttributeName type="TextString" value="Activation Date"/>
-            <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+            <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
           </Attribute>
         </ResponsePayload>
       </BatchItem>
@@ -1633,7 +1633,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1670,7 +1670,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1705,7 +1705,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1743,7 +1743,7 @@ fn e2e_test_xml_sklc_m_2_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1799,7 +1799,7 @@ fn e2e_test_xml_cs_bc_m_8_14() {
             </Attribute>-->
             <Attribute>
               <AttributeName type="TextString" value="Activation Date"/>
-              <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+              <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
             </Attribute>
           </TemplateAttribute>
           <SymmetricKey>
@@ -1822,7 +1822,7 @@ fn e2e_test_xml_cs_bc_m_8_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1861,7 +1861,7 @@ fn e2e_test_xml_cs_bc_m_8_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1901,7 +1901,7 @@ fn e2e_test_xml_cs_bc_m_8_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1939,7 +1939,7 @@ fn e2e_test_xml_cs_bc_m_8_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -1973,7 +1973,7 @@ fn e2e_test_xml_cs_bc_m_8_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -2030,7 +2030,7 @@ fn e2e_test_xml_cs_bc_m_10_14() {
             </Attribute>-->
             <Attribute>
               <AttributeName type="TextString" value="Activation Date"/>
-              <AttributeValue type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+              <AttributeValue type="DateTime" value="1970-01-01T02:46:40+00:00"/>
             </Attribute>
           </TemplateAttribute>
           <SymmetricKey>
@@ -2053,7 +2053,7 @@ fn e2e_test_xml_cs_bc_m_10_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -2093,7 +2093,7 @@ fn e2e_test_xml_cs_bc_m_10_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -2134,7 +2134,7 @@ fn e2e_test_xml_cs_bc_m_10_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -2172,7 +2172,7 @@ fn e2e_test_xml_cs_bc_m_10_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -2206,7 +2206,7 @@ fn e2e_test_xml_cs_bc_m_10_14() {
           <ProtocolVersionMajor type="Integer" value="1"/>
           <ProtocolVersionMinor type="Integer" value="4"/>
         </ProtocolVersion>
-        <TimeStamp type="DateTime" value="1970-01-01T00:02:03+00:00"/>
+        <TimeStamp type="DateTime" value="1970-01-01T02:46:40+00:00"/>
         <BatchCount type="Integer" value="1"/>
       </ResponseHeader>
       <BatchItem>
@@ -2236,5 +2236,109 @@ fn e2e_test_xml_skff_m_1_14() {
 fn e2e_test_xml_sklc_m_1_14_file() {
     let conv =
         std::str::from_utf8(include_bytes!("../../../test_cases/1.4/SKLC-M-1-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Create + ECB Encrypt (uses TestRngSource so key is deterministic)
+#[test]
+fn e2e_test_xml_cs_bc_m_1_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-1-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Create + ECB Decrypt
+#[test]
+fn e2e_test_xml_cs_bc_m_2_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-2-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Create + ECB Encrypt + Decrypt
+#[test]
+fn e2e_test_xml_cs_bc_m_3_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-3-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Register + ECB Encrypt + Decrypt (256-bit key)
+#[test]
+fn e2e_test_xml_cs_bc_m_6_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-6-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Register + ECB Encrypt then Encrypt after Revoke (PermissionDenied)
+#[test]
+fn e2e_test_xml_cs_bc_m_7_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-7-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Register + ECB PKCS5 Encrypt + Decrypt (256-bit key)
+#[test]
+fn e2e_test_xml_cs_bc_m_9_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-9-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Register + CBC PKCS5 Encrypt + Decrypt with bad-IV error case
+#[test]
+fn e2e_test_xml_cs_bc_m_11_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-11-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Register + CBC PKCS5 (params from key attrs) Encrypt + bad-IV Decrypt error case
+#[test]
+fn e2e_test_xml_cs_bc_m_12_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-12-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Register + CBC PKCS5 (params from key attrs) Encrypt + wrong-IV Decrypt error case
+#[test]
+fn e2e_test_xml_cs_bc_m_13_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-13-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Register + ECB Encrypt/Decrypt before Activate (PermissionDenied)
+#[test]
+fn e2e_test_xml_cs_bc_m_14_14_file() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/CS-BC-M-14-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Create + Destroy (AES-192)
+#[test]
+fn e2e_test_xml_skff_m_2_14() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/SKFF-M-2-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Create + Destroy (AES-256)
+#[test]
+fn e2e_test_xml_skff_m_3_14() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/SKFF-M-3-14.xml")).unwrap();
+    run_e2e_xml_conversation(conv);
+}
+
+// Create + Destroy (3DES / TripleDES)
+#[test]
+fn e2e_test_xml_skff_m_4_14() {
+    let conv =
+        std::str::from_utf8(include_bytes!("../../../test_cases/1.4/SKFF-M-4-14.xml")).unwrap();
     run_e2e_xml_conversation(conv);
 }

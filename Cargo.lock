@@ -2482,6 +2482,7 @@ dependencies = [
 name = "tests_e2e"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "difference",
  "hex",
  "kmip_client",

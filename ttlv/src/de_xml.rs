@@ -200,9 +200,9 @@ impl<'a> XmlReader<'a> {
             ItemType::TextString => {
                 if tag == Tag::AttributeName {
                     let trimmed = value.replace(" ", "");
-                    let name = trimmed.as_ref();
-                    self.last_attribute_tag =
-                        Some(Tag::from_str(name).map_err(|_| TTLVError::XmlError)?)
+                    // Unknown attribute names (e.g. vendor extensions like "x-ID") are silently
+                    // ignored; last_attribute_tag stays None so no special Integer handling fires.
+                    self.last_attribute_tag = Tag::from_str(&trimmed).ok();
                 }
 
                 Ok(ValueType::TextString(value.to_string()))

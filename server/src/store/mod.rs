@@ -77,6 +77,18 @@ pub struct ManagedAttributes {
     // // pub deactivation_date : Option<chrono::DateTime<Utc>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub destroy_date: Option<chrono::DateTime<Utc>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub process_start_date: Option<chrono::DateTime<Utc>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protect_stop_date: Option<chrono::DateTime<Utc>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage_limits_total: Option<i64>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage_limits_count: Option<i64>,
 }
 
 // impl ManagedAttributes {
@@ -104,6 +116,10 @@ impl ManagedAttributes {
             deactivation_date: None,
             destroy_date: None,
             cryptographic_usage_mask: None,
+            process_start_date: None,
+            protect_stop_date: None,
+            usage_limits_total: None,
+            usage_limits_count: None,
         }
     }
 
