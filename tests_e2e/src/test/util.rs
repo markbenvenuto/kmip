@@ -9,6 +9,7 @@ use std::{
     thread,
 };
 
+use chrono::Duration;
 use difference::assert_diff;
 use kmip_client::{parse_kmip_messages, Client};
 use kmip_server::{
@@ -245,6 +246,10 @@ fn extract_variables(xml: &str, var_map: &mut HashMap<String, String>) {
             Regex::new(r#"TimeStamp\s+type="DateTime"\s+value="([^"]*)""#).unwrap();
         static ref UID_RE: Regex =
             Regex::new(r#"UniqueIdentifier\s+type="TextString"\s+value="([^"]*)""#).unwrap();
+        static ref DATA_RE: Regex =
+            Regex::new(r#"Data\s+type="ByteString"\s+value="([^"]*)""#).unwrap();
+        static ref IV_RE: Regex =
+            Regex::new(r#"IVCounterNonce\s+type="ByteString"\s+value="([^"]*)""#).unwrap();
     }
 
     if !var_map.contains_key("$NOW") {
@@ -266,14 +271,62 @@ fn extract_variables(xml: &str, var_map: &mut HashMap<String, String>) {
             counter += 1;
         }
     }
+
+    let mut data_counter = var_map.keys().filter(|k| k.starts_with("$DATA_")).count();
+    for caps in DATA_RE.captures_iter(xml) {
+        let value = caps[1].to_string();
+        if !var_map.values().any(|v| v == &value) {
+            var_map.insert(format!("$DATA_{}", data_counter), value);
+            data_counter += 1;
+        }
+    }
+
+    if let Some(caps) = IV_RE.captures(xml) {
+        var_map
+            .entry("$IV_COUNTER_NONCE".to_string())
+            .or_insert_with(|| caps[1].to_string());
+    }
+}
+
+/// Resolve `$NOW±N` expressions (e.g. `$NOW-3600`, `$NOW+3600`) in `xml` using the `$NOW`
+/// entry in `var_map`. Must run before `apply_var_substitution` so that `$NOW` is not
+/// expanded first.
+fn resolve_now_arithmetic(xml: &str, var_map: &HashMap<String, String>) -> String {
+    lazy_static! {
+        static ref NOW_ARITH_RE: Regex = Regex::new(r"\$NOW([+-])(\d+)").unwrap();
+    }
+
+    let now_str = match var_map.get("$NOW") {
+        Some(s) => s,
+        None => return xml.to_string(),
+    };
+
+    let now = match chrono::DateTime::parse_from_rfc3339(now_str) {
+        Ok(dt) => dt,
+        Err(_) => return xml.to_string(),
+    };
+
+    NOW_ARITH_RE
+        .replace_all(xml, |caps: &regex::Captures| {
+            let secs: i64 = caps[2].parse().unwrap_or(0);
+            let dt = if &caps[1] == "+" {
+                now + Duration::seconds(secs)
+            } else {
+                now - Duration::seconds(secs)
+            };
+            dt.to_rfc3339()
+        })
+        .into_owned()
 }
 
 fn apply_var_substitution(xml: &str, var_map: &HashMap<String, String>) -> String {
+    // Resolve $NOW-N arithmetic before simple key substitution so $NOW is not expanded first.
+    let xml = resolve_now_arithmetic(xml, var_map);
     // Sort by key length descending so longer keys (e.g. $UNIQUE_IDENTIFIER_10) are replaced
     // before shorter prefixes ($UNIQUE_IDENTIFIER_1), and iteration order is deterministic.
     let mut pairs: Vec<(&String, &String)> = var_map.iter().collect();
     pairs.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
-    let mut result = xml.to_string();
+    let mut result = xml;
     for (var, value) in pairs {
         result = result.replace(var.as_str(), value.as_str());
     }
@@ -289,6 +342,29 @@ fn normalize_digest_values(xml: &str) -> String {
         .replace_all(
             xml,
             r#"DigestValue type="ByteString" value="NORMALIZED_FOR_TEST""#,
+        )
+        .into_owned()
+}
+
+fn normalize_data_values(xml: &str) -> String {
+    lazy_static! {
+        static ref DATA_RE: Regex =
+            Regex::new(r#"Data\s+type="ByteString"\s+value="[^"]*""#).unwrap();
+    }
+    DATA_RE
+        .replace_all(xml, r#"Data type="ByteString" value="NORMALIZED_FOR_TEST""#)
+        .into_owned()
+}
+
+fn normalize_iv_values(xml: &str) -> String {
+    lazy_static! {
+        static ref IV_RE: Regex =
+            Regex::new(r#"IVCounterNonce\s+type="ByteString"\s+value="[^"]*""#).unwrap();
+    }
+    IV_RE
+        .replace_all(
+            xml,
+            r#"IVCounterNonce type="ByteString" value="NORMALIZED_FOR_TEST""#,
         )
         .into_owned()
 }
@@ -320,9 +396,11 @@ pub struct ConversationNormalizer {
 
 impl ConversationNormalizer {
     pub fn new() -> Self {
-        ConversationNormalizer {
-            var_map: HashMap::new(),
-        }
+        let mut var_map = HashMap::new();
+        // Pre-seed $NOW with TestClockSource's fixed timestamp (10000 s since epoch) so that
+        // $NOW-N arithmetic in requests works before any server response has been received.
+        var_map.insert("$NOW".to_string(), "1970-01-01T02:46:40+00:00".to_string());
+        ConversationNormalizer { var_map }
     }
 
     pub fn apply_to_request(&mut self, xml: &str) -> String {
@@ -333,8 +411,16 @@ impl ConversationNormalizer {
         extract_variables(actual, &mut self.var_map);
         let norm_expected = apply_var_substitution(expected, &self.var_map);
         let norm_expected = strip_digest_attribute_block_if_absent(actual, &norm_expected);
-        let norm_actual = normalize_digest_values(&actual);
+
+        let norm_actual = normalize_digest_values(actual);
         let norm_expected = normalize_digest_values(&norm_expected);
+
+        let norm_actual = normalize_data_values(&norm_actual);
+        let norm_expected = normalize_data_values(&norm_expected);
+
+        let norm_actual = normalize_iv_values(&norm_actual);
+        let norm_expected = normalize_iv_values(&norm_expected);
+
         (norm_actual, norm_expected)
     }
 }

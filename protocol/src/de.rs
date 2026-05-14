@@ -4,7 +4,7 @@ use ttlv::{
     TTLVError,
     Tag,
     TtlvDeserialize,
-    parser::{expect_boolean, expect_enumeration, expect_integer},
+    parser::{expect_boolean, expect_enumeration, expect_integer, expect_long_integer},
 };
 
 use crate::*;
@@ -119,6 +119,30 @@ impl TtlvDeserialize for AttributesEnum {
             "Unique Identifier" => {
                 Self::UniqueIdentifier(expect_text_string(reader, Tag::AttributeValue)?)
             }
+            "x-ID" => Self::XID(expect_text_string(reader, Tag::AttributeValue)?),
+            "Process Start Date" => {
+                Self::ProcessStartDate(expect_datetime(reader, Tag::AttributeValue)?)
+            }
+            "Protect Stop Date" => {
+                Self::ProtectStopDate(expect_datetime(reader, Tag::AttributeValue)?)
+            }
+            "Usage Limits" => {
+                expect_structure_begin(reader, Tag::AttributeValue)?;
+                let total = expect_long_integer(reader, Tag::UsageLimitsTotal)?;
+                let count = parse_optional_long_integer(reader, Tag::UsageLimitsCount)?;
+                let unit_val = expect_enumeration(reader, Tag::UsageLimitsUnit)?;
+                let unit =
+                    num::FromPrimitive::from_u32(unit_val).ok_or(TTLVError::InvalidEnumValue {
+                        tag: Tag::UsageLimitsUnit,
+                        value: unit_val,
+                    })?;
+                expect_structure_end(reader, Tag::AttributeValue)?;
+                Self::UsageLimits(UsageLimits {
+                    usage_limits_total: total,
+                    usage_limits_count: count,
+                    unit,
+                })
+            }
             n => {
                 return Err(TTLVError::InvalidTagName {
                     name: n.to_string(),
@@ -177,6 +201,21 @@ fn parse_optional_integer(
         && tag == expected_tag
     {
         Some(expect_integer(reader, expected_tag)?)
+    } else {
+        None
+    };
+
+    Ok(value)
+}
+
+fn parse_optional_long_integer(
+    reader: &mut dyn Reader,
+    expected_tag: Tag,
+) -> Result<Option<i64>, TTLVError> {
+    let value = if let Some(tag) = reader.peek_tag()
+        && tag == expected_tag
+    {
+        Some(expect_long_integer(reader, expected_tag)?)
     } else {
         None
     };

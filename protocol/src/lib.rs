@@ -164,6 +164,7 @@ pub enum NameType {
 #[repr(i32)]
 pub enum CryptographicAlgorithm {
     DES = 0x00000001,
+    #[strum(serialize = "TripleDES", serialize = "DES3")]
     TripleDES = 0x00000002,
     AES = 0x00000003,
     RSA = 0x00000004,
@@ -553,6 +554,23 @@ pub enum ValidityIndicator {
     Clone,
     Copy,
     TtlvEnumDeserialize,
+    TtlvEnumSerialize,
+)]
+#[repr(i32)]
+pub enum UsageLimitsUnit {
+    Byte = 0x00000001,
+    Object = 0x00000002,
+}
+
+#[derive(
+    Debug,
+    EnumString,
+    FromPrimitive,
+    ToPrimitive,
+    IntoStaticStr,
+    Clone,
+    Copy,
+    TtlvEnumDeserialize,
     PartialEq,
     TtlvEnumSerialize,
 )]
@@ -751,6 +769,14 @@ pub struct RevocationReason {
 // }
 
 #[derive(Debug, Clone)]
+pub struct UsageLimits {
+    pub usage_limits_total: i64,
+    // Count is ignored on create and register. Mark it as optional.
+    pub usage_limits_count: Option<i64>,
+    pub unit: UsageLimitsUnit,
+}
+
+#[derive(Debug, Clone)]
 pub enum AttributesEnum {
     CryptographicAlgorithm(CryptographicAlgorithm),
     CryptographicLength(i32),
@@ -764,6 +790,11 @@ pub enum AttributesEnum {
     LastChangeDate(DateTime<Utc>),
     ObjectType(ObjectType),
     UniqueIdentifier(String),
+    XID(String),
+    ProcessStartDate(DateTime<Utc>),
+    ProtectStopDate(DateTime<Utc>),
+    UsageLimits(UsageLimits),
+    Unknown,
 }
 
 #[derive(Debug, TtlvDeserialize, TtlvSerialize)]
