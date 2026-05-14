@@ -304,7 +304,7 @@ fn merge_to_managed_attribute(
         }
         protocol::AttributesEnum::UsageLimits(u) => {
             ma.usage_limits_total = Some(u.usage_limits_total);
-            ma.usage_limits_count = u.usage_limits_count;
+            ma.usage_limits_count = Some(u.usage_limits_count.unwrap_or(u.usage_limits_total));
         }
         protocol::AttributesEnum::XID(_) | protocol::AttributesEnum::Unknown => {}
         _ => {
