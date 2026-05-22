@@ -43,6 +43,7 @@ heck = "0.5"
 hex = "0.4.3"
 hmac = "0.13.0"
 kmip_client = { path = "kmip_client" }
+kmip_protocol = { path = "kmip_protocol" }
 kmip_server = { path = "server" }
 lazy_static = "1.4.0"
 mio = "1.1.1"
@@ -52,7 +53,6 @@ num-derive = "0.4.2"
 num-traits = "0.2.19"
 pretty-hex = "0.4.2"
 proc-macro2 = "1"
-kmip_protocol = { path = "kmip_protocol" }
 quick-xml = "0.40.0"
 quote = "1"
 regex = "1"

@@ -10,16 +10,10 @@ publish = false
 
 [dependencies]
 clap  = { workspace = true }
-clap-log-flag  = { workspace = true }
 clap-verbosity-flag  = { workspace = true }
-confy  = { workspace = true }
 hex  = { workspace = true }
 kmip_client  = { workspace = true }
-mio  = { workspace = true }
-pretty-hex  = { workspace = true }
 kmip_protocol  = { workspace = true }
 rustls  = { workspace = true }
-tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-webpki  = { workspace = true }
 webpki-roots  = { workspace = true }

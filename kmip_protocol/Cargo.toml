@@ -6,31 +6,18 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
+[package.metadata.cargo-machete]
+ignored = ["num-traits", "serde", "strum"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
-byteorder = { workspace = true }
-
 chrono = { workspace = true, features = ["serde"] }
-hex = { workspace = true }
-
 num = { workspace = true }
 num-derive = { workspace = true }
 num-traits = { workspace = true }
-
-pretty-hex = { workspace = true }
 serde  = { workspace = true }
 serde_derive  = { workspace = true }
-
 strum = { workspace = true }
 strum_macros = { workspace = true }
-
-thiserror = { workspace = true }
-
-tracing = { workspace = true }
-
 ttlv = { workspace = true }
-ttlv_derive = { workspace = true }
-
-xml = { workspace = true }

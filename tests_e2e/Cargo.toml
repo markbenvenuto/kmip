@@ -12,13 +12,11 @@ chrono = { workspace = true }
 difference = { workspace = true }
 hex  = { workspace = true }
 kmip_client = { workspace = true }
+kmip_protocol = { workspace = true }
 kmip_server  = { workspace = true }
 lazy_static  = { workspace = true }
-kmip_protocol = { workspace = true }
 quick-xml  = { workspace = true }
 regex = { workspace = true }
 rustls  = { workspace = true }
-tracing = { workspace = true }
 ttlv = { workspace = true }
-webpki  = { workspace = true }
 webpki-roots  = { workspace = true }
