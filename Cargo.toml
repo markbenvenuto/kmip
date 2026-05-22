@@ -11,7 +11,7 @@ resolver = "2"
 members = [
     "client",
     "kmip_client",
-    "protocol",
+    "kmip_protocol",
     "server",
     "tests_e2e",
     "ttlv",
@@ -52,7 +52,7 @@ num-derive = "0.4.2"
 num-traits = "0.2.19"
 pretty-hex = "0.4.2"
 proc-macro2 = "1"
-protocol = { path = "protocol" }
+kmip_protocol = { path = "kmip_protocol" }
 quick-xml = "0.40.0"
 quote = "1"
 regex = "1"

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use chrono::{Utc, serde::ts_milliseconds};
 pub use mem::KmipMemoryStore;
-use protocol::{
+use kmip_protocol::{
     AttributesEnum,
     CryptographicAlgorithm,
     CryptographicParameters,

@@ -7,7 +7,7 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use kmip_client::{Client, parse_kmip_messages};
-use protocol::*;
+use kmip_protocol::*;
 use rustls::{
     ClientConfig,
     DigitallySignedStruct,

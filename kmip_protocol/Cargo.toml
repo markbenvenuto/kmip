@@ -1,5 +1,5 @@
 [package]
-name = "protocol"
+name = "kmip_protocol"
 authors = ["Mark Benvenuto <mark.benvenuto@mongodb.com>"]
 license = "Apache-2.0"
 version.workspace = true

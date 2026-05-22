@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 
 use pretty_hex::*;
-use protocol::*;
+use kmip_protocol::*;
 use quick_xml::{events::Event, reader::Reader};
 use thiserror::Error;
 use tracing::debug;

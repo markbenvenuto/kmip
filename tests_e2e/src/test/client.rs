@@ -1,4 +1,4 @@
-use protocol::*;
+use kmip_protocol::*;
 
 use crate::test::util::run_e2e_client_test;
 

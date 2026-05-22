@@ -458,9 +458,9 @@ dependencies = [
  "confy",
  "hex",
  "kmip_client",
+ "kmip_protocol",
  "mio",
  "pretty-hex",
- "protocol",
  "rustls",
  "tracing",
  "tracing-subscriber",
@@ -1385,15 +1385,37 @@ dependencies = [
 name = "kmip_client"
 version = "0.1.0"
 dependencies = [
+ "kmip_protocol",
  "num",
  "num-derive",
  "num-traits",
  "pretty-hex",
- "protocol",
  "quick-xml",
  "thiserror",
  "tracing",
  "ttlv",
+]
+
+[[package]]
+name = "kmip_protocol"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "chrono",
+ "hex",
+ "num",
+ "num-derive",
+ "num-traits",
+ "pretty-hex",
+ "serde",
+ "serde_derive",
+ "strum",
+ "strum_macros",
+ "thiserror",
+ "tracing",
+ "ttlv",
+ "ttlv_derive",
+ "xml",
 ]
 
 [[package]]
@@ -1416,6 +1438,7 @@ dependencies = [
  "ecb",
  "futures",
  "hmac 0.13.0",
+ "kmip_protocol",
  "lazy_static",
  "mio",
  "mongodb",
@@ -1423,7 +1446,6 @@ dependencies = [
  "num-derive",
  "num-traits",
  "pretty-hex",
- "protocol",
  "rustls",
  "serde",
  "serde_derive",
@@ -1907,28 +1929,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "protocol"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "chrono",
- "hex",
- "num",
- "num-derive",
- "num-traits",
- "pretty-hex",
- "serde",
- "serde_derive",
- "strum",
- "strum_macros",
- "thiserror",
- "tracing",
- "ttlv",
- "ttlv_derive",
- "xml",
 ]
 
 [[package]]
@@ -2486,9 +2486,9 @@ dependencies = [
  "difference",
  "hex",
  "kmip_client",
+ "kmip_protocol",
  "kmip_server",
  "lazy_static",
- "protocol",
  "quick-xml",
  "regex",
  "rustls",

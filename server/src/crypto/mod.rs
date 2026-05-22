@@ -3,7 +3,7 @@ use block_padding::{NoPadding, Pkcs7};
 use crypto_common::KeyIvInit;
 use digest::{FixedOutput, Update};
 use hmac::{EagerHash, Hmac, KeyInit};
-use protocol::{BlockCipherMode, CryptographicAlgorithm, PaddingMethod, ValidityIndicator};
+use kmip_protocol::{BlockCipherMode, CryptographicAlgorithm, PaddingMethod, ValidityIndicator};
 use sha2::{Sha224, Sha256, Sha384, Sha512};
 
 use crate::{KmipResponseError, RngSource};

@@ -17,7 +17,7 @@ hex  = { workspace = true }
 kmip_client  = { workspace = true }
 mio  = { workspace = true }
 pretty-hex  = { workspace = true }
-protocol  = { workspace = true }
+kmip_protocol  = { workspace = true }
 rustls  = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

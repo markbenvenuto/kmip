@@ -16,7 +16,7 @@ pub mod crypto;
 pub mod store;
 pub mod test_util;
 
-use protocol::*;
+use kmip_protocol::*;
 use store::{KmipStore, ManagedAttributes, ManagedObjectEnum, SymmetricKeyStore};
 
 /// Process some amount of received plaintext.
@@ -192,7 +192,7 @@ fn create_permission_denied() -> KmipResponseError {
 
 // fn find_attr<F>(tas: &Vec<TemplateAttribute>, func: F) -> Option<i32>
 // where
-//     F: Fn(&protocol::AttributesEnum) -> Option<i32>,
+//     F: Fn(&kmip_protocol::AttributesEnum) -> Option<i32>,
 // {
 //     for ta in tas {
 //         for attr in &ta.attribute {
@@ -214,10 +214,10 @@ fn merge_to_secret_data(
     for ta in tas {
         for attr in &ta.attribute {
             match attr {
-                protocol::AttributesEnum::CryptographicAlgorithm(a) => {
+                kmip_protocol::AttributesEnum::CryptographicAlgorithm(a) => {
                     sd.key_block.cryptographic_algorithm = Some(*a);
                 }
-                protocol::AttributesEnum::CryptographicLength(a) => {
+                kmip_protocol::AttributesEnum::CryptographicLength(a) => {
                     // TODO - validate
                     sd.key_block.cryptographic_length = Some(*a);
                 }
@@ -236,15 +236,15 @@ fn merge_to_symmetric_key(
     for ta in tas {
         for attr in &ta.attribute {
             match attr {
-                protocol::AttributesEnum::CryptographicAlgorithm(a) => {
+                kmip_protocol::AttributesEnum::CryptographicAlgorithm(a) => {
                     sks.cryptographic_algorithm = *a;
                 }
-                protocol::AttributesEnum::CryptographicLength(a) => {
+                kmip_protocol::AttributesEnum::CryptographicLength(a) => {
                     // TODO - validate
                     sks.cryptographic_length = *a
                 }
 
-                protocol::AttributesEnum::CryptographicParameters(a) => {
+                kmip_protocol::AttributesEnum::CryptographicParameters(a) => {
                     sks.cryptographic_parameters = Some(a.clone());
                 }
                 _ => merge_to_managed_attribute(ma, attr)?,
@@ -259,54 +259,54 @@ fn merge_to_managed_attribute(
     attr: &AttributesEnum,
 ) -> std::result::Result<(), KmipResponseError> {
     match attr {
-        protocol::AttributesEnum::CryptographicUsageMask(a) => {
+        kmip_protocol::AttributesEnum::CryptographicUsageMask(a) => {
             // TODO - validate
             ma.cryptographic_usage_mask = Some(*a);
         }
-        protocol::AttributesEnum::ActivationDate(a) => {
+        kmip_protocol::AttributesEnum::ActivationDate(a) => {
             // TODO - validate
             ma.activation_date = Some(*a);
         }
-        protocol::AttributesEnum::Name(a) => {
+        kmip_protocol::AttributesEnum::Name(a) => {
             // TODO - validate
             ma.names.push(a.clone());
         }
-        protocol::AttributesEnum::State(_) => {
+        kmip_protocol::AttributesEnum::State(_) => {
             return Err(KmipResponseError::new(
                 "Cannot set 'State' via a client request",
             ));
         }
-        protocol::AttributesEnum::InitialDate(_) => {
+        kmip_protocol::AttributesEnum::InitialDate(_) => {
             return Err(KmipResponseError::new(
                 "Cannot set 'Initial Date' via a client request",
             ));
         }
-        protocol::AttributesEnum::LastChangeDate(_) => {
+        kmip_protocol::AttributesEnum::LastChangeDate(_) => {
             return Err(KmipResponseError::new(
                 "Cannot set 'Last Change Date' via a client request",
             ));
         }
-        protocol::AttributesEnum::ObjectType(_) => {
+        kmip_protocol::AttributesEnum::ObjectType(_) => {
             return Err(KmipResponseError::new(
                 "Cannot set 'Object Type' via a client request",
             ));
         }
-        protocol::AttributesEnum::UniqueIdentifier(_) => {
+        kmip_protocol::AttributesEnum::UniqueIdentifier(_) => {
             return Err(KmipResponseError::new(
                 "Cannot set 'Unique Identifier' via a client request",
             ));
         }
-        protocol::AttributesEnum::ProcessStartDate(a) => {
+        kmip_protocol::AttributesEnum::ProcessStartDate(a) => {
             ma.process_start_date = Some(*a);
         }
-        protocol::AttributesEnum::ProtectStopDate(a) => {
+        kmip_protocol::AttributesEnum::ProtectStopDate(a) => {
             ma.protect_stop_date = Some(*a);
         }
-        protocol::AttributesEnum::UsageLimits(u) => {
+        kmip_protocol::AttributesEnum::UsageLimits(u) => {
             ma.usage_limits_total = Some(u.usage_limits_total);
             ma.usage_limits_count = Some(u.usage_limits_count.unwrap_or(u.usage_limits_total));
         }
-        protocol::AttributesEnum::XID(_) | protocol::AttributesEnum::Unknown => {}
+        kmip_protocol::AttributesEnum::XID(_) | kmip_protocol::AttributesEnum::Unknown => {}
         _ => {
             return Err(KmipResponseError::new(&format!(
                 "Attribute {:?} is not supported on object",
@@ -819,7 +819,7 @@ fn process_decrypt_request(
 
     if matches!(block_cipher_mode, BlockCipherMode::CBC) && req.iv_counter_nonce.is_none() {
         return Err(KmipResponseError::new_reason(
-            protocol::ResultReason::InvalidMessage,
+            kmip_protocol::ResultReason::InvalidMessage,
             "missing-iv",
         ));
     }
@@ -920,22 +920,22 @@ fn process_mac_verify_request(
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 fn create_ok_response(
-    op: protocol::ResponseOperationEnum,
+    op: kmip_protocol::ResponseOperationEnum,
     clock_source: &dyn ClockSource,
-) -> protocol::ResponseMessage {
-    protocol::ResponseMessage {
-        response_header: protocol::ResponseHeader {
-            protocol_version: protocol::ProtocolVersion {
+) -> kmip_protocol::ResponseMessage {
+    kmip_protocol::ResponseMessage {
+        response_header: kmip_protocol::ResponseHeader {
+            protocol_version: kmip_protocol::ProtocolVersion {
                 protocol_version_major: 1,
                 protocol_version_minor: 0,
             },
             time_stamp: clock_source.now(),
             batch_count: 1,
         },
-        batch_item: protocol::ResponseBatchItem {
+        batch_item: kmip_protocol::ResponseBatchItem {
             operation: None,
-            result_status: protocol::ResultStatus::Success,
-            result_reason: Some(protocol::ResultReason::GeneralFailure),
+            result_status: kmip_protocol::ResultStatus::Success,
+            result_reason: Some(kmip_protocol::ResultReason::GeneralFailure),
             result_message: None,
             response_payload: Some(op),
             // TODO: result_response_enum: None,
@@ -947,19 +947,19 @@ fn create_error_response(
     e: &KmipResponseError,
     request_operation: Operation,
     clock_source: &dyn ClockSource,
-) -> protocol::ResponseMessage {
-    protocol::ResponseMessage {
-        response_header: protocol::ResponseHeader {
-            protocol_version: protocol::ProtocolVersion {
+) -> kmip_protocol::ResponseMessage {
+    kmip_protocol::ResponseMessage {
+        response_header: kmip_protocol::ResponseHeader {
+            protocol_version: kmip_protocol::ProtocolVersion {
                 protocol_version_major: 1,
                 protocol_version_minor: 0,
             },
             time_stamp: clock_source.now(),
             batch_count: 1,
         },
-        batch_item: protocol::ResponseBatchItem {
+        batch_item: kmip_protocol::ResponseBatchItem {
             operation: Some(request_operation),
-            result_status: protocol::ResultStatus::OperationFailed,
+            result_status: kmip_protocol::ResultStatus::OperationFailed,
             result_reason: Some(e.reason),
             result_message: Some(e.msg.to_owned()),
             response_payload: None,
@@ -1093,7 +1093,7 @@ pub fn process_kmip_request(rc: &mut RequestContext, buf: &[u8]) -> Vec<u8> {
 mod tests {
     use std::sync::Arc;
 
-    use protocol::RequestMessage;
+    use kmip_protocol::RequestMessage;
 
     use crate::{
         RequestContext,
