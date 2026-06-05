@@ -23,7 +23,7 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-aes = "0.9.0"
+aes = "0.9.1"
 aws-lc-rs = "1.17.0"
 block-padding = "0.4.2"
 bson = { version = "3.1.0", features = ["serde"] }
@@ -47,7 +47,7 @@ kmip_protocol = { path = "kmip_protocol" }
 kmip_server = { path = "server" }
 lazy_static = "1.4.0"
 mio = "1.1.1"
-mongodb = { version = "3.5.1", features = ["sync"] }
+mongodb = { version = "3.7.0", features = ["sync"] }
 num = "0.4.0"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
