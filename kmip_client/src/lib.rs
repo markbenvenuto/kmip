@@ -305,7 +305,7 @@ pub fn parse_kmip_messages(xml: &str) -> (Vec<String>, Vec<String>) {
             Err(_) | Ok(Event::Eof) => break,
             Ok(Event::Start(ref e)) => {
                 let tag_name = e.name();
-                if tag_name.as_ref() == b"RequestMessage" || tag_name.as_ref() == b"ResponseMessage"
+                if tag_name.as_ref() == "RequestMessage" || tag_name.as_ref() == "ResponseMessage"
                 {
                     // Capture the full content of this specific element
                     let span_start =
@@ -316,9 +316,9 @@ pub fn parse_kmip_messages(xml: &str) -> (Vec<String>, Vec<String>) {
                         let span_end = reader.buffer_position() as usize;
                         let full_tag = &xml[span_start..span_end];
 
-                        if tag_name.as_ref() == b"RequestMessage" {
+                        if tag_name.as_ref() == "RequestMessage" {
                             requests.push(full_tag.to_string());
-                        } else if tag_name.as_ref() == b"ResponseMessage" {
+                        } else if tag_name.as_ref() == "ResponseMessage" {
                             responses.push(full_tag.to_string());
                         } else {
                             panic!("Unexpected XML input: {tag_name:?} ");

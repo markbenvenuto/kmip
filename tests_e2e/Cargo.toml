@@ -9,7 +9,6 @@ license = "Apache-2.0"
 
 [dependencies]
 chrono = { workspace = true }
-difference = { workspace = true }
 hex  = { workspace = true }
 kmip_client = { workspace = true }
 kmip_protocol = { workspace = true }
@@ -18,5 +17,6 @@ lazy_static  = { workspace = true }
 quick-xml  = { workspace = true }
 regex = { workspace = true }
 rustls  = { workspace = true }
+similar = { workspace = true }
 ttlv = { workspace = true }
 webpki-roots  = { workspace = true }

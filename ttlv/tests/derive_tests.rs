@@ -619,7 +619,6 @@ fn test_discriminator_enum_explicit_override() {
 #[ttlv(tag = "CryptographicAlgorithm")]
 enum SerCryptographicAlgorithm {
     Aes = 3,
-    TripleDes = 6,
 }
 
 #[test]

@@ -10,7 +10,6 @@ use std::{
 };
 
 use chrono::Duration;
-use difference::assert_diff;
 use kmip_client::{parse_kmip_messages, Client};
 use kmip_server::{
     handle_client,
@@ -59,9 +58,14 @@ fn run_server_count(start_barrier: Arc<Barrier>, end_barrier: Arc<Barrier>, port
         ServerConfig,
     };
 
-    rustls::crypto::aws_lc_rs::default_provider()
-        .install_default()
-        .unwrap();
+    // Only one test thread can install the process-wide crypto provider; the rest would get
+    // `CryptoProviderAlreadyInstalled`, panic, and leave the other barrier waiter hung.
+    static INSTALL_PROVIDER: std::sync::Once = std::sync::Once::new();
+    INSTALL_PROVIDER.call_once(|| {
+        rustls::crypto::aws_lc_rs::default_provider()
+            .install_default()
+            .unwrap();
+    });
 
     let root_dir = get_test_data_dir();
     let server_cert_file = root_dir.join("server.pem");
@@ -203,11 +207,17 @@ fn pretty_print_xml(xml: &str) -> Result<String, Box<dyn std::error::Error>> {
 }
 
 fn assert_xml_eq(left: &str, right: &str) {
-    if left != right {
-        let left_xml = pretty_print_xml(left).unwrap();
-        let right_xml = pretty_print_xml(right).unwrap();
+    let left_xml = pretty_print_xml(left).unwrap();
+    let right_xml = pretty_print_xml(right).unwrap();
 
-        assert_diff! {&left_xml, &right_xml, "\n", 0};
+    if left_xml != right_xml {
+        let diff = similar::TextDiff::from_lines(&left_xml, &right_xml);
+        panic!(
+            "assertion failed: XML mismatch\n{}",
+            diff.unified_diff()
+                .context_radius(0)
+                .header("actual", "expected")
+        );
     }
 }
 
@@ -228,6 +238,7 @@ pub fn run_e2e_xml_conversation(conv: &str) {
             eprintln!("{:?}", resp);
 
             resp = resp.replace("<?xml version=\"1.0\" encoding=\"utf-8\"?>", "");
+            resp = resp.replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "");
             resp = resp.replace(" />", "/>");
 
             let mut expected_resp = resps[i].to_owned();
